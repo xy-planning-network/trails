@@ -14,3 +14,4 @@ Trails is our attempt at unifying the code we've written to power a small handfu
 - [ ] Vue 3 integrations
 - [ ] Logging
 - [ ] Authentication/Authorization
+- [ ] Parsing + sending emails
