@@ -60,3 +60,18 @@ func buildCxnStr(config *CxnConfig) string {
 		config.Password,
 	)
 }
+
+// WipeDB queries for all of the tables and then drops the data in this tables.
+func WipeDB(db *gorm.DB) error {
+	var tables []string
+	err := db.
+		Table("information_schema.tables").
+		Select("table_name").
+		Where("table_schema = ?", "public").
+		Pluck("table_name", &tables).Error
+	if err != nil {
+		return err
+	}
+
+	return db.Exec(fmt.Sprintf("TRUNCATE %s CASCADE;", strings.Join(tables, ", "))).Error
+}
