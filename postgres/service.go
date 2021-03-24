@@ -78,7 +78,7 @@ func (service *DatabaseServiceImpl) PagedByQuery(models interface{}, query strin
 
 	// Conduct unlimited count query to calculate totals
 	var totalRecords int64
-	if err := service.db.Where("deleted_at IS NULL").Find(models).Count(&totalRecords).Error; err != nil {
+	if err := service.db.Where(query, params...).Model(models).Count(&totalRecords).Error; err != nil {
 		return pd, err
 	}
 
@@ -116,7 +116,7 @@ func (service *DatabaseServiceImpl) PagedByQueryFromSession(models interface{}, 
 
 	// Conduct unlimited count query to calculate totals
 	var totalRecords int64
-	if err := session.Find(models).Count(&totalRecords).Error; err != nil {
+	if err := session.Model(models).Count(&totalRecords).Error; err != nil {
 		return pd, err
 	}
 
