@@ -76,19 +76,14 @@ func (service *DatabaseServiceImpl) PagedByQuery(models interface{}, query strin
 		perPage = 10
 	}
 
-	// Conduct unlimited count query to calculate totals
+	// Calculate offset and conduct limited query with overall count
 	var totalRecords int64
-	if err := service.db.Where(query, params...).Model(models).Count(&totalRecords).Error; err != nil {
-		return pd, err
-	}
-
-	// Calculate offset and conduct limited query
 	offset := (page - 1) * perPage
 	session := service.db
 	for _, preload := range preloads {
 		session.Preload(preload)
 	}
-	if err := session.Where(query, params...).Order(order).Limit(perPage).Offset(offset).Find(models).Error; err != nil {
+	if err := session.Where(query, params...).Order(order).Limit(perPage).Offset(offset).Find(models).Count(&totalRecords).Error; err != nil {
 		return pd, err
 	}
 
@@ -114,15 +109,10 @@ func (service *DatabaseServiceImpl) PagedByQueryFromSession(models interface{}, 
 		perPage = 10
 	}
 
-	// Conduct unlimited count query to calculate totals
+	// Calculate offset and conduct limited query with overall count
 	var totalRecords int64
-	if err := session.Model(models).Count(&totalRecords).Error; err != nil {
-		return pd, err
-	}
-
-	// Calculate offset and conduct limited query
 	offset := (page - 1) * perPage
-	if err := session.Limit(perPage).Offset(offset).Find(models).Error; err != nil {
+	if err := session.Limit(perPage).Offset(offset).Find(models).Count(&totalRecords).Error; err != nil {
 		return pd, err
 	}
 
