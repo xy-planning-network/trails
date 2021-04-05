@@ -88,7 +88,7 @@ func (service *DatabaseServiceImpl) PagedByQuery(models interface{}, query strin
 	for _, preload := range preloads {
 		session.Preload(preload)
 	}
-	if err := session.Where(query, params...).Order(order).Limit(perPage).Offset(offset).Find(models).Count(&totalRecords).Error; err != nil {
+	if err := session.Where(query, params...).Order(order).Limit(perPage).Offset(offset).Find(models).Error; err != nil {
 		return pd, err
 	}
 
@@ -122,7 +122,7 @@ func (service *DatabaseServiceImpl) PagedByQueryFromSession(models interface{}, 
 
 	// Calculate offset and conduct limited query
 	offset := (page - 1) * perPage
-	if err := session.Limit(perPage).Offset(offset).Find(models).Count(&totalRecords).Error; err != nil {
+	if err := session.Limit(perPage).Offset(offset).Find(models).Error; err != nil {
 		return pd, err
 	}
 
