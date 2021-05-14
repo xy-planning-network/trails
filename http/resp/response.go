@@ -113,12 +113,12 @@ func Err(e error) Fn {
 // Flash sets a flash message with the passed in class and msg.
 func Flash(class, msg string) Fn {
 	return func(d Responder, r *Response) error {
-		// TODO
-		_, err := d.Session(r.r.Context())
+		s, err := d.Session(r.r.Context())
 		if err != nil {
 			return err
 		}
-		// s.SetFlash(r.w, r.r, class, msg)
+
+		s.SetFlash(r.w, r.r, class, msg)
 		return nil
 	}
 }

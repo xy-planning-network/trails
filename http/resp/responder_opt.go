@@ -1,12 +1,21 @@
 package resp
 
-import "html/template"
+import (
+	"html/template"
+	"net/url"
+)
 
 type ResponderOptFn func(*Responder)
 
 func WithAuthTemplate(tmpl *template.Template) func(*Responder) {
 	return func(d *Responder) {
 		d.authed = tmpl
+	}
+}
+
+func WithDefaultURL(u string) func(*Responder) {
+	return func(d *Responder) {
+		d.defaultURL, _ = url.ParseRequestURI(u)
 	}
 }
 

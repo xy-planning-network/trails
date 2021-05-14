@@ -6,10 +6,16 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
+
+	"github.com/xy-planning-network/trails/http/session"
 )
 
 type Responder struct {
 	Logger
+
+	// URL to use when in an error state
+	defaultURL *url.URL
 
 	// Base template to render when user is authenticated
 	authed *template.Template
@@ -48,12 +54,12 @@ func (doer Responder) CurrentUser(ctx context.Context) (interface{}, error) {
 }
 
 // Session retrieves the session set in the context.
-func (doer Responder) Session(ctx context.Context) (interface{}, error) {
+func (doer Responder) Session(ctx context.Context) (session.Sessionable, error) {
 	val := ctx.Value(doer.sessionKey)
 	if val == nil {
 		return nil, fmt.Errorf("%w: no session found with sessionKey", ErrNotFound)
 	}
-	return val, nil
+	return val.(session.Sessionable), nil
 }
 
 // Err is a specialized response wrapping http.Error().
@@ -191,34 +197,36 @@ func (doer *Responder) Render(w http.ResponseWriter, r *http.Request, opts ...Fn
 	/* TODO
 	tmpl := template.Must(
 		template.New(path.Base(files[0])).
-			Funcs(templateFuncs(r.user, r.r, h.Env)).
+			Funcs(templateFuncs(rr.user, r, h.Env)).
 			ParseFiles(files...),
 	)
+	*/
 
-	s, err := h.session(r.r.Context())
+	s, err := doer.Session(r.Context())
 	if err != nil {
-		d.Redirect(
-			r.w, r.r,
-			Url(routes.GetLoginURL),
-			Warn(session.NoAccessMessage),
+		doer.Redirect(
+			w, r,
+			Url(doer.defaultURL.String()),
+			//Warn(session.NoAccessMessage),
 			Code(http.StatusUnauthorized),
 		)
 		return nil
 	}
 
-	rd := struct {
+	//rd := struct {
+	_ = struct {
 		Data    map[string]interface{}
 		Flashes []interface{}
 	}{
-		Data:    r.data,
-		Flashes: s.FetchFlashes(r.w, r.r),
+		Data:    rr.data,
+		Flashes: s.FetchFlashes(w, r),
 	}
 
-	if err := tmpl.Funcs(template.FuncMap{}).Execute(r.w, rd); err != nil {
-		if err := h.RespondErr(err)(d, r); err != nil {
+	/*
+		if err := tmpl.Funcs(template.FuncMap{}).Execute(w, rd); err != nil {
+			doer.Err(w, r, err)
 			return err
 		}
-	}
 	*/
 	return nil
 }
