@@ -86,7 +86,7 @@ func (service *DatabaseServiceImpl) PagedByQuery(models interface{}, query strin
 	offset := (page - 1) * perPage
 	session := service.db
 	for _, preload := range preloads {
-		session.Preload(preload)
+		session = session.Preload(preload)
 	}
 	if err := session.Where(query, params...).Order(order).Limit(perPage).Offset(offset).Find(models).Error; err != nil {
 		return pd, err
