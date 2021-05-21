@@ -122,7 +122,7 @@ func (service *DatabaseServiceImpl) PagedByQueryFromSession(models interface{}, 
 
 	// Calculate offset and conduct limited query
 	offset := (page - 1) * perPage
-	if err := session.Limit(perPage).Offset(offset).Find(models).Error; err != nil {
+	if err := session.Session(&gorm.Session{QueryFields: true}).Limit(perPage).Offset(offset).Find(models).Error; err != nil {
 		return pd, err
 	}
 
