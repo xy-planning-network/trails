@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"html/template"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -12,12 +11,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails/http/session"
 )
 
 func TestResponseAuthed(t *testing.T) {
 	key := "test"
-	expected := &template.Template{}
-	unauthed := &template.Template{}
+	expected := "authed.tmpl"
+	unauthed := "unauthed.tmpl"
 
 	tcs := []struct {
 		name   string
@@ -30,8 +30,8 @@ func TestResponseAuthed(t *testing.T) {
 			d:    Responder{},
 			r:    &Response{},
 			assert: func(t *testing.T, r *Response, err error) {
-				require.Nil(t, err)
-				require.Nil(t, r.tmpls)
+				require.ErrorIs(t, err, ErrBadConfig)
+				require.Len(t, r.tmpls, 0)
 			},
 		},
 		{
@@ -41,15 +41,6 @@ func TestResponseAuthed(t *testing.T) {
 			assert: func(t *testing.T, r *Response, err error) {
 				require.ErrorIs(t, err, ErrNoUser)
 				require.Len(t, r.tmpls, 0)
-			},
-		},
-		{
-			name: "With-User",
-			d:    Responder{userSessionKey: key},
-			r:    &Response{},
-			assert: func(t *testing.T, r *Response, err error) {
-				require.Nil(t, err)
-				require.Nil(t, r.tmpls)
 			},
 		},
 		{
@@ -65,7 +56,7 @@ func TestResponseAuthed(t *testing.T) {
 		{
 			name: "Tmpl-Authed",
 			d:    Responder{authed: expected, userSessionKey: key},
-			r:    &Response{tmpls: []*template.Template{expected}},
+			r:    &Response{tmpls: []string{expected}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
 				require.Len(t, r.tmpls, 1)
@@ -75,7 +66,7 @@ func TestResponseAuthed(t *testing.T) {
 		{
 			name: "Tmpl-Unauthed",
 			d:    Responder{authed: expected, userSessionKey: key, unauthed: unauthed},
-			r:    &Response{tmpls: []*template.Template{unauthed}},
+			r:    &Response{tmpls: []string{unauthed}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
 				require.Len(t, r.tmpls, 1)
@@ -85,7 +76,7 @@ func TestResponseAuthed(t *testing.T) {
 		{
 			name: "Tmpls",
 			d:    Responder{authed: expected, userSessionKey: key},
-			r:    &Response{tmpls: []*template.Template{{}, {}}},
+			r:    &Response{user: struct{}{}, tmpls: []string{"test.tmpl", "example.tmpl"}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
 				require.Len(t, r.tmpls, 3)
@@ -199,11 +190,43 @@ func TestResponseErr(t *testing.T) {
 }
 
 func TestResponseFlash(t *testing.T) {
+	key := "test"
+	tcs := []struct {
+		name   string
+		d      *Responder
+		assert func(*testing.T, *Response, error)
+	}{
+		{
+			name: "No-Key",
+			d:    NewResponder(),
+			assert: func(t *testing.T, r *Response, err error) {
+				require.NotNil(t, err)
+			},
+		},
+		{
+			name: "With-Key",
+			d:    NewResponder(WithSessionKey(key)),
+			assert: func(t *testing.T, r *Response, err error) {
+				require.Nil(t, err)
+			},
+		},
+	}
 
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+			ctx := context.WithValue(req.Context(), key, session.Stub{})
+			r := &Response{r: req.WithContext(ctx), w: w}
+
+			tc.assert(t, r, Flash("", "")(*tc.d, r))
+		})
+	}
 }
 
 func TestResponseGenericErr(t *testing.T) {
-
+	// TODO
 }
 
 func TestResponseParam(t *testing.T) {
@@ -338,14 +361,14 @@ func TestResponseSuccess(t *testing.T) {
 }
 
 func TestResponseTmpls(t *testing.T) {
-	expected := &template.Template{}
+	expected := "example.tmpl"
 	tcs := []struct {
 		name  string
-		tmpls []*template.Template
+		tmpls []string
 	}{
 		{name: "Nil", tmpls: nil},
-		{name: "Zero-Value", tmpls: []*template.Template{}},
-		{name: "Tmpls", tmpls: []*template.Template{expected, expected}},
+		{name: "Zero-Value", tmpls: []string{}},
+		{name: "Tmpls", tmpls: []string{expected, expected}},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
@@ -388,53 +411,55 @@ func TestResponseTmpls(t *testing.T) {
 }
 
 func TestResponseUnauthed(t *testing.T) {
-	expected := &template.Template{}
-	authed := &template.Template{}
+	expected := "unauthed.tmpl"
+	authed := "authed.tmpl"
 	tcs := []struct {
 		name   string
 		d      Responder
 		r      *Response
-		assert func(*testing.T, *Response)
+		assert func(*testing.T, *Response, error)
 	}{
 		{
 			name: "Zero-Value",
 			d:    Responder{},
 			r:    &Response{},
-			assert: func(t *testing.T, r *Response) {
-				require.Nil(t, r.tmpls)
+			assert: func(t *testing.T, r *Response, err error) {
+				require.ErrorIs(t, err, ErrBadConfig)
 			},
 		},
 		{
 			name: "With-Unauthed",
 			d:    Responder{unauthed: expected},
 			r:    &Response{},
-			assert: func(t *testing.T, r *Response) {
+			assert: func(t *testing.T, r *Response, err error) {
+				require.Nil(t, err)
 				require.Equal(t, expected, r.tmpls[0])
 			},
 		},
 		{
 			name: "With-Unauthed-Repeat",
 			d:    Responder{unauthed: expected},
-			r:    &Response{tmpls: []*template.Template{expected}},
-			assert: func(t *testing.T, r *Response) {
+			r:    &Response{tmpls: []string{expected}},
+			assert: func(t *testing.T, r *Response, err error) {
+				require.Nil(t, err)
 				require.Equal(t, expected, r.tmpls[0])
 				require.Len(t, r.tmpls, 1)
 			},
 		},
 		{
-			name: "With-Authed",
+			name: "With-Only-Authed",
 			d:    Responder{authed: authed},
-			r:    &Response{tmpls: []*template.Template{authed}},
-			assert: func(t *testing.T, r *Response) {
-				require.Equal(t, authed, r.tmpls[0])
-				require.Len(t, r.tmpls, 1)
+			r:    &Response{tmpls: []string{authed}},
+			assert: func(t *testing.T, r *Response, err error) {
+				require.ErrorIs(t, err, ErrBadConfig)
 			},
 		},
 		{
 			name: "With-Authed-With-Unauthed",
 			d:    Responder{authed: authed, unauthed: expected},
-			r:    &Response{tmpls: []*template.Template{authed}},
-			assert: func(t *testing.T, r *Response) {
+			r:    &Response{tmpls: []string{authed}},
+			assert: func(t *testing.T, r *Response, err error) {
+				require.Nil(t, err)
 				require.Equal(t, expected, r.tmpls[0])
 				require.Len(t, r.tmpls, 1)
 			},
@@ -442,8 +467,9 @@ func TestResponseUnauthed(t *testing.T) {
 		{
 			name: "With-Tmpls",
 			d:    Responder{unauthed: expected},
-			r:    &Response{tmpls: []*template.Template{{}, {}}},
-			assert: func(t *testing.T, r *Response) {
+			r:    &Response{tmpls: []string{"test.tmpl", "example.tmpl"}},
+			assert: func(t *testing.T, r *Response, err error) {
+				require.Nil(t, err)
 				require.Equal(t, expected, r.tmpls[0])
 				require.Len(t, r.tmpls, 3)
 			},
@@ -452,12 +478,7 @@ func TestResponseUnauthed(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			// Arrange + Act
-			err := Unauthed()(tc.d, tc.r)
-
-			// Assert
-			require.Nil(t, err)
-			tc.assert(t, tc.r)
+			tc.assert(t, tc.r, Unauthed()(tc.d, tc.r))
 		})
 	}
 }
@@ -533,12 +554,12 @@ func TestResponseUrl(t *testing.T) {
 	}
 }
 
-func TestResponseWarn(t *testing.T) {
-
+func TestResponseVue(t *testing.T) {
+	// TODO
 }
 
-func TestResponseVue(t *testing.T) {
-
+func TestResponseWarn(t *testing.T) {
+	// TODO
 }
 
 type testLogger struct {

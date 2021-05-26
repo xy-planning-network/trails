@@ -15,3 +15,17 @@ type Sessionable interface {
 	SetFlash(w http.ResponseWriter, r *http.Request, class, message string)
 	UserID() (uint, error)
 }
+
+type Stub struct{}
+
+func (s Stub) Delete(w http.ResponseWriter, r *http.Request) error                    { return nil }
+func (s Stub) DeregisterUser(w http.ResponseWriter, r *http.Request) error            { return nil }
+func (s Stub) FetchFlashes(w http.ResponseWriter, r *http.Request) []interface{}      { return nil }
+func (s Stub) Get(key string) interface{}                                             { return nil }
+func (s Stub) RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error     { return nil }
+func (s Stub) Save(w http.ResponseWriter, r *http.Request) error                      { return nil }
+func (s Stub) SetFlash(w http.ResponseWriter, r *http.Request, class, message string) {}
+func (s Stub) UserID() (uint, error)                                                  { return 0, nil }
+func (s Stub) Set(w http.ResponseWriter, r *http.Request, key string, val interface{}) error {
+	return nil
+}

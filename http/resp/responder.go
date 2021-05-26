@@ -4,27 +4,46 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"net/http"
-	"net/url"
 
 	"github.com/xy-planning-network/trails/http/session"
+	"github.com/xy-planning-network/trails/http/template"
 )
 
+// Responder maintains reusable pieces for responding to HTTP requests.
+// It exposes many common methods for writing structured data as an HTTP response.
+// These are the forms of response Responder can execute:
+// 	Json
+//	Redirect
+//	Render
+//
+// Most oftentimes, setting up a single instance of a Responder suffices for an application.
+// Meaning, one needs only application-wide configuration of how HTTP responses should look.
+// Our suggestion does not exclude creating diverse Responders
+// for non-overlapping segments of an application.
+//
+// When handling a specific HTTP request, calling code supplies additional data, structure,
+// and so forth through Fn functions. While one can create functions of the same type,
+// the Responder and Response structs do not expose much - if anything - to interact with.
 type Responder struct {
 	Logger
 
 	// URL to use when in an error state
-	defaultURL *url.URL
+	// TODO(dlk): use?
+	//
+	// defaultURL *url.URL
 
-	// Base template to render when user is authenticated
-	authed *template.Template
+	// Initialized template parser
+	parser template.Parser
 
-	// Base template to render when user is not authenticated
-	unauthed *template.Template
+	// Root template to render when user is authenticated
+	authed string
+
+	// Root template to render when user is not authenticated
+	unauthed string
 
 	// Vue template to render when rendering a Vue app
-	vue *template.Template
+	vue string
 
 	// Key for pulling the entire session out of the *http.Request.Context
 	sessionKey string
@@ -35,7 +54,7 @@ type Responder struct {
 
 // NewResponder constructs a *Responder using the ResponderOptFns passed in.
 //
-// If no logger is provided, a default logger is included.
+// If calling code does not provide a Logger, NewResponder initializes a default Logger.
 func NewResponder(opts ...ResponderOptFn) *Responder {
 	d := &Responder{Logger: defaultLogger()}
 	for _, opt := range opts {
@@ -62,7 +81,7 @@ func (doer Responder) Session(ctx context.Context) (session.Sessionable, error) 
 	return val.(session.Sessionable), nil
 }
 
-// Err is a specialized response wrapping http.Error().
+// Err wraps http.Error(), logging the error causing the failure state.
 //
 // Use in exceptional circumstances when no Redirect or Render can occur.
 func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error) {
@@ -75,25 +94,25 @@ func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, msg, http.StatusInternalServerError)
 }
 
-// Json is a general response with data into JSON from User() and Data() and appropriate headers.
+// Json responds with data in JSON format, collating it from User(), Data() and setting appropriate headers.
 //
-// The JSON schema is:
+// The JSON schema will look like this:
 // {
 //	"currentUser": {},
 //	"data": {}
 // }
 //
-// Data() calls populate "data"
 // User() calls populate "currentUser"
+// Data() calls populate "data"
 func (doer *Responder) Json(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
 	rr, err := doer.do(w, r, opts...)
 	// TODO(dlk): call Error() instead of silently closing Body?
-	if rr.closeBody {
-		defer r.Body.Close()
-	}
-
 	if err != nil {
 		return err
+	}
+
+	if rr.closeBody {
+		defer r.Body.Close()
 	}
 
 	if rr.code == 0 {
@@ -119,6 +138,7 @@ func (doer *Responder) Json(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	return nil
 }
 
+/* TODO(dlk): keep?
 func (doer *Responder) Raw(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
 	rr, err := doer.do(w, r, opts...)
 	if err != nil {
@@ -143,10 +163,12 @@ func (doer *Responder) Raw(w http.ResponseWriter, r *http.Request, opts ...Fn) e
 
 	return nil
 }
+*/
 
-// Redirect is a general response calling http.Redirect given Url was called.
+// Redirect calls http.Redirect, given Url() set the redirect destination.
 //
-// If Code was called with something other than 3xx, it is overwritten with an appropriate 3xx status code.
+// If Code() set the status code to something other than standard redirect 3xx statuses,
+// Redirect overwrites the status code with an appropriate 3xx status code.
 func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
 	rr, err := doer.do(w, r, opts...)
 	// TODO(dlk): call Error() instead of silently closing Body?
@@ -175,7 +197,7 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 	return nil
 }
 
-// Render is a general response composing together HTML templates set in *Responder
+// Render composes together HTML templates set in *Responder
 // and configured by Authed, Unauthed, Tmpls and other such calls.
 func (doer *Responder) Render(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
 	rr, err := doer.do(w, r, opts...)
@@ -188,33 +210,26 @@ func (doer *Responder) Render(w http.ResponseWriter, r *http.Request, opts ...Fn
 		return err
 	}
 
-	if len(rr.tmpls) == 0 {
-		err := fmt.Errorf("%w: no templates configured for render", ErrMissingData)
-		doer.Redirect(w, r, Url(""), GenericErr(err))
-		return nil
+	if doer.parser == nil {
+		return fmt.Errorf("%w: no parser configured", ErrBadConfig)
 	}
 
-	/* TODO
-	tmpl := template.Must(
-		template.New(path.Base(files[0])).
-			Funcs(templateFuncs(rr.user, r, h.Env)).
-			ParseFiles(files...),
-	)
-	*/
+	if len(rr.tmpls) == 0 {
+		return fmt.Errorf("%w: no templates to render", ErrMissingData)
+	}
 
+	tmpl, err := doer.parser.Parse(rr.tmpls...)
+	if err != nil {
+		return fmt.Errorf("cannot parse: %w", err)
+	}
+
+	// TODO(dlk): necessary to throw error, redirect instead?
 	s, err := doer.Session(r.Context())
 	if err != nil {
-		doer.Redirect(
-			w, r,
-			Url(doer.defaultURL.String()),
-			//Warn(session.NoAccessMessage),
-			Code(http.StatusUnauthorized),
-		)
-		return nil
+		return fmt.Errorf("can't retrieve session: %w", err)
 	}
 
-	//rd := struct {
-	_ = struct {
+	rd := struct {
 		Data    map[string]interface{}
 		Flashes []interface{}
 	}{
@@ -222,12 +237,10 @@ func (doer *Responder) Render(w http.ResponseWriter, r *http.Request, opts ...Fn
 		Flashes: s.FetchFlashes(w, r),
 	}
 
-	/*
-		if err := tmpl.Funcs(template.FuncMap{}).Execute(w, rd); err != nil {
-			doer.Err(w, r, err)
-			return err
-		}
-	*/
+	if err := tmpl.ExecuteTemplate(w, rr.tmpls[0], rd); err != nil {
+		doer.Err(w, r, err)
+		return err
+	}
 	return nil
 }
 
@@ -235,19 +248,21 @@ func (doer *Responder) Render(w http.ResponseWriter, r *http.Request, opts ...Fn
 //
 // A final terminal option that writes to the http.ResponseWriter concludes the list.
 //
-// The *http.Request.Body is closed here and cannot be read from again.
+// do closes the *http.Request.Body, which no calling code can read from again.
 //
-// Options ought to be passed in the correct order. An option requiring something set by another one should come after.
+// Calling code ought to pass Options in the correct order.
+// An option requiring something set by another one should come after.
 // do nonetheless attempts to retry calling functional options until all do not return errors or,
 // a set of options unable to not return errors is reached.
-// Should all options apply successfully, the final terminal option is called.
+//
+// Should all options apply successfully, do returns a validly formed *Response.
 func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*Response, error) {
 	resp := &Response{
 		closeBody: true,
 		w:         w,
 		r:         r,
 		data:      make(map[string]interface{}),
-		tmpls:     make([]*template.Template, 0),
+		tmpls:     make([]string, 0),
 	}
 
 	var err error
@@ -292,6 +307,7 @@ func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*
 	return resp, nil
 }
 
+// redo applies as many may Options as it can, returning those Options that continue to throw an error.
 func (doer *Responder) redo(r *Response, opts ...Fn) []Fn {
 	bad := make([]Fn, 0)
 	for _, opt := range opts {

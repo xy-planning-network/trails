@@ -2,7 +2,6 @@ package resp
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
 )
@@ -21,7 +20,7 @@ type Response struct {
 	closeBody bool
 	code      int
 	data      map[string]interface{}
-	tmpls     []*template.Template
+	tmpls     []string
 	url       *url.URL
 	user      interface{}
 }
@@ -30,8 +29,8 @@ type Response struct {
 // If no user can be retrieved from the session, it is assumed a user is not logged in and throws ErrNoUser.
 func Authed() Fn {
 	return func(d Responder, r *Response) error {
-		if d.authed == nil {
-			return nil
+		if d.authed == "" {
+			return fmt.Errorf("%w: no authed tmpl", ErrBadConfig)
 		}
 
 		if r.user == nil {
@@ -56,7 +55,7 @@ func Authed() Fn {
 			}
 		}
 
-		r.tmpls = append([]*template.Template{d.authed}, r.tmpls...)
+		r.tmpls = append([]string{d.authed}, r.tmpls...)
 		return nil
 	}
 }
@@ -129,7 +128,7 @@ func GenericErr(e error) Fn {
 		if r.user == nil {
 			u, err := d.CurrentUser(r.r.Context())
 			if err != nil || u == nil {
-				return nil // TODO
+				return ErrNoUser
 			}
 
 			if err := User(u)(d, r); err != nil {
@@ -141,11 +140,11 @@ func GenericErr(e error) Fn {
 			return err
 		}
 
-		/* TODO
-		if err := Flash(session.FlashError, errorMessage)(d, r); err != nil {
+		// TODO
+		// if err := Flash(session.FlashError, errorMessage)(d, r); err != nil {
+		if err := Flash("TODO: error class", "TODO: error msg")(d, r); err != nil {
 			return err
 		}
-		*/
 
 		return nil
 	}
@@ -190,11 +189,11 @@ func Success(msg string) Fn {
 			return err
 		}
 
-		/*
-			if err := Flash(session.FlashSuccess, msg)(d, r); err != nil {
-				return err
-			}
-		*/
+		// TODO
+		// if err := Flash(session.FlashSuccess, msg)(d, r); err != nil {
+		if err := Flash("TODO: success class", "TODO: success msg")(d, r); err != nil {
+			return err
+		}
 
 		return nil
 	}
@@ -203,9 +202,9 @@ func Success(msg string) Fn {
 // Tmpls appends to the templates to be rendered.
 //
 // Used with (Responder{}).Render.
-func Tmpls(ts ...*template.Template) Fn {
+func Tmpls(fps ...string) Fn {
 	return func(_ Responder, resp *Response) error {
-		resp.tmpls = append(resp.tmpls, ts...)
+		resp.tmpls = append(resp.tmpls, fps...)
 		return nil
 	}
 }
@@ -214,8 +213,8 @@ func Tmpls(ts ...*template.Template) Fn {
 // If the first template is the base authenticated template, this overwrites it.
 func Unauthed() Fn {
 	return func(d Responder, r *Response) error {
-		if d.unauthed == nil {
-			return nil
+		if d.unauthed == "" {
+			return fmt.Errorf("%w: no unauthed tmpl", ErrBadConfig)
 		}
 
 		if len(r.tmpls) > 0 {
@@ -229,7 +228,7 @@ func Unauthed() Fn {
 			}
 		}
 
-		r.tmpls = append([]*template.Template{d.unauthed}, r.tmpls...)
+		r.tmpls = append([]string{d.unauthed}, r.tmpls...)
 		return nil
 	}
 }
@@ -293,16 +292,17 @@ func Vue(entry string) Fn {
 // Used with (Responder{}).Render and (Responder{}).Redirect.
 func Warn(msg string) Fn {
 	return func(d Responder, r *Response) error {
-		data := r.data
-		data["warning"] = msg
-		data["request"] = r.r
-		d.Warn(msg, data)
-
-		/* TODO
-		if err := Flash(session.FlashWarning, msg)(d, r); err != nil {
+		if err := Data(map[string]interface{}{"warn": msg, "request": r})(d, r); err != nil {
 			return err
 		}
-		*/
+
+		d.Warn(msg, r.data)
+
+		// TODO
+		// if err := Flash(session.FlashWarning, msg)(d, r); err != nil {
+		if err := Flash("TODO: warn class", msg)(d, r); err != nil {
+			return err
+		}
 
 		if err := Code(http.StatusBadRequest)(d, r); err != nil {
 			return err

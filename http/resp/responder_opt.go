@@ -1,27 +1,34 @@
 package resp
 
 import (
-	"html/template"
-	"net/url"
+	"github.com/xy-planning-network/trails/http/template"
 )
 
 type ResponderOptFn func(*Responder)
 
-func WithAuthTemplate(tmpl *template.Template) func(*Responder) {
+func WithAuthTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
-		d.authed = tmpl
+		d.authed = fp
 	}
 }
 
+/*
 func WithDefaultURL(u string) func(*Responder) {
 	return func(d *Responder) {
 		d.defaultURL, _ = url.ParseRequestURI(u)
 	}
 }
+*/
 
 func WithLogger(logger Logger) func(*Responder) {
 	return func(d *Responder) {
 		d.Logger = logger
+	}
+}
+
+func WithParser(p template.Parser) func(*Responder) {
+	return func(d *Responder) {
+		d.parser = p
 	}
 }
 
@@ -31,9 +38,9 @@ func WithSessionKey(key string) func(*Responder) {
 	}
 }
 
-func WithUnauthTemplate(tmpl *template.Template) func(*Responder) {
+func WithUnauthTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
-		d.unauthed = tmpl
+		d.unauthed = fp
 	}
 }
 
@@ -43,8 +50,8 @@ func WithUserSessionKey(key string) func(*Responder) {
 	}
 }
 
-func WithVueTemplate(tmpl *template.Template) func(*Responder) {
+func WithVueTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
-		d.vue = tmpl
+		d.vue = fp
 	}
 }
