@@ -272,7 +272,7 @@ func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*
 		case <-r.Context().Done():
 			return nil, fmt.Errorf("%w", ErrDone)
 		default:
-			if err := opt(*doer, resp); err != nil {
+			if err = opt(*doer, resp); err != nil {
 				redos = append(redos, opt)
 			}
 		}
@@ -295,8 +295,12 @@ func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*
 
 	// NOTE(dlk): wrapup errors to send back
 	if len(redos) != 0 {
-		for _, opt := range redos {
-			err = fmt.Errorf("%w: %s", opt(*doer, resp), err)
+		for i, opt := range redos {
+			nested := opt(*doer, resp)
+			if i == 0 {
+				continue
+			}
+			err = fmt.Errorf("%w: %s", nested, err)
 		}
 	}
 

@@ -32,17 +32,37 @@ type logger struct {
 func defaultLogger() *logger { return &logger{log.Default()} }
 
 func (l *logger) Debug(msg string, data map[string]interface{}) {
+	if data == nil {
+		l.Println(colorWhite + msg + colorClose)
+		return
+	}
 	l.Printf(colorWhite+msg+colorClose+"\n", data)
 }
 func (l *logger) Error(msg string, data map[string]interface{}) {
+	if data == nil {
+		l.Println(colorRed + msg + colorClose)
+		return
+	}
 	l.Printf(colorRed+msg+colorClose+"\n", data)
 }
 func (l *logger) Fatal(msg string, data map[string]interface{}) {
+	if data == nil {
+		l.Println(colorPink+msg+colorClose, data)
+		return
+	}
 	l.Printf(colorPink+msg+colorClose+"\n", data)
 }
 func (l *logger) Info(msg string, data map[string]interface{}) {
+	if data == nil {
+		l.Println(colorBlue + msg + colorClose)
+		return
+	}
 	l.Printf(colorBlue+msg+colorClose+"\n", data)
 }
 func (l *logger) Warn(msg string, data map[string]interface{}) {
+	if data == nil {
+		l.Println(colorYellow + msg + colorClose)
+		return
+	}
 	l.Printf(colorYellow+msg+colorClose+"\n", data)
 }
