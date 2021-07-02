@@ -68,7 +68,9 @@ func WipeDB(db *gorm.DB) error {
 		Table("information_schema.tables").
 		Select("table_name").
 		Where("table_schema = ?", "public").
-		Pluck("table_name", &tables).Error
+		Not("table_type = ?", "VIEW").
+		Pluck("table_name", &tables).
+		Error
 	if err != nil {
 		return err
 	}
