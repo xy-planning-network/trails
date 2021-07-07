@@ -33,15 +33,8 @@ func Authed() Fn {
 			return fmt.Errorf("%w: no authed tmpl", ErrBadConfig)
 		}
 
-		if r.user == nil {
-			u, err := d.CurrentUser(r.r.Context())
-			if err != nil || u == nil {
-				return ErrNoUser
-			}
-
-			if err := User(u)(d, r); err != nil {
-				return err
-			}
+		if err := populateUser(d, r); err != nil {
+			return err
 		}
 
 		if len(r.tmpls) > 0 {
@@ -125,15 +118,8 @@ func Flash(class, msg string) Fn {
 // GenericErr combines Err() and Flash() to log the passed in error and set a generic error flash.
 func GenericErr(e error) Fn {
 	return func(d Responder, r *Response) error {
-		if r.user == nil {
-			u, err := d.CurrentUser(r.r.Context())
-			if err != nil || u == nil {
-				return ErrNoUser
-			}
-
-			if err := User(u)(d, r); err != nil {
-				return err
-			}
+		if err := populateUser(d, r); err != nil {
+			return err
 		}
 
 		if err := Err(e)(d, r); err != nil {
@@ -166,16 +152,34 @@ func Param(key, val string) Fn {
 	}
 }
 
-// Props merges the passed in map under the "props" key.
-// If the key already exists in the response's data, it's value is overwritten.
+// Props first passes a new default initial "initialProps" map into Data then p.
+// If the key already exists in the response's data, it's value is overwritten, p being the final map merged.
 //
-// Used with (Responder{}).Render and Vue.
-// NOTE: Prefer Props over Data when used with Vue.
+// Used with (Responder{}).Render, specifically in conjunction with Vue.
+// Accordingly, prefer this over Data when using Vue.
+//
+// TODO(dlk): compare usage of vueProps b/w college-try & second-child
+// latter uses context injected values and renders them in the final template all as props under "initialProps"
 func Props(p map[string]interface{}) Fn {
 	return func(d Responder, r *Response) error {
-		if err := Data(map[string]interface{}{"props": p})(d, r); err != nil {
+		if err := populateUser(d, r); err != nil {
 			return err
 		}
+
+		props := map[string]interface{}{
+			"initialProps": map[string]interface{}{
+				"currentUser": r.user,
+			},
+		}
+
+		if err := Data(props)(d, r); err != nil {
+			return err
+		}
+
+		if err := Data(p)(d, r); err != nil {
+			return err
+		}
+
 		return nil
 	}
 }
@@ -266,13 +270,8 @@ func Url(u string) Fn {
 // NOTE: Prefer Props over Data to include necessary bits in the Vue template.
 func Vue(entry string) Fn {
 	return func(d Responder, r *Response) error {
-		if r.user == nil {
-			u, err := d.CurrentUser(r.r.Context())
-			if err == nil && u != nil {
-				if err := User(u)(d, r); err != nil {
-					return err
-				}
-			}
+		if err := populateUser(d, r); err != nil {
+			return err
 		}
 
 		if err := Tmpls(d.vue)(d, r); err != nil {
@@ -310,4 +309,19 @@ func Warn(msg string) Fn {
 
 		return nil
 	}
+}
+
+// populateUser helps pull a user up out of the *Response.r.Context
+// and into the *Response itself.
+func populateUser(d Responder, r *Response) error {
+	if r.user != nil {
+		return nil
+	}
+
+	u, err := d.CurrentUser(r.r.Context())
+	if err != nil || u == nil {
+		return ErrNoUser
+	}
+
+	return User(u)(d, r)
 }

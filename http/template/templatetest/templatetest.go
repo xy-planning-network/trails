@@ -1,5 +1,6 @@
 /*
 
+
 Cribbed from Mark Bates: https://www.gopherguides.com/articles/golang-1.16-io-fs-improve-test-performance
 
 */
@@ -9,16 +10,52 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"time"
 
 	"github.com/xy-planning-network/trails/http/template"
 )
 
-func NewParser(tmpls ...*MockTmpl) template.Parser { return template.NewParser(NewMockFS(tmpls...)) }
+func NewParser(tmpls ...FileMocker) template.Parser { return template.NewParser(NewMockFS(tmpls...)) }
 
-type MockFS []*MockTmpl
+type FileMocker interface {
+	fs.File
+	fs.FileInfo
+}
 
-func NewMockFS(tmpls ...*MockTmpl) fs.FS { return append(MockFS{}, tmpls...) }
+type MockFS []FileMocker
+
+func NewMockFS(tmpls ...FileMocker) fs.FS { return append(MockFS{}, tmpls...) }
+
+// Glob checks whether the pattern matches the file after removing all directory paths from
+// the respective parts.
+//
+// Buyer beware: Glob is a simplistic implementation of fs.GlobFS.
+//
+// i.e., pattern: some/long/path/*
+// will match all of the following
+// - some/long/path/myfile.txt
+// - some/long/otherfile.txt
+// - totally/different/tree/somefile.txt
+// - /rootfile.txt
+// ... etc.
+func (mfs MockFS) Glob(pattern string) ([]string, error) {
+	_, pattern = path.Split(pattern)
+	matches := []string{}
+	for _, f := range mfs {
+		n := f.Name()
+		_, filename := path.Split(n)
+		matched, err := path.Match(pattern, filename)
+		if err != nil {
+			return nil, err
+		}
+		if matched {
+			matches = append(matches, n)
+		}
+	}
+
+	return matches, nil
+}
 
 func (mfs MockFS) Open(name string) (fs.File, error) {
 	for _, f := range mfs {
@@ -30,7 +67,7 @@ func (mfs MockFS) Open(name string) (fs.File, error) {
 	return nil, &fs.PathError{Op: "read", Path: name, Err: os.ErrNotExist}
 }
 
-type MockTmpl struct {
+type MockFile struct {
 	FS      MockFS
 	data    []byte
 	isDir   bool
@@ -41,21 +78,21 @@ type MockTmpl struct {
 	sys     interface{}
 }
 
-func NewMockTmpl(name string, data []byte) *MockTmpl {
-	return &MockTmpl{data: data, name: name, size: int64(len(data))}
+func NewMockFile(name string, data []byte) FileMocker {
+	return &MockFile{data: data, name: name, size: int64(len(data))}
 }
 
-func (m *MockTmpl) Close() error               { return nil }
-func (m *MockTmpl) Name() string               { return m.name }
-func (m *MockTmpl) IsDir() bool                { return m.isDir }
-func (m *MockTmpl) Info() (fs.FileInfo, error) { return m.Stat() }
-func (m *MockTmpl) Mode() os.FileMode          { return m.mode }
-func (m *MockTmpl) ModTime() time.Time         { return m.modTime }
-func (m *MockTmpl) Size() int64                { return m.size }
-func (m *MockTmpl) Stat() (fs.FileInfo, error) { return m, nil }
-func (m *MockTmpl) Sys() interface{}           { return m.sys }
-func (m *MockTmpl) Type() fs.FileMode          { return m.Mode().Type() }
-func (m *MockTmpl) Read(p []byte) (int, error) {
+func (m *MockFile) Close() error               { return nil }
+func (m *MockFile) Name() string               { return m.name }
+func (m *MockFile) IsDir() bool                { return m.isDir }
+func (m *MockFile) Info() (fs.FileInfo, error) { return m.Stat() }
+func (m *MockFile) Mode() os.FileMode          { return m.mode }
+func (m *MockFile) ModTime() time.Time         { return m.modTime }
+func (m *MockFile) Size() int64                { return m.size }
+func (m *MockFile) Stat() (fs.FileInfo, error) { return m, nil }
+func (m *MockFile) Sys() interface{}           { return m.sys }
+func (m *MockFile) Type() fs.FileMode          { return m.Mode().Type() }
+func (m *MockFile) Read(p []byte) (int, error) {
 	copy(p, m.data)
 	return len(m.data), io.EOF
 }

@@ -308,52 +308,102 @@ func TestResponseParam(t *testing.T) {
 
 func TestResponseProps(t *testing.T) {
 	tcs := []struct {
-		name  string
-		props map[string]interface{}
+		name   string
+		d      Responder
+		r      *Response
+		props  map[string]interface{}
+		assert func(*testing.T, *Response, error)
 	}{
-		{name: "Nil", props: nil},
-		{name: "Zero-Value", props: make(map[string]interface{})},
-		{name: "With-Props", props: map[string]interface{}{"go": "rocks"}},
+		{
+			name:  "Zero-Value",
+			d:     Responder{},
+			r:     &Response{},
+			props: nil,
+			assert: func(t *testing.T, r *Response, err error) {
+				require.ErrorIs(t, err, ErrNoUser)
+			},
+		},
+		{
+			name:  "No-CurrentUser",
+			d:     Responder{},
+			r:     &Response{},
+			props: map[string]interface{}{"go": "rocks"},
+			assert: func(t *testing.T, r *Response, err error) {
+				require.ErrorIs(t, err, ErrNoUser)
+				_, ok := r.data["initialProps"]
+				require.False(t, ok)
+			},
+		},
+		{
+			name:  "With-CurrentUser",
+			d:     Responder{userSessionKey: "key"},
+			r:     &Response{},
+			props: map[string]interface{}{"go": "rocks"},
+			assert: func(t *testing.T, r *Response, err error) {
+				require.Nil(t, err)
+
+				i, ok := r.data["initialProps"]
+				require.True(t, ok)
+
+				p, ok := i.(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, "test", p["currentUser"])
+
+				require.Equal(t, "rocks", r.data["go"])
+			},
+		},
+		{
+			name:  "No-CurrentUser-With-User",
+			d:     Responder{},
+			r:     &Response{user: "test"},
+			props: map[string]interface{}{"go": "rocks"},
+			assert: func(t *testing.T, r *Response, err error) {
+				require.Nil(t, err)
+
+				i, ok := r.data["initialProps"]
+				require.True(t, ok)
+
+				p, ok := i.(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, "test", p["currentUser"])
+
+				require.Equal(t, "rocks", r.data["go"])
+			},
+		},
+		{
+			name:  "Nil-Map",
+			d:     Responder{},
+			r:     &Response{user: "test"},
+			props: nil,
+			assert: func(t *testing.T, r *Response, err error) {
+				require.Nil(t, err)
+
+				i, ok := r.data["initialProps"]
+				require.True(t, ok)
+
+				p, ok := i.(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, "test", p["currentUser"])
+			},
+		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			d := Responder{}
-			r := &Response{}
+			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+			if tc.d.userSessionKey != "" {
+				req = req.WithContext(context.WithValue(req.Context(), tc.d.userSessionKey, "test"))
+			}
+			tc.r.r = req
 
 			// Act
-			err := Props(tc.props)(d, r)
+			err := Props(tc.props)(tc.d, tc.r)
 
 			// Assert
-			require.Nil(t, err)
-			require.Equal(t, tc.props, r.data["props"])
+			tc.assert(t, tc.r, err)
 		})
 	}
-
-	t.Run("Repeat", func(t *testing.T) {
-		// Arrange
-		d := Responder{}
-		r := &Response{}
-		expected := map[string]interface{}{"go": "rocks"}
-
-		// Act
-		err := Props(expected)(d, r)
-
-		// Assert
-		require.Nil(t, err)
-		require.Equal(t, expected, r.data["props"])
-
-		// Arrange
-		expected = map[string]interface{}{"now": "me"}
-
-		// Act
-		err = Props(expected)(d, r)
-
-		// Assert
-		require.Nil(t, err)
-		require.Equal(t, expected, r.data["props"])
-	})
 }
 
 func TestResponseSuccess(t *testing.T) {

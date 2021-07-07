@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template"
@@ -28,11 +29,6 @@ import (
 type Responder struct {
 	Logger
 
-	// URL to use when in an error state
-	// TODO(dlk): use?
-	//
-	// defaultURL *url.URL
-
 	// Initialized template parser
 	parser template.Parser
 
@@ -42,24 +38,37 @@ type Responder struct {
 	// Root template to render when user is not authenticated
 	unauthed string
 
-	// Vue template to render when rendering a Vue app
-	vue string
+	// Root URL the responder is listening on, also used when in an error state
+	rootURL *url.URL
 
 	// Key for pulling the entire session out of the *http.Request.Context
 	sessionKey string
 
 	// Key for pulling the user set in the *http.Request.Context session
 	userSessionKey string
+
+	// Vue template to render when rendering a Vue app
+	vue string
 }
 
 // NewResponder constructs a *Responder using the ResponderOptFns passed in.
-//
-// If calling code does not provide a Logger, NewResponder initializes a default Logger.
 func NewResponder(opts ...ResponderOptFn) *Responder {
+	// ranging over opts may or may not overwrite defaults
+	//
+	// TODO(dlk): include default parser?
 	d := &Responder{Logger: defaultLogger()}
+
 	for _, opt := range opts {
 		opt(d)
 	}
+
+	if d.parser != nil {
+		d.parser.AddFn(template.Nonce())
+		if d.rootURL != nil {
+			d.parser.AddFn(template.RootURL(d.rootURL))
+		}
+	}
+
 	return d
 }
 
@@ -218,6 +227,10 @@ func (doer *Responder) Render(w http.ResponseWriter, r *http.Request, opts ...Fn
 		return fmt.Errorf("%w: no templates to render", ErrMissingData)
 	}
 
+	if rr.tmpls[0] == doer.authed {
+		doer.parser.AddFn(template.CurrentUser(rr.user))
+	}
+
 	tmpl, err := doer.parser.Parse(rr.tmpls...)
 	if err != nil {
 		return fmt.Errorf("cannot parse: %w", err)
@@ -241,6 +254,7 @@ func (doer *Responder) Render(w http.ResponseWriter, r *http.Request, opts ...Fn
 		doer.Err(w, r, err)
 		return err
 	}
+
 	return nil
 }
 
