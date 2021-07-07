@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"net/http"
+	"net/url"
 	"time"
 
 	. "github.com/xy-planning-network/trails/http/resp"
@@ -19,6 +20,7 @@ const (
 
 	// these refer to templates that should be available for rendering
 	base    string = "base.tmpl"
+	auth    string = "auth.tmpl"
 	content string = "content.tmpl"
 	first   string = "main.tmpl"
 	nav     string = "nav.tmpl"
@@ -41,6 +43,18 @@ func (h *Handler) root(w http.ResponseWriter, r *http.Request) {
 		"ooh":  "dataaaa",
 	}
 	if err := h.Render(w, r, Unauthed(), Tmpls(first, nav, content), Data(data)); err != nil {
+		h.Err(w, r, err)
+	}
+}
+
+// withCurrentUser is a fully-formed use of Responder passing data from resp opts to template rendering.
+//
+// in this example we show how a values provided in one response do not bleed into another.
+// to test this out, throw in differnt values into a query param: ?name=
+// then, remove it from your request to see the name resets.
+func (h *Handler) withCurrentUser(w http.ResponseWriter, r *http.Request) {
+	u := r.URL.Query().Get("name")
+	if err := h.Render(w, r, Authed(), Tmpls(first), User(struct{ Name string }{u})); err != nil {
 		h.Err(w, r, err)
 	}
 }
@@ -70,18 +84,29 @@ func injectSession(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	u, _ := url.ParseRequestURI("localhost:8081")
+
 	// allocate our parser
-	p := template.NewParser(files, template.WithFn("hammer", itsHammerTime))
+	//
+	// notably, many of the functions passed in are closures
+	// we make available to all handlers values that are like constants/globals
+	p := template.NewParser(
+		files,
+		template.WithFn("hammer", itsHammerTime),
+		template.WithFn(template.Env("EXAMPLE")),
+		template.WithFn(template.RootURL(u)),
+	)
 
 	// allocate our responder
-	d := NewResponder(WithSessionKey(key), WithParser(p), WithUnauthTemplate(base))
+	d := NewResponder(WithSessionKey(key), WithParser(p), WithAuthTemplate(auth), WithUnauthTemplate(base))
 
 	// setup routing and middleware
 	h := &Handler{d}
 	http.HandleFunc("/broken", injectSession(h.broken))
 	http.HandleFunc("/incorrect", injectSession(h.incorrect))
+	http.HandleFunc("/with-user", injectSession(h.withCurrentUser))
 	http.HandleFunc("/", injectSession(h.root))
 
 	// run the server
-	http.ListenAndServe(":8081", nil)
+	http.ListenAndServe(u.String(), nil)
 }

@@ -1,6 +1,8 @@
 package resp
 
 import (
+	"net/url"
+
 	"github.com/xy-planning-network/trails/http/template"
 )
 
@@ -12,14 +14,6 @@ func WithAuthTemplate(fp string) func(*Responder) {
 	}
 }
 
-/*
-func WithDefaultURL(u string) func(*Responder) {
-	return func(d *Responder) {
-		d.defaultURL, _ = url.ParseRequestURI(u)
-	}
-}
-*/
-
 func WithLogger(logger Logger) func(*Responder) {
 	return func(d *Responder) {
 		d.Logger = logger
@@ -29,6 +23,18 @@ func WithLogger(logger Logger) func(*Responder) {
 func WithParser(p template.Parser) func(*Responder) {
 	return func(d *Responder) {
 		d.parser = p
+	}
+}
+
+func WithRootURL(u string) func(*Responder) {
+	good, err := url.ParseRequestURI(u)
+	if err != nil {
+		good, _ = url.ParseRequestURI("https://example.com")
+	}
+
+	return func(d *Responder) {
+		d.rootURL = good
+
 	}
 }
 

@@ -338,7 +338,7 @@ func TestResponderRender(t *testing.T) {
 		},
 		{
 			name: "With-Parser-Tmpls",
-			d:    resp.NewResponder(resp.WithParser(tt.NewParser(tt.NewMockTmpl("test.tmpl", nil)))),
+			d:    resp.NewResponder(resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", nil)))),
 			fns:  []resp.Fn{resp.Tmpls("test.tmpl")},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Contains(t, err.Error(), "can't retrieve session")
@@ -347,7 +347,7 @@ func TestResponderRender(t *testing.T) {
 		{
 			name: "With-Parser-Tmpls-Session",
 			d: resp.NewResponder(
-				resp.WithParser(tt.NewParser(tt.NewMockTmpl("test.tmpl", nil))),
+				resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", nil))),
 				resp.WithSessionKey(sessionKey),
 			),
 			fns: []resp.Fn{resp.Tmpls("test.tmpl")},

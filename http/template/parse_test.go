@@ -31,7 +31,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "Empty-String",
-			parser: template.NewParser(tt.NewMockFS(tt.NewMockTmpl("", nil))),
+			parser: template.NewParser(tt.NewMockFS(tt.NewMockFile("", nil))),
 			fps:    []string{""},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.ErrorIs(t, err, template.ErrNoFiles)
@@ -40,7 +40,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "No-File",
-			parser: template.NewParser(tt.NewMockFS(tt.NewMockTmpl("", nil))),
+			parser: template.NewParser(tt.NewMockFS(tt.NewMockFile("", nil))),
 			fps:    []string{"example.tmpl"},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.NotNil(t, err)
@@ -49,7 +49,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "Empty-File",
-			parser: template.NewParser(tt.NewMockFS(tt.NewMockTmpl("example.tmpl", nil))),
+			parser: template.NewParser(tt.NewMockFS(tt.NewMockFile("example.tmpl", nil))),
 			fps:    []string{"example.tmpl"},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.Nil(t, err)
@@ -62,7 +62,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "Not-Empty-File",
-			parser: template.NewParser(tt.NewMockFS(tt.NewMockTmpl("example.tmpl", stub))),
+			parser: template.NewParser(tt.NewMockFS(tt.NewMockFile("example.tmpl", stub))),
 			fps:    []string{"example.tmpl"},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.Nil(t, err)
@@ -77,11 +77,11 @@ func TestParse(t *testing.T) {
 			name: "Many-Files",
 			parser: template.NewParser(
 				tt.NewMockFS(
-					tt.NewMockTmpl(
+					tt.NewMockFile(
 						"example.tmpl",
 						[]byte(`<!DOCTYPE html><html>{{ template "test" }}</html>`),
 					),
-					tt.NewMockTmpl(
+					tt.NewMockFile(
 						"test.tmpl",
 						[]byte(`{{ define "test" }}<p>sup</p>{{ end }}`),
 					),
@@ -101,7 +101,7 @@ func TestParse(t *testing.T) {
 			name: "With-Fns",
 			parser: template.NewParser(
 				tt.NewMockFS(
-					tt.NewMockTmpl(
+					tt.NewMockFile(
 						"example.tmpl",
 						[]byte("<!DOCTYPE html><html>{{ test }}</html>"),
 					),
