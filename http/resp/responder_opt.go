@@ -2,30 +2,74 @@ package resp
 
 import (
 	"net/url"
+	"sort"
 
 	"github.com/xy-planning-network/trails/http/template"
 )
 
 type ResponderOptFn func(*Responder)
 
+// WithAuthTemplate sets the template identified by the filepath to use for rendering
+// when a user is authenticated.
+//
+// Authed requires this option.
 func WithAuthTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
 		d.authed = fp
 	}
 }
 
+// WithCtxKeys appends the provided keys to be used for retrieving values from the *http.Request.Context.
+//
+// WithCtxKeys deduplicates keys and filters out zero-value strings.
+func WithCtxKeys(keys ...string) func(*Responder) {
+	return func(d *Responder) {
+		for _, k := range keys {
+			d.ctxKeys = append(d.ctxKeys, k)
+		}
+
+		// NOTE(dlk): cribbed from
+		// https://github.com/golang/go/wiki/SliceTricks#in-place-deduplicate-comparable
+		sort.Strings(d.ctxKeys)
+		j := 0
+		for i := 1; i < len(d.ctxKeys); i++ {
+			switch d.ctxKeys[j] {
+			case d.ctxKeys[i]:
+				continue
+			case "":
+				d.ctxKeys[j] = d.ctxKeys[i]
+				continue
+			default:
+				j++
+				d.ctxKeys[j] = d.ctxKeys[i]
+			}
+		}
+		d.ctxKeys = d.ctxKeys[:j+1]
+	}
+}
+
+// WithLogger sets the provided implementation of Logger in order to log all statements through it.
+//
+// If no Logger is provided through this option, a defaultLogger will be configured.
 func WithLogger(logger Logger) func(*Responder) {
+	if logger == nil {
+		logger = defaultLogger()
+	}
 	return func(d *Responder) {
 		d.Logger = logger
 	}
 }
 
+// WithParser sets the provided implementation of template.Parser to use for parsing HTML templates.
 func WithParser(p template.Parser) func(*Responder) {
 	return func(d *Responder) {
 		d.parser = p
 	}
 }
 
+// WithRootURL sets the provided URL after parsing it into a *url.URL to use for rendering and redirecting
+//
+// NOTE: If u fails parsing by url.ParseRequestURI, the root URL becomes https://example.com
 func WithRootURL(u string) func(*Responder) {
 	good, err := url.ParseRequestURI(u)
 	if err != nil {
@@ -38,24 +82,39 @@ func WithRootURL(u string) func(*Responder) {
 	}
 }
 
+// WithSessionKey sets the key to use for grabbing a session.Sessionable out of the *http.Request.Context
+//
+// Responder.Session requires this option.
 func WithSessionKey(key string) func(*Responder) {
 	return func(d *Responder) {
 		d.sessionKey = key
 	}
 }
 
+// WithUnauthTemplate sets the template identified by the filepath to use for rendering
+// when a user is not authenticated.
+//
+// Unauthed requires this option.
 func WithUnauthTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
 		d.unauthed = fp
 	}
 }
 
+// WithUserSessionKey sets the key to use for grabbing a user
+// out of the session.Sessionable set in the *http.Request.Context
+//
+// Responder.CurrentUser requires this option.
 func WithUserSessionKey(key string) func(*Responder) {
 	return func(d *Responder) {
 		d.userSessionKey = key
 	}
 }
 
+// WithVueTemplate sets the template identified by the filepath to use for rendering
+// a Vue client application.
+//
+// Vue requires this option.
 func WithVueTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
 		d.vue = fp

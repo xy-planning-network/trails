@@ -307,6 +307,8 @@ func TestResponseParam(t *testing.T) {
 }
 
 func TestResponseProps(t *testing.T) {
+	ctxKey := "ctx"
+	userKey := "user"
 	tcs := []struct {
 		name   string
 		d      Responder
@@ -336,7 +338,7 @@ func TestResponseProps(t *testing.T) {
 		},
 		{
 			name:  "With-CurrentUser",
-			d:     Responder{userSessionKey: "key"},
+			d:     Responder{userSessionKey: userKey},
 			r:     &Response{},
 			props: map[string]interface{}{"go": "rocks"},
 			assert: func(t *testing.T, r *Response, err error) {
@@ -386,12 +388,29 @@ func TestResponseProps(t *testing.T) {
 				require.Equal(t, "test", p["currentUser"])
 			},
 		},
+		{
+			name:  "With-CtxKeys",
+			d:     Responder{ctxKeys: []string{ctxKey}},
+			r:     &Response{user: "test"},
+			props: make(map[string]interface{}),
+			assert: func(t *testing.T, r *Response, err error) {
+				require.Nil(t, err)
+
+				i, ok := r.data["initialProps"]
+				require.True(t, ok)
+
+				p, ok := i.(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, 1, p[ctxKey])
+			},
+		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+			req = req.WithContext(context.WithValue(req.Context(), ctxKey, 1))
 			if tc.d.userSessionKey != "" {
 				req = req.WithContext(context.WithValue(req.Context(), tc.d.userSessionKey, "test"))
 			}

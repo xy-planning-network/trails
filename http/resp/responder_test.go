@@ -312,7 +312,7 @@ func TestResponderRedirect(t *testing.T) {
 	}
 }
 
-func TestResponderRender(t *testing.T) {
+func TestResponderHtml(t *testing.T) {
 	sessionKey := "test"
 	tcs := []struct {
 		name   string
@@ -364,7 +364,7 @@ func TestResponderRender(t *testing.T) {
 		r = r.WithContext(ctx)
 		w := httptest.NewRecorder()
 		t.Run(tc.name, func(t *testing.T) {
-			tc.assert(t, w, r, tc.d.Render(w, r, tc.fns...))
+			tc.assert(t, w, r, tc.d.Html(w, r, tc.fns...))
 		})
 	}
 }
