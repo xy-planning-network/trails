@@ -9,6 +9,8 @@ import (
 
 type ResponderOptFn func(*Responder)
 
+func NoopResponderOptFn(_ *Responder) {}
+
 // WithAuthTemplate sets the template identified by the filepath to use for rendering
 // when a user is authenticated.
 //
@@ -23,6 +25,9 @@ func WithAuthTemplate(fp string) func(*Responder) {
 //
 // WithCtxKeys deduplicates keys and filters out zero-value strings.
 func WithCtxKeys(keys ...string) func(*Responder) {
+	if len(keys) == 0 {
+		return NoopResponderOptFn
+	}
 	return func(d *Responder) {
 		for _, k := range keys {
 			d.ctxKeys = append(d.ctxKeys, k)

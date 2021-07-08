@@ -14,6 +14,29 @@ func TestResponderWithAuthTemplate(t *testing.T) {
 	require.Equal(t, expected, d.authed)
 }
 
+func TestResponderWithCtxKeys(t *testing.T) {
+	tcs := []struct {
+		name     string
+		keys     []string
+		expected []string
+	}{
+		{"nil", nil, nil},
+		{"zero-value", make([]string, 0), nil},
+		{"many-zero-value", make([]string, 99), []string{""}},
+		{"sorted", []string{"a", "c", "e", "d"}, []string{"a", "c", "d", "e"}},
+		{"deduped", []string{"a", "a", "a"}, []string{"a"}},
+		{"filtered-zero-value", []string{"", "a", "", "b", ""}, []string{"a", "b"}},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			d := &Responder{}
+			WithCtxKeys(tc.keys...)(d)
+			require.Equal(t, tc.expected, d.ctxKeys)
+		})
+	}
+}
+
 func TestResponderWithLogger(t *testing.T) {
 	l := defaultLogger()
 	d := NewResponder(WithLogger(l))
