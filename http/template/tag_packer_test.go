@@ -30,10 +30,34 @@ func TestTagPacker(t *testing.T) {
 	}{
 		{"env-testing", "", false, template.TagPacker("testing", nil), html.HTML("")},
 		{"env-case-matching", "", false, template.TagPacker("TeStiNG", nil), html.HTML("")},
-		{"env-dev-zero-name-js", "", false, template.TagPacker("development", nil), html.HTML(fmt.Sprintf(jsTag, fmt.Sprintf(jsAsset, "")))},
-		{"env-dev-js", "test", false, template.TagPacker("development", nil), html.HTML(fmt.Sprintf(jsTag, fmt.Sprintf(jsAsset, "test")))},
-		{"env-dev-css", "test", true, template.TagPacker("development", nil), html.HTML(fmt.Sprintf(cssTag, fmt.Sprintf(cssAsset, "test")))},
-		{"env-prod-glob-not-found", "test", false, template.TagPacker("production", nil), html.HTML(fmt.Sprintf(jsTag, "error-not-found"))},
+		{
+			"env-dev-zero-name-js",
+			"",
+			false,
+			template.TagPacker("development", nil),
+			html.HTML(fmt.Sprintf(jsTag, fmt.Sprintf(jsAsset, ""))),
+		},
+		{
+			"env-dev-js",
+			"test",
+			false,
+			template.TagPacker("development", nil),
+			html.HTML(fmt.Sprintf(jsTag, fmt.Sprintf(jsAsset, "test"))),
+		},
+		{
+			"env-dev-css",
+			"test",
+			true,
+			template.TagPacker("development", nil),
+			html.HTML(fmt.Sprintf(cssTag, fmt.Sprintf(cssAsset, "test"))),
+		},
+		{
+			"env-prod-glob-not-found",
+			"test",
+			false,
+			template.TagPacker("production", tt.NewMockFS(tt.NewMockFile("some/other/js/test.js", nil))),
+			html.HTML(fmt.Sprintf(jsTag, "error-not-found")),
+		},
 		{
 			"env-prod-js",
 			"test",
