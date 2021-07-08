@@ -14,6 +14,12 @@ func WithAuthTemplate(fp string) func(*Responder) {
 	}
 }
 
+func WithCtxInjector(injector ContextInjector) func(*Responder) {
+	return func(d *Responder) {
+		d.ContextInjector = injector
+	}
+}
+
 func WithLogger(logger Logger) func(*Responder) {
 	return func(d *Responder) {
 		d.Logger = logger

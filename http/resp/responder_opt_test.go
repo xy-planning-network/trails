@@ -14,6 +14,12 @@ func TestResponderWithAuthTemplate(t *testing.T) {
 	require.Equal(t, expected, d.authed)
 }
 
+func TestResponderWithCtxInjector(t *testing.T) {
+	expected := DefaultInjector{}
+	d := NewResponder(WithCtxInjector(DefaultInjector{}))
+	require.Equal(t, expected, d.ContextInjector)
+}
+
 func TestResponderWithLogger(t *testing.T) {
 	l := defaultLogger()
 	d := NewResponder(WithLogger(l))

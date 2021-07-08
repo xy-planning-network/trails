@@ -172,6 +172,7 @@ func Props(p map[string]interface{}) Fn {
 			},
 		}
 
+		d.Inject(props, r.r.Context())
 		if err := Data(props)(d, r); err != nil {
 			return err
 		}

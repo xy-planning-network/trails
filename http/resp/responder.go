@@ -38,6 +38,10 @@ type Responder struct {
 	// Root template to render when user is not authenticated
 	unauthed string
 
+	// Implementation of ContextInjector to use for pulling values from a *http.Request.Context
+	// and into the response.data
+	ContextInjector
+
 	// Root URL the responder is listening on, also used when in an error state
 	rootURL *url.URL
 
@@ -56,7 +60,7 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	// ranging over opts may or may not overwrite defaults
 	//
 	// TODO(dlk): include default parser?
-	d := &Responder{Logger: defaultLogger()}
+	d := &Responder{Logger: defaultLogger(), ContextInjector: NoopInjector{}}
 
 	for _, opt := range opts {
 		opt(d)

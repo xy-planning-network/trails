@@ -336,7 +336,7 @@ func TestResponseProps(t *testing.T) {
 		},
 		{
 			name:  "With-CurrentUser",
-			d:     Responder{userSessionKey: "key"},
+			d:     Responder{ContextInjector: NoopInjector{}, userSessionKey: "key"},
 			r:     &Response{},
 			props: map[string]interface{}{"go": "rocks"},
 			assert: func(t *testing.T, r *Response, err error) {
@@ -354,7 +354,7 @@ func TestResponseProps(t *testing.T) {
 		},
 		{
 			name:  "No-CurrentUser-With-User",
-			d:     Responder{},
+			d:     Responder{ContextInjector: NoopInjector{}},
 			r:     &Response{user: "test"},
 			props: map[string]interface{}{"go": "rocks"},
 			assert: func(t *testing.T, r *Response, err error) {
@@ -372,7 +372,7 @@ func TestResponseProps(t *testing.T) {
 		},
 		{
 			name:  "Nil-Map",
-			d:     Responder{},
+			d:     Responder{ContextInjector: NoopInjector{}},
 			r:     &Response{user: "test"},
 			props: nil,
 			assert: func(t *testing.T, r *Response, err error) {
@@ -386,6 +386,7 @@ func TestResponseProps(t *testing.T) {
 				require.Equal(t, "test", p["currentUser"])
 			},
 		},
+		// TODO(dlk): ContextInjector test cases?
 	}
 
 	for _, tc := range tcs {
