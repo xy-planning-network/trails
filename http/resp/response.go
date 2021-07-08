@@ -26,7 +26,10 @@ type Response struct {
 }
 
 // Authed prepends all templates with the base authenticated template and adds resp.user from the session.
-// If no user can be retrieved from the session, it is assumed a user is not logged in and throws ErrNoUser.
+//
+// If no user can be retrieved from the session, it is assumed a user is not logged in and returns ErrNoUser.
+//
+// If WithAuthTemplate was not called setting up the Responder, ErrBadConfig returns.
 func Authed() Fn {
 	return func(d Responder, r *Response) error {
 		if d.authed == "" {
@@ -64,7 +67,7 @@ func Code(c int) Fn {
 // Data merges the provided map with existing data.
 // If a key already exists, it's value is overwritten.
 //
-// Used with (Responder{}).Render and (Responder{}).Json.
+// Used with Responder.Render and Responder.Json.
 // When used with Json, this data will populate the "data" key.
 //
 // Prefer Props over Data when using with Vue if the map provided here is intended to be available
@@ -138,7 +141,7 @@ func GenericErr(e error) Fn {
 
 // Param adds they query parameter to the response's URL.
 //
-// Used with (Responder{}).Redirect.
+// Used with Responder.Redirect.
 func Param(key, val string) Fn {
 	return func(_ Responder, r *Response) error {
 		if r.url == nil {
@@ -152,31 +155,46 @@ func Param(key, val string) Fn {
 	}
 }
 
-// Props first passes a new default initial "initialProps" map into Data then p.
-// If the key already exists in the response's data, it's value is overwritten, p being the final map merged.
+// Props structures the provided data alongside default values.
 //
-// Used with (Responder{}).Render, specifically in conjunction with Vue.
+// Used with Responder.Render, specifically in conjunction with Vue.
 // Accordingly, prefer this over Data when using Vue.
 //
-// TODO(dlk): compare usage of vueProps b/w college-try & second-child
-// latter uses context injected values and renders them in the final template all as props under "initialProps"
+// Here's the schema:
+// {
+//	"initialProps": {
+//		"currentUser": r.user
+//		...key-value pairs set by d.ctxKeys
+//	},
+//	...map set by p
+// }
+//
+// Props first passes p into Data.
+// Then, Props passes a new "initialProps" map into Data then p.
+//
+// It is not required to set any keys for pulling additional values
+// out of the *http.Request.Context.
+// Use WithCtxKeys to do so when applicable.
 func Props(p map[string]interface{}) Fn {
 	return func(d Responder, r *Response) error {
 		if err := populateUser(d, r); err != nil {
 			return err
 		}
 
-		props := map[string]interface{}{
-			"initialProps": map[string]interface{}{
-				"currentUser": r.user,
-			},
-		}
-
-		if err := Data(props)(d, r); err != nil {
+		if err := Data(p)(d, r); err != nil {
 			return err
 		}
 
-		if err := Data(p)(d, r); err != nil {
+		// NOTE(dlk): for a configurable approach to this pattern,
+		// review https://github.com/xy-planning-network/trails/pull/4
+		ip := map[string]interface{}{"currentUser": r.user}
+		for _, k := range d.ctxKeys {
+			if val := r.r.Context().Value(k); val != nil {
+				ip[k] = val
+			}
+		}
+
+		if err := Data(map[string]interface{}{"initialProps": ip})(d, r); err != nil {
 			return err
 		}
 
@@ -186,14 +204,14 @@ func Props(p map[string]interface{}) Fn {
 
 // Success sets the status OK to http.StatusOK and sets a session.FlashSuccess flash with the passed in msg.
 //
-// Used with (Responder{}).Render.
+// Used with Responder.Render.
 func Success(msg string) Fn {
 	return func(d Responder, r *Response) error {
 		if err := Code(http.StatusOK)(d, r); err != nil {
 			return err
 		}
 
-		// TODO
+		// TODO(dlk)
 		// if err := Flash(session.FlashSuccess, msg)(d, r); err != nil {
 		if err := Flash("TODO: success class", "TODO: success msg")(d, r); err != nil {
 			return err
@@ -205,7 +223,7 @@ func Success(msg string) Fn {
 
 // Tmpls appends to the templates to be rendered.
 //
-// Used with (Responder{}).Render.
+// Used with Responder.Render.
 func Tmpls(fps ...string) Fn {
 	return func(_ Responder, resp *Response) error {
 		resp.tmpls = append(resp.tmpls, fps...)
@@ -215,6 +233,8 @@ func Tmpls(fps ...string) Fn {
 
 // Unauthed prepends all templates with the base unauthenticated template.
 // If the first template is the base authenticated template, this overwrites it.
+//
+// If WithUnauthTemplate was not called setting up the Responder, ErrBadConfig returns.
 func Unauthed() Fn {
 	return func(d Responder, r *Response) error {
 		if d.unauthed == "" {
@@ -239,7 +259,7 @@ func Unauthed() Fn {
 
 // User stores the user in the *Response.
 //
-// Used with (Responder{}).Render and (Responder{}).Json.
+// Used with Responder.Render and Responder.Json.
 // When used with Json, the user is assigned to the "currentUser" key.
 func User(u interface{}) Fn {
 	return func(d Responder, r *Response) error {
@@ -250,7 +270,7 @@ func User(u interface{}) Fn {
 
 // Url parses raw the URL string and sets it in the *Response if successful.
 //
-// Used with (Responder{}).Redirect.
+// Used with Responder.Redirect.
 func Url(u string) Fn {
 	return func(_ Responder, r *Response) error {
 		parsed, err := url.ParseRequestURI(u)
@@ -265,7 +285,7 @@ func Url(u string) Fn {
 // Vue appends the base Vue template to existing tmpls.
 // It adds the required entrypoint to the data to be rendered.
 //
-// Used with (Responder{}).Render.
+// Used with Responder.Render.
 //
 // NOTE: Prefer Props over Data to include necessary bits in the Vue template.
 func Vue(entry string) Fn {
@@ -288,7 +308,7 @@ func Vue(entry string) Fn {
 
 // Warn sets a flash warning in the session and status code to http.StatusBadRequest.
 //
-// Used with (Responder{}).Render and (Responder{}).Redirect.
+// Used with Responder.Render and Responder.Redirect.
 func Warn(msg string) Fn {
 	return func(d Responder, r *Response) error {
 		if err := Data(map[string]interface{}{"warn": msg, "request": r})(d, r); err != nil {

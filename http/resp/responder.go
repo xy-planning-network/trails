@@ -14,9 +14,9 @@ import (
 // Responder maintains reusable pieces for responding to HTTP requests.
 // It exposes many common methods for writing structured data as an HTTP response.
 // These are the forms of response Responder can execute:
+//	Html
 // 	Json
 //	Redirect
-//	Render
 //
 // Most oftentimes, setting up a single instance of a Responder suffices for an application.
 // Meaning, one needs only application-wide configuration of how HTTP responses should look.
@@ -40,6 +40,9 @@ type Responder struct {
 
 	// Root URL the responder is listening on, also used when in an error state
 	rootURL *url.URL
+
+	// Keys for pulling specific values out of the *http.Request.Context
+	ctxKeys []string
 
 	// Key for pulling the entire session out of the *http.Request.Context
 	sessionKey string
@@ -73,6 +76,9 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 }
 
 // CurrentUser retrieves the user set in the context.
+//
+// If WithUserSessionKey was not called setting up the Responder or the context.Context has no
+// value for that key, ErrNotFound returns.
 func (doer Responder) CurrentUser(ctx context.Context) (interface{}, error) {
 	val := ctx.Value(doer.userSessionKey)
 	if val == nil {
@@ -82,6 +88,9 @@ func (doer Responder) CurrentUser(ctx context.Context) (interface{}, error) {
 }
 
 // Session retrieves the session set in the context.
+//
+// If WithSessionKey was not called setting up the Responder or the context.Context has no
+// value for that key, ErrNotFound returns.
 func (doer Responder) Session(ctx context.Context) (session.Sessionable, error) {
 	val := ctx.Value(doer.sessionKey)
 	if val == nil {
@@ -92,7 +101,7 @@ func (doer Responder) Session(ctx context.Context) (session.Sessionable, error) 
 
 // Err wraps http.Error(), logging the error causing the failure state.
 //
-// Use in exceptional circumstances when no Redirect or Render can occur.
+// Use in exceptional circumstances when no Redirect or Html can occur.
 func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error) {
 	defer r.Body.Close()
 	var msg string
@@ -206,9 +215,9 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 	return nil
 }
 
-// Render composes together HTML templates set in *Responder
+// Html composes together HTML templates set in *Responder
 // and configured by Authed, Unauthed, Tmpls and other such calls.
-func (doer *Responder) Render(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
+func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
 	rr, err := doer.do(w, r, opts...)
 	// TODO(dlk): call Error() instead of silently closing Body?
 	if rr.closeBody {

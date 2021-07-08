@@ -7,7 +7,7 @@ In `second-child` & `college-try`, convenience methods standardizing common work
 1. JSON responses:
    - `respondJSON(w http.ResponseWriter, r *http.Request, status int, data interface{})`:
        - responds with JSON-encoded data and the passed in status code
-1. Render responses that employ `buildVueResponse` to structure the passed in data for `vue.tmpl`:
+1. Html responses that employ `buildVueResponse` to structure the passed in data for `vue.tmpl`:
     - `respondUnauthenticated(w http.ResponseWriter, r *http.Request, templateToRender string, data interface{})`:
         - renders the passed in template using the passed in data by first wrapping it in the `unauthenticated_base.tmpl`
     - `respondAuthenticated(w http.ResponseWriter, r *http.Request, templateToRender string, data interface{})`:
@@ -70,9 +70,9 @@ Notably, all of these functional options can validly be called outside `Responde
 These enumerate the ways in which a handler can respond to a request.
 ```go
 Err()        // Wrapper around http.Error as a failsafe
+Html()     // Render HTML templates
 Json()       // Serialize JSON data specified through functional opts
 Redirect()   // Redirect URL specified through functional opts
-Render()     // Render HTML templates
 ```
 
 ### Proposed Functional Options:
@@ -116,8 +116,8 @@ RespondErr(e error)
 ### ❌ Remove needless execution
 Compare these two `respond` calls:
 ```go
-Do(w, r, Err(e), Props(p), Unauthed(), Tmpls(someParsedTmpl), Render())
-Do(w, r, err(e), Props(p), Unauthed, Tmpls(someParsedTmpl), Render)
+Do(w, r, Err(e), Props(p), Unauthed(), Tmpls(someParsedTmpl), Html())
+Do(w, r, err(e), Props(p), Unauthed, Tmpls(someParsedTmpl), Html)
 ```
 The second instance omits actually calling functional options that need no initialization. The question here, then, is whether the mixture of, alternatively, executed and referenced functions leads to a confusing API surface. While the compiler and IDE would obviate a developer composing a `Do` incorrectly, it may simply look like magic why some options are executed while others are not. Referring to the function body or documentation to clarify that difference is an extra, unnecessary step in the development experience.
 
@@ -130,13 +130,13 @@ As mentioned in the trade-offs, one must include the final function that actuall
 Compare:
 ```go
 // Note on-the-fly initialization of Responder for clarity's sake; normally would be initialized already
-(Responder{}).Do(w, r, Err(e), Props(p), Unauthed(), Tmpls(someParsedTmpl), Render())
-(Responder{}).Render(w, r, Err(e), Props(p), Unauthed(), Tmpls(someParsedTmpl))
+(Responder{}).Do(w, r, Err(e), Props(p), Unauthed(), Tmpls(someParsedTmpl), Html())
+(Responder{}).Html(w, r, Err(e), Props(p), Unauthed(), Tmpls(someParsedTmpl))
 ```
-Instead of a generic `Do` function that merely controls building the `*Response` and hopes that it's a valid object, `Render`, in the above example, would perform those duties and then actually render the templates. At the moment, this would mean three response functions: `Render`, `Redirect` & `Json` replacing `Do`.
+Instead of a generic `Do` function that merely controls building the `*Response` and hopes that it's a valid object, `Html`, in the above example, would perform those duties and then actually render the templates. At the moment, this would mean three response functions: `Html`, `Redirect` & `Json` replacing `Do`.
 
 #### Adopted because:
-`Render`, `Json` and `Redirect` as `resp.Fn` terminal options breaks outside what a `resp.Fn` does: mutate a `*resp.Response`.
+`Html`, `Json` and `Redirect` as `resp.Fn` terminal options breaks outside what a `resp.Fn` does: mutate a `*resp.Response`.
 
 Requiring a dev to pick the kind of response they are composing from the outset may help keep it on rails.
 
@@ -178,7 +178,7 @@ h.respondUnauthenticated(w, r, "tmpl/unauthenticated/incident.tmpl", nil)
 ```
 to:
 ```go
-Render(w, r, Unauthed(), Tmpls("incident.tmpl"))
+Html(w, r, Unauthed(), Tmpls("incident.tmpl"))
 ```
 
 Rendering a particular page, with a Vue app, would go from:
@@ -187,7 +187,7 @@ h.respondAuthenticated(w, r, "tmpl/vue/app.tmpl", h.buildVueResponse("GetDashboa
 ```
 to:
 ```go
-Render(w, r, Authed(), Vue("GetDashboard"))
+Html(w, r, Authed(), Vue("GetDashboard"))
 ```
 
 Redirects - especially since these commonly imply error logging and setting flashes - are straightforward as well:

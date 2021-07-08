@@ -42,7 +42,7 @@ func (h *Handler) root(w http.ResponseWriter, r *http.Request) {
 		"wow":  "so data",
 		"ooh":  "dataaaa",
 	}
-	if err := h.Render(w, r, Unauthed(), Tmpls(first, nav, content), Data(data)); err != nil {
+	if err := h.Html(w, r, Unauthed(), Tmpls(first, nav, content), Data(data)); err != nil {
 		h.Err(w, r, err)
 	}
 }
@@ -54,7 +54,7 @@ func (h *Handler) root(w http.ResponseWriter, r *http.Request) {
 // then, remove it from your request to see the name resets.
 func (h *Handler) withCurrentUser(w http.ResponseWriter, r *http.Request) {
 	u := r.URL.Query().Get("name")
-	if err := h.Render(w, r, Authed(), Tmpls(first), User(struct{ Name string }{u})); err != nil {
+	if err := h.Html(w, r, Authed(), Tmpls(first), User(struct{ Name string }{u})); err != nil {
 		h.Err(w, r, err)
 	}
 }
@@ -62,14 +62,14 @@ func (h *Handler) withCurrentUser(w http.ResponseWriter, r *http.Request) {
 // incorrect shows how a template not actually referred to by the base does
 // not break our ability to call Render.
 func (h *Handler) incorrect(w http.ResponseWriter, r *http.Request) {
-	if err := h.Render(w, r, Unauthed(), Tmpls(other, nav, content)); err != nil {
+	if err := h.Html(w, r, Unauthed(), Tmpls(other, nav, content)); err != nil {
 		h.Err(w, r, err)
 	}
 }
 
 // broken cannot render because no authed template was set on the Responder.
 func (h *Handler) broken(w http.ResponseWriter, r *http.Request) {
-	if err := h.Render(w, r, Authed()); err != nil {
+	if err := h.Html(w, r, Authed()); err != nil {
 		h.Err(w, r, err)
 	}
 }
