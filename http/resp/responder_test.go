@@ -40,27 +40,6 @@ func TestResponderDo(t *testing.T) {
 		require.ErrorIs(t, err, resp.ErrDone)
 		require.Equal(t, http.StatusPaymentRequired, w.Code)
 	})
-
-	/*
-		t.Run("Status-Already-Written", func(t *testing.T) {
-			// Arrange
-			r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-
-			w := httptest.NewRecorder()
-			w.WriteHeader(http.StatusOK)
-
-			d := resp.NewResponder()
-
-			// Act
-			err := d.Raw(w, r, resp.Code(http.StatusTeapot))
-
-			// Assert
-			require.Nil(t, err)
-
-			actual := w.Result()
-			require.Equal(t, http.StatusOK, actual.StatusCode)
-		})
-	*/
 }
 
 func TestResponderCurrentUser(t *testing.T) {
