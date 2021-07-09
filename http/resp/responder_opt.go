@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/xy-planning-network/trails/http/template"
+	"github.com/xy-planning-network/trails/logger"
 )
 
 type ResponderOptFn func(*Responder)
@@ -65,12 +66,12 @@ func WithCtxKeys(keys ...string) func(*Responder) {
 // WithLogger sets the provided implementation of Logger in order to log all statements through it.
 //
 // If no Logger is provided through this option, a defaultLogger will be configured.
-func WithLogger(logger Logger) func(*Responder) {
-	if logger == nil {
-		logger = defaultLogger()
+func WithLogger(log logger.Logger) func(*Responder) {
+	if log == nil {
+		log = logger.DefaultLogger()
 	}
 	return func(d *Responder) {
-		d.Logger = logger
+		d.Logger = log
 	}
 }
 

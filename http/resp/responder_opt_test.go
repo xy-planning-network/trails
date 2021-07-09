@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template/templatetest"
+	"github.com/xy-planning-network/trails/logger"
 )
 
 func TestResponderWithAuthTemplate(t *testing.T) {
@@ -46,7 +47,7 @@ func TestResponderWithCtxKeys(t *testing.T) {
 }
 
 func TestResponderWithLogger(t *testing.T) {
-	l := defaultLogger()
+	l := logger.DefaultLogger()
 	d := NewResponder(WithLogger(l))
 	require.Equal(t, l, d.Logger)
 }

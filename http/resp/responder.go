@@ -9,6 +9,7 @@ import (
 
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template"
+	"github.com/xy-planning-network/trails/logger"
 )
 
 // Responder maintains reusable pieces for responding to HTTP requests.
@@ -27,7 +28,7 @@ import (
 // and so forth through Fn functions. While one can create functions of the same type,
 // the Responder and Response structs do not expose much - if anything - to interact with.
 type Responder struct {
-	Logger
+	logger.Logger
 
 	// Initialized template parser
 	parser template.Parser
@@ -63,7 +64,7 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	// ranging over opts may or may not overwrite defaults
 	//
 	// TODO(dlk): include default parser?
-	d := &Responder{Logger: defaultLogger()}
+	d := &Responder{Logger: logger.DefaultLogger()}
 
 	for _, opt := range opts {
 		opt(d)
@@ -94,14 +95,22 @@ func (doer Responder) CurrentUser(ctx context.Context) (interface{}, error) {
 // Err wraps http.Error(), logging the error causing the failure state.
 //
 // Use in exceptional circumstances when no Redirect or Html can occur.
-func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error) {
+func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error, opts ...Fn) {
+	rr, nested := doer.do(w, r, opts...)
 	defer r.Body.Close()
+	if nested != nil {
+		err = fmt.Errorf("%w: %s", err, nested)
+	}
+
 	var msg string
 	if err != nil {
 		msg = err.Error()
 	}
 	doer.Logger.Error(msg, nil)
-	http.Error(w, msg, http.StatusInternalServerError)
+	if rr.code == 0 {
+		rr.code = http.StatusInternalServerError
+	}
+	http.Error(w, msg, rr.code)
 }
 
 // Html composes together HTML templates set in *Responder
