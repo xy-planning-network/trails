@@ -32,6 +32,10 @@ type Responder struct {
 	// Initialized template parser
 	parser template.Parser
 
+	// Error message to use for "contact us" style client-side error messages,
+	// i.e., those set in a session.Flash
+	contactErrMsg string
+
 	// Root template to render when user is authenticated
 	authed string
 
@@ -87,18 +91,6 @@ func (doer Responder) CurrentUser(ctx context.Context) (interface{}, error) {
 	return val, nil
 }
 
-// Session retrieves the session set in the context.
-//
-// If WithSessionKey was not called setting up the Responder or the context.Context has no
-// value for that key, ErrNotFound returns.
-func (doer Responder) Session(ctx context.Context) (session.Sessionable, error) {
-	val := ctx.Value(doer.sessionKey)
-	if val == nil {
-		return nil, fmt.Errorf("%w: no session found with sessionKey", ErrNotFound)
-	}
-	return val.(session.Sessionable), nil
-}
-
 // Err wraps http.Error(), logging the error causing the failure state.
 //
 // Use in exceptional circumstances when no Redirect or Html can occur.
@@ -110,6 +102,62 @@ func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error) {
 	}
 	doer.Logger.Error(msg, nil)
 	http.Error(w, msg, http.StatusInternalServerError)
+}
+
+// Html composes together HTML templates set in *Responder
+// and configured by Authed, Unauthed, Tmpls and other such calls.
+func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
+	rr, err := doer.do(w, r, opts...)
+	// TODO(dlk): call Error() instead of silently closing Body?
+	if rr.closeBody {
+		defer r.Body.Close()
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if doer.parser == nil {
+		return fmt.Errorf("%w: no parser configured", ErrBadConfig)
+	}
+
+	if len(rr.tmpls) == 0 {
+		return fmt.Errorf("%w: no templates to render", ErrMissingData)
+	}
+
+	if rr.tmpls[0] == doer.authed {
+		// NOTE(dlk): a user is required for an authenticated context
+		if err := populateUser(*doer, rr); err != nil {
+			return err
+		}
+		doer.parser.AddFn(template.CurrentUser(rr.user))
+	}
+
+	tmpl, err := doer.parser.Parse(rr.tmpls...)
+	if err != nil {
+		return fmt.Errorf("cannot parse: %w", err)
+	}
+
+	// TODO(dlk): necessary to throw error, redirect instead?
+	s, err := doer.Session(r.Context())
+	if err != nil {
+		return fmt.Errorf("can't retrieve session: %w", err)
+	}
+
+	rd := struct {
+		Data    map[string]interface{}
+		Flashes []session.Flash
+	}{
+		Data:    rr.data,
+		Flashes: s.Flashes(w, r),
+	}
+
+	if err := tmpl.ExecuteTemplate(w, rr.tmpls[0], rd); err != nil {
+		doer.Err(w, r, err)
+		return err
+	}
+
+	return nil
 }
 
 // Json responds with data in JSON format, collating it from User(), Data() and setting appropriate headers.
@@ -215,61 +263,26 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 	return nil
 }
 
-// Html composes together HTML templates set in *Responder
-// and configured by Authed, Unauthed, Tmpls and other such calls.
-func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
-	rr, err := doer.do(w, r, opts...)
-	// TODO(dlk): call Error() instead of silently closing Body?
-	if rr.closeBody {
-		defer r.Body.Close()
+// Session retrieves the session set in the context as a session.FlashSessionable.
+//
+// session.FlashSessionable identifies the minimal functionality required for resp
+// but could be swap out for a more expansive interface such as session.TrailsSessionable.
+//
+// If WithSessionKey was not called setting up the Responder or the context.Context has no
+// value for that key, ErrNotFound returns.
+func (doer Responder) Session(ctx context.Context) (session.FlashSessionable, error) {
+	val := ctx.Value(doer.sessionKey)
+	if val == nil {
+		return nil, fmt.Errorf("%w: no session found with sessionKey", ErrNotFound)
 	}
-
-	if err != nil {
-		return err
+	s, ok := val.(session.FlashSessionable)
+	if !ok {
+		return nil, fmt.Errorf("%w: does not implement session.FlashSessionable", ErrInvalid)
 	}
-
-	if doer.parser == nil {
-		return fmt.Errorf("%w: no parser configured", ErrBadConfig)
-	}
-
-	if len(rr.tmpls) == 0 {
-		return fmt.Errorf("%w: no templates to render", ErrMissingData)
-	}
-
-	if rr.tmpls[0] == doer.authed {
-		doer.parser.AddFn(template.CurrentUser(rr.user))
-	}
-
-	tmpl, err := doer.parser.Parse(rr.tmpls...)
-	if err != nil {
-		return fmt.Errorf("cannot parse: %w", err)
-	}
-
-	// TODO(dlk): necessary to throw error, redirect instead?
-	s, err := doer.Session(r.Context())
-	if err != nil {
-		return fmt.Errorf("can't retrieve session: %w", err)
-	}
-
-	rd := struct {
-		Data    map[string]interface{}
-		Flashes []interface{}
-	}{
-		Data:    rr.data,
-		Flashes: s.FetchFlashes(w, r),
-	}
-
-	if err := tmpl.ExecuteTemplate(w, rr.tmpls[0], rd); err != nil {
-		doer.Err(w, r, err)
-		return err
-	}
-
-	return nil
+	return s, nil
 }
 
 // do applies all options to the passed in http.ResponseWriter and *http.Request.
-//
-// A final terminal option that writes to the http.ResponseWriter concludes the list.
 //
 // do closes the *http.Request.Body, which no calling code can read from again.
 //

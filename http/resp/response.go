@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	"github.com/xy-planning-network/trails/http/session"
 )
 
 // A Fn is a functional option that mutates the state of the Response.
@@ -67,7 +69,7 @@ func Code(c int) Fn {
 // Data merges the provided map with existing data.
 // If a key already exists, it's value is overwritten.
 //
-// Used with Responder.Render and Responder.Json.
+// Used with Responder.Html and Responder.Json.
 // When used with Json, this data will populate the "data" key.
 //
 // Prefer Props over Data when using with Vue if the map provided here is intended to be available
@@ -89,12 +91,12 @@ func Data(d map[string]interface{}) Fn {
 // Err sets the status code http.StatusInternalServerError and logs the error.
 func Err(e error) Fn {
 	return func(d Responder, r *Response) error {
-		if err := Data(map[string]interface{}{"error": e, "request": r.r})(d, r); err != nil {
-			return err
-		}
-
 		if e != nil {
-			d.Error(e.Error(), r.data)
+			logData := map[string]interface{}{"error": e, "request": r.r}
+			for k, v := range r.data {
+				logData[k] = v
+			}
+			d.Error(e.Error(), logData)
 		}
 
 		if err := Code(http.StatusInternalServerError)(d, r); err != nil {
@@ -105,33 +107,33 @@ func Err(e error) Fn {
 	}
 }
 
-// Flash sets a flash message with the passed in class and msg.
-func Flash(class, msg string) Fn {
+// Flash sets a flash message in the session with the passed in class and msg.
+func Flash(flash session.Flash) Fn {
 	return func(d Responder, r *Response) error {
 		s, err := d.Session(r.r.Context())
 		if err != nil {
 			return err
 		}
 
-		s.SetFlash(r.w, r.r, class, msg)
+		s.SetFlash(r.w, r.r, flash)
 		return nil
 	}
 }
 
-// GenericErr combines Err() and Flash() to log the passed in error and set a generic error flash.
+// GenericErr combines Err() and Flash() to log the passed in error
+// and set a generic error flash in the session
+// using either the string set by WithContactErrMsg or session.DefaultErrMsg.
 func GenericErr(e error) Fn {
 	return func(d Responder, r *Response) error {
-		if err := populateUser(d, r); err != nil {
-			return err
-		}
-
 		if err := Err(e)(d, r); err != nil {
 			return err
 		}
 
-		// TODO
-		// if err := Flash(session.FlashError, errorMessage)(d, r); err != nil {
-		if err := Flash("TODO: error class", "TODO: error msg")(d, r); err != nil {
+		msg := session.DefaultErrMsg
+		if d.contactErrMsg != "" {
+			msg = d.contactErrMsg
+		}
+		if err := Flash(session.Flash{Class: session.FlashError, Msg: msg})(d, r); err != nil {
 			return err
 		}
 
@@ -157,7 +159,7 @@ func Param(key, val string) Fn {
 
 // Props structures the provided data alongside default values.
 //
-// Used with Responder.Render, specifically in conjunction with Vue.
+// Used with Responder.Html, specifically in conjunction with Vue.
 // Accordingly, prefer this over Data when using Vue.
 //
 // Here's the schema:
@@ -202,18 +204,17 @@ func Props(p map[string]interface{}) Fn {
 	}
 }
 
-// Success sets the status OK to http.StatusOK and sets a session.FlashSuccess flash with the passed in msg.
+// Success sets the status OK to http.StatusOK
+// and sets a session.FlashSuccess flash in the session with the passed in msg.
 //
-// Used with Responder.Render.
+// Used with Responder.Html.
 func Success(msg string) Fn {
 	return func(d Responder, r *Response) error {
 		if err := Code(http.StatusOK)(d, r); err != nil {
 			return err
 		}
 
-		// TODO(dlk)
-		// if err := Flash(session.FlashSuccess, msg)(d, r); err != nil {
-		if err := Flash("TODO: success class", "TODO: success msg")(d, r); err != nil {
+		if err := Flash(session.Flash{Class: session.FlashSuccess, Msg: msg})(d, r); err != nil {
 			return err
 		}
 
@@ -223,7 +224,7 @@ func Success(msg string) Fn {
 
 // Tmpls appends to the templates to be rendered.
 //
-// Used with Responder.Render.
+// Used with Responder.Html.
 func Tmpls(fps ...string) Fn {
 	return func(_ Responder, resp *Response) error {
 		resp.tmpls = append(resp.tmpls, fps...)
@@ -259,7 +260,7 @@ func Unauthed() Fn {
 
 // User stores the user in the *Response.
 //
-// Used with Responder.Render and Responder.Json.
+// Used with Responder.Html and Responder.Json.
 // When used with Json, the user is assigned to the "currentUser" key.
 func User(u interface{}) Fn {
 	return func(d Responder, r *Response) error {
@@ -285,15 +286,14 @@ func Url(u string) Fn {
 // Vue appends the base Vue template to existing tmpls.
 // It adds the required entrypoint to the data to be rendered.
 //
-// Used with Responder.Render.
+// Used with Responder.Html.
 //
 // NOTE: Prefer Props over Data to include necessary bits in the Vue template.
 func Vue(entry string) Fn {
 	return func(d Responder, r *Response) error {
-		if err := populateUser(d, r); err != nil {
-			return err
+		if d.vue == "" || entry == "" {
+			return nil
 		}
-
 		if err := Tmpls(d.vue)(d, r); err != nil {
 			return err
 		}
@@ -306,24 +306,17 @@ func Vue(entry string) Fn {
 	}
 }
 
-// Warn sets a flash warning in the session and status code to http.StatusBadRequest.
-//
-// Used with Responder.Render and Responder.Redirect.
+// Warn sets a flash warning in the session and logs the warning.
 func Warn(msg string) Fn {
 	return func(d Responder, r *Response) error {
-		if err := Data(map[string]interface{}{"warn": msg, "request": r})(d, r); err != nil {
-			return err
+		logData := map[string]interface{}{"warn": msg, "request": r.r}
+		for k, v := range r.data {
+			logData[k] = v
 		}
 
-		d.Warn(msg, r.data)
+		d.Warn(msg, logData)
 
-		// TODO
-		// if err := Flash(session.FlashWarning, msg)(d, r); err != nil {
-		if err := Flash("TODO: warn class", msg)(d, r); err != nil {
-			return err
-		}
-
-		if err := Code(http.StatusBadRequest)(d, r); err != nil {
+		if err := Flash(session.Flash{Class: session.FlashWarning, Msg: msg})(d, r); err != nil {
 			return err
 		}
 

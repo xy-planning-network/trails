@@ -21,6 +21,15 @@ func WithAuthTemplate(fp string) func(*Responder) {
 	}
 }
 
+// WithContactErrMsg sets the error message to use for error Flashes.
+//
+// We recommend using session.ContactUsErr as a template.
+func WithContactErrMsg(msg string) func(*Responder) {
+	return func(d *Responder) {
+		d.contactErrMsg = msg
+	}
+}
+
 // WithCtxKeys appends the provided keys to be used for retrieving values from the *http.Request.Context.
 //
 // WithCtxKeys deduplicates keys and filters out zero-value strings.
@@ -33,8 +42,8 @@ func WithCtxKeys(keys ...string) func(*Responder) {
 			d.ctxKeys = append(d.ctxKeys, k)
 		}
 
-		// NOTE(dlk): cribbed from
-		// https://github.com/golang/go/wiki/SliceTricks#in-place-deduplicate-comparable
+		// NOTE(dlk): filter and deduplicate strings
+		// cribbed from: https://github.com/golang/go/wiki/SliceTricks#in-place-deduplicate-comparable
 		sort.Strings(d.ctxKeys)
 		j := 0
 		for i := 1; i < len(d.ctxKeys); i++ {

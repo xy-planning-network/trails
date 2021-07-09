@@ -1,10 +1,12 @@
 package resp
 
 import (
+	"fmt"
 	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template/templatetest"
 )
 
@@ -12,6 +14,12 @@ func TestResponderWithAuthTemplate(t *testing.T) {
 	expected := "test.tmpl"
 	d := NewResponder(WithAuthTemplate(expected))
 	require.Equal(t, expected, d.authed)
+}
+
+func TestResponderWithContactErrMsg(t *testing.T) {
+	expected := fmt.Sprintf(session.ContactUsErr, "us@example.com")
+	d := NewResponder(WithContactErrMsg(expected))
+	require.Equal(t, expected, d.contactErrMsg)
 }
 
 func TestResponderWithCtxKeys(t *testing.T) {
