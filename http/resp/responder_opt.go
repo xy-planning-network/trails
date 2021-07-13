@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/xy-planning-network/trails/http/template"
+	"github.com/xy-planning-network/trails/logger"
 )
 
 type ResponderOptFn func(*Responder)
@@ -65,12 +66,12 @@ func WithCtxKeys(keys ...string) func(*Responder) {
 // WithLogger sets the provided implementation of Logger in order to log all statements through it.
 //
 // If no Logger is provided through this option, a defaultLogger will be configured.
-func WithLogger(logger Logger) func(*Responder) {
-	if logger == nil {
-		logger = defaultLogger()
+func WithLogger(log logger.Logger) func(*Responder) {
+	if log == nil {
+		log = logger.DefaultLogger()
 	}
 	return func(d *Responder) {
-		d.Logger = logger
+		d.Logger = log
 	}
 }
 
@@ -81,17 +82,17 @@ func WithParser(p template.Parser) func(*Responder) {
 	}
 }
 
-// WithRootURL sets the provided URL after parsing it into a *url.URL to use for rendering and redirecting
+// WithRootUrl sets the provided URL after parsing it into a *url.URL to use for rendering and redirecting
 //
 // NOTE: If u fails parsing by url.ParseRequestURI, the root URL becomes https://example.com
-func WithRootURL(u string) func(*Responder) {
+func WithRootUrl(u string) func(*Responder) {
 	good, err := url.ParseRequestURI(u)
 	if err != nil {
 		good, _ = url.ParseRequestURI("https://example.com")
 	}
 
 	return func(d *Responder) {
-		d.rootURL = good
+		d.rootUrl = good
 
 	}
 }

@@ -93,7 +93,7 @@ func TestNonce(t *testing.T) {
 
 }
 
-func TestRootURL(t *testing.T) {
+func TestRootUrl(t *testing.T) {
 	// Arrange
 	example, err := url.ParseRequestURI("https://example.com")
 	require.Nil(t, err)
@@ -111,10 +111,10 @@ func TestRootURL(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// Act
-			name, fn := RootURL(tc.actual)
+			name, fn := RootUrl(tc.actual)
 
 			// Assert
-			require.Equal(t, "rootURL", name)
+			require.Equal(t, "rootUrl", name)
 			require.Equal(t, tc.expected, fn())
 		})
 	}

@@ -6,13 +6,18 @@ import (
 	gorilla "github.com/gorilla/sessions"
 )
 
-const userSessionKey = "trails/session/gorilla/user"
+// keys used internal to specific implementations of different interfaces.
+const (
+	sessionKey     = "trails/session/gorilla" // used by Service
+	userSessionKey = sessionKey + "/user"     // used by Session
+)
 
 // The Sessionable wraps methods for basic adding values to, deleting, and getting values from a session
-// and saving those to the session store.
+// associated with an *http.Request and saving those to the session store.
 type Sessionable interface {
 	Delete(w http.ResponseWriter, r *http.Request) error
 	Get(key string) interface{}
+	ResetExpiry(w http.ResponseWriter, r *http.Request) error
 	Save(w http.ResponseWriter, r *http.Request) error
 	Set(w http.ResponseWriter, r *http.Request, key string, val interface{}) error
 }
@@ -48,6 +53,11 @@ type Session struct {
 // Typical usage is to pass in the value retrieved from a http.Request.Context.
 // Given context keys are unexported, this package cannot perform that retrieval.
 func NewSession(g *gorilla.Session) TrailsSessionable { return Session{s: g} }
+
+func (s Session) ClearFlashes(w http.ResponseWriter, r *http.Request) {
+	_ = s.Flashes(w, r)
+	return
+}
 
 // Delete removes a session by making the MaxAge negative.
 func (s Session) Delete(w http.ResponseWriter, r *http.Request) error {
@@ -89,9 +99,14 @@ func (s Session) Get(key string) interface{} {
 	return s.s.Values[key]
 }
 
-// RegisterUserSession stores the user's ID in the session
+// RegisterUserSession stores the user's ID in the session.
 func (s Session) RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error {
 	s.s.Values[userSessionKey] = ID
+	return s.Save(w, r)
+}
+
+// ResetExpiry resets the expiration of the session by saving it.
+func (s Session) ResetExpiry(w http.ResponseWriter, r *http.Request) error {
 	return s.Save(w, r)
 }
 
@@ -132,28 +147,18 @@ func (s Session) UserID() (uint, error) {
 
 var _ TrailsSessionable = Stub{}
 
-type Stub struct {
-	FlashStub
-	SessionStub
-	UserStub
-}
+type Stub struct{}
 
-type FlashStub struct{}
-
-func (s FlashStub) Flashes(w http.ResponseWriter, r *http.Request) []Flash             { return nil }
-func (s FlashStub) SetFlash(w http.ResponseWriter, r *http.Request, flash Flash) error { return nil }
-
-type SessionStub struct{}
-
-func (s SessionStub) Delete(w http.ResponseWriter, r *http.Request) error { return nil }
-func (s SessionStub) Get(key string) interface{}                          { return nil }
-func (s SessionStub) Save(w http.ResponseWriter, r *http.Request) error   { return nil }
-func (s SessionStub) Set(w http.ResponseWriter, r *http.Request, key string, val interface{}) error {
+func (s Stub) ClearFlashes(w http.ResponseWriter, r *http.Request)                {}
+func (s Stub) Flashes(w http.ResponseWriter, r *http.Request) []Flash             { return nil }
+func (s Stub) SetFlash(w http.ResponseWriter, r *http.Request, flash Flash) error { return nil }
+func (s Stub) Delete(w http.ResponseWriter, r *http.Request) error                { return nil }
+func (s Stub) Get(key string) interface{}                                         { return nil }
+func (s Stub) ResetExpiry(w http.ResponseWriter, r *http.Request) error           { return nil }
+func (s Stub) Save(w http.ResponseWriter, r *http.Request) error                  { return nil }
+func (s Stub) Set(w http.ResponseWriter, r *http.Request, key string, val interface{}) error {
 	return nil
 }
-
-type UserStub struct{}
-
-func (s UserStub) DeregisterUser(w http.ResponseWriter, r *http.Request) error        { return nil }
-func (s UserStub) RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error { return nil }
-func (s UserStub) UserID() (uint, error)                                              { return 0, nil }
+func (s Stub) DeregisterUser(w http.ResponseWriter, r *http.Request) error        { return nil }
+func (s Stub) RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error { return nil }
+func (s Stub) UserID() (uint, error)                                              { return 0, nil }

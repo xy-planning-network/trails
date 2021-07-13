@@ -84,12 +84,17 @@ func TestResponderErr(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		r := httptest.NewRequest("GET", "http://example.com", nil)
-		w := httptest.NewRecorder()
-		l := newLogger()
-		d := resp.NewResponder(resp.WithLogger(l))
 		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			r := httptest.NewRequest("GET", "http://example.com", nil)
+			w := httptest.NewRecorder()
+			l := newLogger()
+			d := resp.NewResponder(resp.WithLogger(l))
+
+			// Act
 			d.Err(w, r, tc.expected)
+
+			// Assert
 			require.Equal(t, http.StatusInternalServerError, w.Code)
 			if tc.expected != nil {
 				require.Equal(t, tc.expected.Error(), l.b.String())

@@ -226,8 +226,16 @@ func Success(msg string) Fn {
 //
 // Used with Responder.Html.
 func Tmpls(fps ...string) Fn {
-	return func(_ Responder, resp *Response) error {
-		resp.tmpls = append(resp.tmpls, fps...)
+	return func(_ Responder, r *Response) error {
+		r.tmpls = append(r.tmpls, fps...)
+		return nil
+	}
+}
+
+// ToRoot calls URL with the Responder's default, root URL.
+func ToRoot() Fn {
+	return func(d Responder, r *Response) error {
+		r.url = d.rootUrl
 		return nil
 	}
 }

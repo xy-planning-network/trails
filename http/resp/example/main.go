@@ -94,7 +94,7 @@ func main() {
 		files,
 		template.WithFn("hammer", itsHammerTime),
 		template.WithFn(template.Env("EXAMPLE")),
-		template.WithFn(template.RootURL(u)),
+		template.WithFn(template.RootUrl(u)),
 	)
 
 	// allocate our responder
