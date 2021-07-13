@@ -12,7 +12,13 @@ import (
 //
 // LogRequest scrubs the values for the following keys:
 // - password
+//
+// if logger.Logger is nil, NoopAdapter returns and this middleware does nothing.
 func LogRequest(ls logger.Logger) Adapter {
+	if ls == nil {
+		return NoopAdapter
+	}
+
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			uri := r.URL.Path

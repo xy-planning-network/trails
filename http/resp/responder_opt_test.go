@@ -58,18 +58,18 @@ func TestResponderWithParser(t *testing.T) {
 	require.Equal(t, p, d.parser)
 }
 
-func TestResponderWithRootURL(t *testing.T) {
+func TestResponderWithRootUrl(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		u, _ := url.ParseRequestURI("https://example.com")
 		expected := u.String()
-		d := NewResponder(WithRootURL("https://example.com"))
-		require.Equal(t, expected, d.rootURL.String())
+		d := NewResponder(WithRootUrl("https://example.com"))
+		require.Equal(t, expected, d.rootUrl.String())
 	})
 
 	t.Run("Null-Byte", func(t *testing.T) {
 		expected := "https://example.com"
-		d := NewResponder(WithRootURL(string('\x00')))
-		require.Equal(t, expected, d.rootURL.String())
+		d := NewResponder(WithRootUrl(string('\x00')))
+		require.Equal(t, expected, d.rootUrl.String())
 	})
 }
 

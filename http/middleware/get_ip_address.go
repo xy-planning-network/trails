@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const IpAddrCtxKey = "trails/middleware/ip-address"
+const IpAddrCtxKey = "trails/middleware/ip-address" // TODO(dlk): change to key provided by app?
 
 // An ipRange is a range of IP addresses.
 type ipRange struct {
@@ -34,13 +34,22 @@ var privateRanges = []ipRange{
 	{start: net.ParseIP("198.18.0.0"), end: net.ParseIP("198.19.255.255")},
 }
 
-// SetIPAddress sets the ip in the *http.Request.Context
-func SetIPAddress(r *http.Request, ip string) {
-	r = r.Clone(context.WithValue(r.Context(), IpAddrCtxKey, ip))
+// InjectIPAddress grabs the IP address in the *http.Request.Header
+// and promotes it to *http.Request.Context under IpAddrCtxKey.
+func InjectIPAddress() Adapter {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := GetIPAddress(r.Header)
+			r = r.Clone(context.WithValue(r.Context(), IpAddrCtxKey, ip))
+			h.ServeHTTP(w, r)
+		})
+	}
 }
 
 // GetIPAddress parses "X-Forward-For" and "X-Real-Ip" headers for the IP address
 // from the request.
+//
+// GetIPAddress skips addresses from non-public ranges.
 func GetIPAddress(hm http.Header) string {
 	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {
 		addresses := strings.Split(hm.Get(h), ",")
@@ -48,10 +57,8 @@ func GetIPAddress(hm http.Header) string {
 		// that will be the address right before our proxy.
 		for i := len(addresses) - 1; i >= 0; i-- {
 			ip := strings.TrimSpace(addresses[i])
-			// header can contain spaces too, strip those out.
 			realIP := net.ParseIP(ip)
 			if !realIP.IsGlobalUnicast() || isPrivateSubnet(realIP) {
-				// bad address, go to next
 				continue
 			}
 			return ip
@@ -60,7 +67,7 @@ func GetIPAddress(hm http.Header) string {
 	return "0.0.0.0"
 }
 
-// isPrivateSubnet checks wheter the ip is in a private subnet.
+// isPrivateSubnet checks whether the IP address is in a private subnet.
 //
 // Only IPv4 subnets are supported.
 func isPrivateSubnet(ipAddress net.IP) bool {

@@ -1,7 +1,6 @@
 package middleware_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -14,6 +13,13 @@ import (
 )
 
 func TestLogRequest(t *testing.T) {
+	// Arrange + Act
+	actual := middleware.LogRequest(nil)
+
+	// Assert
+	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", actual))
+
+	// Arrange
 	tcs := []struct {
 		name     string
 		method   string
@@ -51,22 +57,10 @@ func TestLogRequest(t *testing.T) {
 			}
 
 			// Act
-			middleware.LogRequest(l)(NoopHandler()).ServeHTTP(w, r)
+			middleware.LogRequest(l)(noopHandler()).ServeHTTP(w, r)
 
 			// Assert
 			require.Equal(t, tc.expected, l.String())
 		})
 	}
 }
-
-type testLogger struct {
-	*bytes.Buffer
-}
-
-func newLogger() testLogger { return testLogger{new(bytes.Buffer)} }
-
-func (tl testLogger) Debug(msg string, _ map[string]interface{}) { fmt.Fprint(tl, msg) }
-func (tl testLogger) Error(msg string, _ map[string]interface{}) { fmt.Fprint(tl, msg) }
-func (tl testLogger) Fatal(msg string, _ map[string]interface{}) { fmt.Fprint(tl, msg) }
-func (tl testLogger) Info(msg string, _ map[string]interface{})  { fmt.Fprint(tl, msg) }
-func (tl testLogger) Warn(msg string, _ map[string]interface{})  { fmt.Fprint(tl, msg) }

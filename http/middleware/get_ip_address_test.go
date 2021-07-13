@@ -2,11 +2,43 @@ package middleware_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xy-planning-network/trails/http/middleware"
 )
+
+func TestInjectIPAddress(t *testing.T) {
+	// Arrange
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+
+	// Act
+	actual := middleware.InjectIPAddress()
+
+	// Assert
+	actual(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
+		val, ok := rx.Context().Value(middleware.IpAddrCtxKey).(string)
+		require.True(t, ok)
+		require.Equal(t, "0.0.0.0", val)
+	})).ServeHTTP(w, r)
+
+	// Arrange
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	r.Header.Set("X-Real-Ip", "1.1.1.1")
+
+	// Act
+	actual = middleware.InjectIPAddress()
+
+	// Assert
+	actual(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
+		val, ok := rx.Context().Value(middleware.IpAddrCtxKey).(string)
+		require.True(t, ok)
+		require.Equal(t, "1.1.1.1", val)
+	})).ServeHTTP(w, r)
+}
 
 func TestGetIPAddress(t *testing.T) {
 	tcs := []struct {

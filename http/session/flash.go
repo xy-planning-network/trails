@@ -23,6 +23,7 @@ const (
 var ContactUsErr = DefaultErrMsg + " Please contact us at %s if the issue persists."
 
 type FlashSessionable interface {
+	ClearFlashes(w http.ResponseWriter, r *http.Request)
 	Flashes(w http.ResponseWriter, r *http.Request) []Flash
 	SetFlash(w http.ResponseWriter, r *http.Request, flash Flash) error
 }

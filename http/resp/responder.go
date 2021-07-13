@@ -44,7 +44,7 @@ type Responder struct {
 	unauthed string
 
 	// Root URL the responder is listening on, also used when in an error state
-	rootURL *url.URL
+	rootUrl *url.URL
 
 	// Keys for pulling specific values out of the *http.Request.Context
 	ctxKeys []string
@@ -60,6 +60,8 @@ type Responder struct {
 }
 
 // NewResponder constructs a *Responder using the ResponderOptFns passed in.
+//
+// TODO(dlk): make setting root url required arg? + cannot redirect in err state w/o
 func NewResponder(opts ...ResponderOptFn) *Responder {
 	// ranging over opts may or may not overwrite defaults
 	//
@@ -72,8 +74,8 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 
 	if d.parser != nil {
 		d.parser.AddFn(template.Nonce())
-		if d.rootURL != nil {
-			d.parser.AddFn(template.RootURL(d.rootURL))
+		if d.rootUrl != nil {
+			d.parser.AddFn(template.RootUrl(d.rootUrl))
 		}
 	}
 
@@ -245,7 +247,7 @@ func (doer *Responder) Raw(w http.ResponseWriter, r *http.Request, opts ...Fn) e
 // If Code() set the status code to something other than standard redirect 3xx statuses,
 // Redirect overwrites the status code with an appropriate 3xx status code.
 func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
-	rr, err := doer.do(w, r, opts...)
+	rr, err := doer.do(w, r, append([]Fn{ToRoot()}, opts...)...)
 	// TODO(dlk): call Error() instead of silently closing Body?
 	if rr.closeBody {
 		defer r.Body.Close()

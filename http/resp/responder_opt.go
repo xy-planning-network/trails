@@ -82,17 +82,17 @@ func WithParser(p template.Parser) func(*Responder) {
 	}
 }
 
-// WithRootURL sets the provided URL after parsing it into a *url.URL to use for rendering and redirecting
+// WithRootUrl sets the provided URL after parsing it into a *url.URL to use for rendering and redirecting
 //
 // NOTE: If u fails parsing by url.ParseRequestURI, the root URL becomes https://example.com
-func WithRootURL(u string) func(*Responder) {
+func WithRootUrl(u string) func(*Responder) {
 	good, err := url.ParseRequestURI(u)
 	if err != nil {
 		good, _ = url.ParseRequestURI("https://example.com")
 	}
 
 	return func(d *Responder) {
-		d.rootURL = good
+		d.rootUrl = good
 
 	}
 }

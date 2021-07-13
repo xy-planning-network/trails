@@ -52,15 +52,13 @@ func (vs *Visitors) cleanup() {
 
 // RateLimit encloses the Visitors map and serves the http.Handler
 //
-// NOTE: implementation found here:
-// https://www.alexedwards.net/blog/how-to-rate-limit-http-requests
+// NOTE: cribbed from https://www.alexedwards.net/blog/how-to-rate-limit-http-requests
 //
-// If we need anything more sophisticated, https://github.com/didip/tollbooth is
-// likely a better option.
+// If we need anything more sophisticated, check https://github.com/didip/tollbooth
 func RateLimit(visitors *Visitors) Adapter {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if visitors.Fetch(GetIPAddress(r.Header)).Limiter.Allow() {
+			if !visitors.Fetch(GetIPAddress(r.Header)).Limiter.Allow() {
 				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
 				return
 			}

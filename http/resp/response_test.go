@@ -896,6 +896,8 @@ func (tl testLogger) Warn(msg string, _ map[string]interface{})  { fmt.Fprint(tl
 
 type testFlashSession []session.Flash
 
+func (tfs testFlashSession) ClearFlashes(_ http.ResponseWriter, _ *http.Request) { tfs = nil }
+
 func (tfs testFlashSession) Flashes(_ http.ResponseWriter, _ *http.Request) []session.Flash {
 	return tfs
 }
