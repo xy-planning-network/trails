@@ -8,8 +8,8 @@ import (
 
 // keys used internal to specific implementations of different interfaces.
 const (
-	sessionKey     = "trails/session/gorilla" // used by Service
-	userSessionKey = sessionKey + "/user"     // used by Session
+	sessionKey     = "trails-session-gorilla" // used by Service
+	userSessionKey = sessionKey + "-user"     // used by Session
 )
 
 // The Sessionable wraps methods for basic adding values to, deleting, and getting values from a session

@@ -16,7 +16,7 @@ func TestInjectSession(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
 	// Act
-	actual := middleware.InjectSession(nil, "")
+	actual := middleware.InjectSession(nil, nil)
 
 	// Assert
 	actual(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
@@ -30,7 +30,7 @@ func TestInjectSession(t *testing.T) {
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
 	// Act
-	actual = middleware.InjectSession(stubStore{}, "")
+	actual = middleware.InjectSession(stubStore{}, nil)
 
 	// Assert
 	actual(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
@@ -43,7 +43,7 @@ func TestInjectSession(t *testing.T) {
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 	s := stubStore{}
-	key := "key"
+	key := ctxKey("key")
 
 	// Act
 	actual = middleware.InjectSession(s, key)

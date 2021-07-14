@@ -11,11 +11,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails/http/ctx"
 	"github.com/xy-planning-network/trails/http/session"
 )
 
 func TestAuthed(t *testing.T) {
-	key := "test"
+	key := ctxKey("test")
 	expected := "authed.tmpl"
 	unauthed := "unauthed.tmpl"
 
@@ -89,7 +90,7 @@ func TestAuthed(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			if tc.d.userSessionKey != "" {
+			if tc.d.userSessionKey != nil {
 				req = req.WithContext(context.WithValue(req.Context(), tc.d.userSessionKey, 1))
 			}
 			tc.r.r = req
@@ -190,7 +191,7 @@ func TestErr(t *testing.T) {
 }
 
 func TestFlash(t *testing.T) {
-	key := "test"
+	key := ctxKey("test")
 	tcs := []struct {
 		name   string
 		d      *Responder
@@ -251,7 +252,7 @@ func TestGenericErr(t *testing.T) {
 		},
 		{
 			"With-Session-Nil-Err-DefaultErrMsg",
-			NewResponder(WithLogger(newLogger()), WithSessionKey("key")),
+			NewResponder(WithLogger(newLogger()), WithSessionKey(ctxKey("key"))),
 			nil,
 			func(t *testing.T, l testLogger, s session.FlashSessionable, err error) {
 				require.Nil(t, err)
@@ -261,7 +262,7 @@ func TestGenericErr(t *testing.T) {
 		},
 		{
 			"With-Err-With-ContactUsErr",
-			NewResponder(WithLogger(newLogger()), WithSessionKey("key"), WithContactErrMsg("howdy!")),
+			NewResponder(WithLogger(newLogger()), WithSessionKey(ctxKey("key")), WithContactErrMsg("howdy!")),
 			ErrNotFound,
 			func(t *testing.T, l testLogger, s session.FlashSessionable, err error) {
 				require.Nil(t, err)
@@ -275,7 +276,7 @@ func TestGenericErr(t *testing.T) {
 			// Arrange
 			s := new(testFlashSession)
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			if tc.d.sessionKey != "" {
+			if tc.d.sessionKey != nil {
 				req = req.WithContext(context.WithValue(req.Context(), tc.d.sessionKey, s))
 			}
 			r := &Response{r: req}
@@ -367,8 +368,8 @@ func TestParam(t *testing.T) {
 }
 
 func TestProps(t *testing.T) {
-	ctxKey := "ctx"
-	userKey := "user"
+	aKey := ctxKey("ctx")
+	userKey := ctxKey("user")
 	tcs := []struct {
 		name   string
 		d      Responder
@@ -450,7 +451,7 @@ func TestProps(t *testing.T) {
 		},
 		{
 			name:  "With-CtxKeys",
-			d:     Responder{ctxKeys: []string{ctxKey}},
+			d:     Responder{ctxKeys: []ctx.CtxKeyable{aKey}},
 			r:     &Response{user: "test"},
 			props: make(map[string]interface{}),
 			assert: func(t *testing.T, r *Response, err error) {
@@ -461,7 +462,7 @@ func TestProps(t *testing.T) {
 
 				p, ok := i.(map[string]interface{})
 				require.True(t, ok)
-				require.Equal(t, 1, p[ctxKey])
+				require.Equal(t, 1, p[aKey.Key()])
 			},
 		},
 	}
@@ -470,8 +471,8 @@ func TestProps(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			req = req.WithContext(context.WithValue(req.Context(), ctxKey, 1))
-			if tc.d.userSessionKey != "" {
+			req = req.WithContext(context.WithValue(req.Context(), aKey, 1))
+			if tc.d.userSessionKey != nil {
 				req = req.WithContext(context.WithValue(req.Context(), tc.d.userSessionKey, "test"))
 			}
 			tc.r.r = req
@@ -502,7 +503,7 @@ func TestSuccess(t *testing.T) {
 		},
 		{
 			"With-Session",
-			NewResponder(WithSessionKey("key")),
+			NewResponder(WithSessionKey(ctxKey("key"))),
 			func(t *testing.T, code int, s session.FlashSessionable, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, code)
@@ -515,7 +516,7 @@ func TestSuccess(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 			s := new(testFlashSession)
-			if tc.d.sessionKey != "" {
+			if tc.d.sessionKey != nil {
 				req = req.WithContext(context.WithValue(req.Context(), tc.d.sessionKey, s))
 			}
 			r := &Response{r: req}
@@ -851,7 +852,7 @@ func TestWarn(t *testing.T) {
 		},
 		{
 			"With-Sess-With-Msg",
-			NewResponder(WithLogger(newLogger()), WithSessionKey("key")),
+			NewResponder(WithLogger(newLogger()), WithSessionKey(ctxKey("key"))),
 			"Hey! Listen!",
 			func(t *testing.T, expected string, s session.FlashSessionable, l testLogger, err error) {
 				require.Nil(t, err)
@@ -866,7 +867,7 @@ func TestWarn(t *testing.T) {
 			// Arrange
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 			s := new(testFlashSession)
-			if tc.d.sessionKey != "" {
+			if tc.d.sessionKey != nil {
 				req = req.WithContext(context.WithValue(req.Context(), tc.d.sessionKey, s))
 			}
 			r := &Response{r: req}

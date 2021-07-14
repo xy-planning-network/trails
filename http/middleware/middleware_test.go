@@ -24,6 +24,7 @@ var (
 type testUser bool
 
 func (b testUser) HasAccess() bool { return bool(b) }
+func (testUser) HomePath() string  { return "/" }
 
 type testUserStore testUser
 
@@ -42,6 +43,11 @@ func teapotHandler() http.Handler {
 func noopHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 }
+
+type ctxKey string
+
+func (k ctxKey) Key() string    { return string(k) }
+func (k ctxKey) String() string { return string(k) }
 
 type failedSession struct {
 	e error

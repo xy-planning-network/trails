@@ -2,15 +2,18 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/xy-planning-network/trails/http/ctx"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/session"
 )
 
 type User interface {
 	HasAccess() bool
+	HomePath() string
 }
 
 type UserStorer interface {
@@ -26,15 +29,16 @@ type UserStorer interface {
 // CurrentUser checks whether the "Accept" MIME type is "application/json"
 // and write a status code if so.
 // If it isn't, CurrentUser redirects to the Responder's root URL.
-func CurrentUser(d *resp.Responder, store UserStorer, key string) Adapter {
-	if d == nil || store == nil || key == "" {
+func CurrentUser(d *resp.Responder, store UserStorer, sessionKey, userKey ctx.CtxKeyable) Adapter {
+	if d == nil || store == nil || sessionKey == nil || userKey == nil {
 		return NoopAdapter
 	}
 
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			s, ok := r.Context().Value(key).(session.TrailsSessionable)
+			s, ok := r.Context().Value(sessionKey).(session.TrailsSessionable)
 			if !ok {
+				fmt.Println(ok)
 				handleErr(w, r, http.StatusUnauthorized, d, nil)
 				return
 			}
@@ -79,8 +83,49 @@ func CurrentUser(d *resp.Responder, store UserStorer, key string) Adapter {
 			w.Header().Add("Cache-control", "no-store")
 			w.Header().Add("Pragma", "no-cache")
 
-			ctx := context.WithValue(r.Context(), key, user)
+			ctx := context.WithValue(r.Context(), userKey, user)
 			handler.ServeHTTP(w, r.Clone(ctx))
+		})
+	}
+}
+
+// RedirectAuthed returns a middleware.Adapter that checks whether a user is authenticated
+// that is set in the *http.Request.Context given the key.
+//
+// context and so can be redirected to their HomePath or hands off to the next part of the middleware chain.
+func RedirectAuthed(key ctx.CtxKeyable) Adapter {
+	return func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if cu, ok := r.Context().Value(key).(User); ok {
+				http.Redirect(w, r, cu.HomePath(), http.StatusTemporaryRedirect)
+				return
+			}
+
+			handler.ServeHTTP(w, r)
+		})
+	}
+}
+
+/// RedirectUnauthed returns a middleware.Adapter that checks whether a user is authenticated,
+// that is set in the *http.Request.Context given the key.
+//
+// If not, the user is redirected to the loginUrl with a "next" query param added;
+// otherwise, hands off to the next part of the middleware chain.
+func RedirectUnauthed(key ctx.CtxKeyable, loginUrl, logoffUrl string) Adapter {
+	return func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if _, ok := r.Context().Value(key).(User); !ok {
+				next := ""
+				// Only pass URL on to next if it is a GET request
+				if r.Method == http.MethodGet && r.URL.Path != logoffUrl {
+					next = r.URL.Path
+				}
+
+				http.Redirect(w, r, loginUrl+"?next="+next, http.StatusTemporaryRedirect)
+				return
+			}
+
+			handler.ServeHTTP(w, r)
 		})
 	}
 }

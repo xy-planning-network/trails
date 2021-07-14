@@ -15,8 +15,13 @@ import (
 //go:embed *.tmpl nested/*.tmpl
 var files embed.FS
 
+type ctxKey string
+
+func (k ctxKey) Key() string    { return string(k) }
+func (k ctxKey) String() string { return string(k) }
+
 const (
-	key string = "key"
+	key ctxKey = "key"
 
 	// these refer to templates that should be available for rendering
 	base    string = "base.tmpl"

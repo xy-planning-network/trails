@@ -16,7 +16,7 @@ func TestRequestID(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
 	// Act
-	actual := middleware.RequestID("")
+	actual := middleware.RequestID(nil)
 
 	// Assert
 	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", actual))
@@ -27,7 +27,7 @@ func TestRequestID(t *testing.T) {
 	})).ServeHTTP(w, r)
 
 	// Arrange
-	key := "key"
+	key := ctxKey("key")
 
 	// Act
 	actual = middleware.RequestID(key)
