@@ -43,7 +43,7 @@ func TestResponderDo(t *testing.T) {
 }
 
 func TestResponderCurrentUser(t *testing.T) {
-	key := "user"
+	key := ctxKey("user")
 	tcs := []struct {
 		name        string
 		ctx         context.Context
@@ -297,7 +297,7 @@ func TestResponderRedirect(t *testing.T) {
 }
 
 func TestResponderHtml(t *testing.T) {
-	sessionKey := "test"
+	sessionKey := ctxKey("test")
 	tcs := []struct {
 		name   string
 		d      *resp.Responder
@@ -354,7 +354,7 @@ func TestResponderHtml(t *testing.T) {
 }
 
 func TestResponderSession(t *testing.T) {
-	key := "session"
+	key := ctxKey("session")
 	tcs := []struct {
 		name        string
 		ctx         context.Context
@@ -426,3 +426,8 @@ func (tl testLogger) Error(msg string, _ map[string]interface{}) { fmt.Fprint(tl
 func (tl testLogger) Fatal(msg string, _ map[string]interface{}) { fmt.Fprint(tl.b, msg) }
 func (tl testLogger) Info(msg string, _ map[string]interface{})  { fmt.Fprint(tl.b, msg) }
 func (tl testLogger) Warn(msg string, _ map[string]interface{})  { fmt.Fprint(tl.b, msg) }
+
+type ctxKey string
+
+func (k ctxKey) Key() string    { return string(k) }
+func (k ctxKey) String() string { return string(k) }

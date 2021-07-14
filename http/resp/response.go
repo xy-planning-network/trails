@@ -192,7 +192,7 @@ func Props(p map[string]interface{}) Fn {
 		ip := map[string]interface{}{"currentUser": r.user}
 		for _, k := range d.ctxKeys {
 			if val := r.r.Context().Value(k); val != nil {
-				ip[k] = val
+				ip[k.Key()] = val
 			}
 		}
 

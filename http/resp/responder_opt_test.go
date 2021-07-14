@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails/http/ctx"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
@@ -26,15 +27,15 @@ func TestResponderWithContactErrMsg(t *testing.T) {
 func TestResponderWithCtxKeys(t *testing.T) {
 	tcs := []struct {
 		name     string
-		keys     []string
-		expected []string
+		keys     []ctx.CtxKeyable
+		expected []ctx.CtxKeyable
 	}{
 		{"nil", nil, nil},
-		{"zero-value", make([]string, 0), nil},
-		{"many-zero-value", make([]string, 99), []string{""}},
-		{"sorted", []string{"a", "c", "e", "d"}, []string{"a", "c", "d", "e"}},
-		{"deduped", []string{"a", "a", "a"}, []string{"a"}},
-		{"filtered-zero-value", []string{"", "a", "", "b", ""}, []string{"a", "b"}},
+		{"zero-value", make([]ctx.CtxKeyable, 0), nil},
+		{"many-zero-value", make([]ctx.CtxKeyable, 99), nil},
+		{"sorted", []ctx.CtxKeyable{ctxKey("a"), ctxKey("c"), ctxKey("e"), ctxKey("d")}, []ctx.CtxKeyable{ctxKey("a"), ctxKey("c"), ctxKey("d"), ctxKey("e")}},
+		{"deduped", []ctx.CtxKeyable{ctxKey("a"), ctxKey("a"), ctxKey("a")}, []ctx.CtxKeyable{ctxKey("a")}},
+		{"filtered-zero-value", []ctx.CtxKeyable{ctxKey(""), ctxKey("a"), ctxKey(""), ctxKey("b"), ctxKey("")}, []ctx.CtxKeyable{ctxKey("a"), ctxKey("b")}},
 	}
 
 	for _, tc := range tcs {
@@ -74,7 +75,7 @@ func TestResponderWithRootUrl(t *testing.T) {
 }
 
 func TestResponderWithSessionKey(t *testing.T) {
-	expected := "test"
+	expected := ctxKey("test")
 	d := NewResponder(WithSessionKey(expected))
 	require.Equal(t, expected, d.sessionKey)
 }
@@ -86,7 +87,7 @@ func TestResponderWithUnauthTemplate(t *testing.T) {
 }
 
 func TestResponderWithUserSessionKey(t *testing.T) {
-	expected := "user"
+	expected := ctxKey("user")
 	d := NewResponder(WithUserSessionKey(expected))
 	require.Equal(t, expected, d.userSessionKey)
 }
@@ -96,3 +97,8 @@ func TestResponderWithVueTemplate(t *testing.T) {
 	d := NewResponder(WithVueTemplate(expected))
 	require.Equal(t, expected, d.vue)
 }
+
+type ctxKey string
+
+func (k ctxKey) Key() string    { return string(k) }
+func (k ctxKey) String() string { return string(k) }

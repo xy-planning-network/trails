@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/xy-planning-network/trails/http/ctx"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
@@ -47,13 +48,13 @@ type Responder struct {
 	rootUrl *url.URL
 
 	// Keys for pulling specific values out of the *http.Request.Context
-	ctxKeys []string
+	ctxKeys []ctx.CtxKeyable
 
 	// Key for pulling the entire session out of the *http.Request.Context
-	sessionKey string
+	sessionKey ctx.CtxKeyable
 
 	// Key for pulling the user set in the *http.Request.Context session
-	userSessionKey string
+	userSessionKey ctx.CtxKeyable
 
 	// Vue template to render when rendering a Vue app
 	vue string

@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"sort"
 
+	"github.com/xy-planning-network/trails/http/ctx"
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 )
@@ -34,22 +35,25 @@ func WithContactErrMsg(msg string) func(*Responder) {
 // WithCtxKeys appends the provided keys to be used for retrieving values from the *http.Request.Context.
 //
 // WithCtxKeys deduplicates keys and filters out zero-value strings.
-func WithCtxKeys(keys ...string) func(*Responder) {
+func WithCtxKeys(keys ...ctx.CtxKeyable) func(*Responder) {
 	if len(keys) == 0 {
 		return NoopResponderOptFn
 	}
 	return func(d *Responder) {
 		for _, k := range keys {
+			if k == nil {
+				continue
+			}
 			d.ctxKeys = append(d.ctxKeys, k)
 		}
 
 		// NOTE(dlk): filter and deduplicate strings
 		// cribbed from: https://github.com/golang/go/wiki/SliceTricks#in-place-deduplicate-comparable
-		sort.Strings(d.ctxKeys)
+		sort.Sort(ctx.ByCtxKeyable(d.ctxKeys))
 		j := 0
 		for i := 1; i < len(d.ctxKeys); i++ {
-			switch d.ctxKeys[j] {
-			case d.ctxKeys[i]:
+			switch d.ctxKeys[j].String() {
+			case d.ctxKeys[i].String():
 				continue
 			case "":
 				d.ctxKeys[j] = d.ctxKeys[i]
@@ -58,6 +62,9 @@ func WithCtxKeys(keys ...string) func(*Responder) {
 				j++
 				d.ctxKeys[j] = d.ctxKeys[i]
 			}
+		}
+		if len(d.ctxKeys) == 0 {
+			return
 		}
 		d.ctxKeys = d.ctxKeys[:j+1]
 	}
@@ -100,7 +107,7 @@ func WithRootUrl(u string) func(*Responder) {
 // WithSessionKey sets the key to use for grabbing a session.Sessionable out of the *http.Request.Context
 //
 // Responder.Session requires this option.
-func WithSessionKey(key string) func(*Responder) {
+func WithSessionKey(key ctx.CtxKeyable) func(*Responder) {
 	return func(d *Responder) {
 		d.sessionKey = key
 	}
@@ -120,7 +127,7 @@ func WithUnauthTemplate(fp string) func(*Responder) {
 // out of the session.Sessionable set in the *http.Request.Context
 //
 // Responder.CurrentUser requires this option.
-func WithUserSessionKey(key string) func(*Responder) {
+func WithUserSessionKey(key ctx.CtxKeyable) func(*Responder) {
 	return func(d *Responder) {
 		d.userSessionKey = key
 	}

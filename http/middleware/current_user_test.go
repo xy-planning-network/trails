@@ -16,24 +16,27 @@ import (
 
 func TestCurrentUser(t *testing.T) {
 	// Arrange + Act
-	actual := middleware.CurrentUser(nil, nil, "")
+	actual := middleware.CurrentUser(nil, nil, nil, nil)
 
 	// Assert
 	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", actual))
 
 	// Arrange + Act
-	actual = middleware.CurrentUser(resp.NewResponder(), nil, "")
+	actual = middleware.CurrentUser(resp.NewResponder(), nil, nil, nil)
 
 	// Assert
 	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", actual))
 
 	// Arrange + Act
-	actual = middleware.CurrentUser(resp.NewResponder(), testUserStore(testUser(true)), "")
+	actual = middleware.CurrentUser(resp.NewResponder(), testUserStore(testUser(true)), nil, nil)
 
 	// Assert
 	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", actual))
 
 	// Arrange
+	sessKey := ctxKey("session")
+	userKey := ctxKey("user")
+
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
@@ -41,7 +44,8 @@ func TestCurrentUser(t *testing.T) {
 	middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com/test")),
 		testUserStore(testUser(true)),
-		"key",
+		sessKey,
+		userKey,
 	)(teapotHandler()).ServeHTTP(w, r)
 
 	// Assert
@@ -57,29 +61,30 @@ func TestCurrentUser(t *testing.T) {
 	middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
 		testUserStore(testUser(true)),
-		"key",
+		sessKey,
+		userKey,
 	)(teapotHandler()).ServeHTTP(w, r)
 
 	// Assert
 	require.Equal(t, http.StatusUnauthorized, w.Code)
 
 	// Arrange
-	key := "key"
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
-	r = r.Clone(context.WithValue(r.Context(), key, failedSession{errors.New("")}))
+	r = r.Clone(context.WithValue(r.Context(), sessKey, failedSession{errors.New("")}))
 	r.Header.Set("Accept", "application/json")
 
 	// Act
 	actual = middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
 		testUserStore(testUser(true)),
-		"key",
+		sessKey,
+		userKey,
 	)
 
 	// Assert
 	actual(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
-		val, ok := rx.Context().Value("key").(testUser)
+		val, ok := rx.Context().Value(userKey).(testUser)
 		require.False(t, ok)
 		require.False(t, bool(val))
 	})).ServeHTTP(w, r)
@@ -87,14 +92,15 @@ func TestCurrentUser(t *testing.T) {
 	// Arrange
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
-	r = r.Clone(context.WithValue(r.Context(), key, session.Stub{}))
+	r = r.Clone(context.WithValue(r.Context(), sessKey, session.Stub{}))
 	r.Header.Set("Accept", "application/json")
 
 	// Act
 	middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
 		failedUserStore(testUser(true)),
-		"key",
+		sessKey,
+		userKey,
 	)(teapotHandler()).ServeHTTP(w, r)
 
 	// Assert
@@ -103,14 +109,15 @@ func TestCurrentUser(t *testing.T) {
 	// Arrange
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
-	r = r.Clone(context.WithValue(r.Context(), key, session.Stub{}))
+	r = r.Clone(context.WithValue(r.Context(), sessKey, session.Stub{}))
 	r.Header.Set("Accept", "application/json")
 
 	// Act
 	middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
 		testUserStore(testUser(false)),
-		"key",
+		sessKey,
+		userKey,
 	)(teapotHandler()).ServeHTTP(w, r)
 
 	// Assert
@@ -119,23 +126,107 @@ func TestCurrentUser(t *testing.T) {
 	// Arrange
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
-	r = r.Clone(context.WithValue(r.Context(), key, session.Stub{}))
+	r = r.Clone(context.WithValue(r.Context(), sessKey, session.Stub{}))
 	r.Header.Set("Accept", "application/json")
 
 	// Act
 	actual = middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
 		testUserStore(testUser(true)),
-		"key",
+		sessKey,
+		userKey,
 	)
 
 	// Assert
 	actual(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
-		val, ok := rx.Context().Value(key).(testUser)
+		val, ok := rx.Context().Value(userKey).(testUser)
 		require.True(t, ok)
 		require.True(t, bool(val))
 	})).ServeHTTP(w, r)
 
 	require.Equal(t, "no-store", w.Header().Get("Cache-control"))
 	require.Equal(t, "no-cache", w.Header().Get("Pragma"))
+}
+
+func TestRedirectAuthed(t *testing.T) {
+	// Arrange
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+
+	actual := middleware.RedirectAuthed(nil)
+
+	// Act
+	actual(teapotHandler()).ServeHTTP(w, r)
+
+	// Assert
+	require.Equal(t, http.StatusTeapot, w.Code)
+
+	// Arrange
+	ck := ctxKey("user")
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+
+	actual = middleware.RedirectAuthed(ck)
+
+	// Act
+	actual(teapotHandler()).ServeHTTP(w, r)
+
+	// Assert
+	require.Equal(t, http.StatusTeapot, w.Code)
+
+	// Arrange
+	cu := testUser(true)
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	r = r.Clone(context.WithValue(r.Context(), ck, cu))
+
+	// Act
+	actual(noopHandler()).ServeHTTP(w, r)
+
+	// Assert
+	require.Equal(t, http.StatusTemporaryRedirect, w.Code)
+	require.Equal(t, cu.HomePath(), w.Header().Get("Location"))
+}
+
+func TestRedirectUnauthed(t *testing.T) {
+	// Arrange
+	login := "/login"
+	logoff := "/logoff"
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+
+	actual := middleware.RedirectUnauthed(nil, login, logoff)
+
+	// Act
+	actual(noopHandler()).ServeHTTP(w, r)
+
+	// Assert
+	require.Equal(t, http.StatusTemporaryRedirect, w.Code)
+	require.Equal(t, login+"?next=", w.Header().Get("Location"))
+
+	// Arrange
+	ck := ctxKey("user")
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+
+	actual = middleware.RedirectUnauthed(ck, login, logoff)
+
+	// Act
+	actual(noopHandler()).ServeHTTP(w, r)
+
+	// Assert
+	require.Equal(t, http.StatusTemporaryRedirect, w.Code)
+	require.Equal(t, login+"?next=", w.Header().Get("Location"))
+
+	// Arrange
+	cu := testUser(true)
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	r = r.Clone(context.WithValue(r.Context(), ck, cu))
+
+	// Act
+	actual(teapotHandler()).ServeHTTP(w, r)
+
+	// Assert
+	require.Equal(t, http.StatusTeapot, w.Code)
 }
