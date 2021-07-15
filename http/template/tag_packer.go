@@ -15,6 +15,9 @@ const (
 	jsGlob  = "client/dist/js/%s.*.js"
 )
 
+// TagPacker encloses the environment and filesystem so when called executing a template,
+// emits valid paths to JS and CSS assets.
+//
 // TODO(dlk):
 //
 // - configurable asset paths?

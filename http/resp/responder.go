@@ -67,7 +67,7 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	// ranging over opts may or may not overwrite defaults
 	//
 	// TODO(dlk): include default parser?
-	d := &Responder{Logger: logger.DefaultLogger()}
+	d := &Responder{Logger: logger.NewLogger()}
 
 	for _, opt := range opts {
 		opt(d)

@@ -2,6 +2,7 @@ package logger
 
 import "log"
 
+// The Logger interface defines the levels a logging can occur at.
 type Logger interface {
 	Debug(msg string, data map[string]interface{})
 	Error(msg string, data map[string]interface{})
@@ -25,44 +26,55 @@ const (
 	logLevelFatal = "[FATAL]"
 )
 
+// TrailsLogger implements Logger using log.
 type TrailsLogger struct {
 	l *log.Logger
 }
 
-func DefaultLogger() Logger { return &TrailsLogger{log.Default()} }
+// NewLogger constructs a TrailsLogger.
+func NewLogger() Logger { return &TrailsLogger{log.Default()} }
 
+// Debug writes a debug log.
 func (l *TrailsLogger) Debug(msg string, data map[string]interface{}) {
 	if data == nil {
 		l.l.Println(colorWhite + msg + colorClose)
 		return
 	}
-	l.l.Printf(colorWhite+msg+colorClose+"\n", data)
+	l.l.Printf(colorWhite+msg+" %v"+colorClose+"\n", data)
 }
+
+// Debug writes an error log.
 func (l *TrailsLogger) Error(msg string, data map[string]interface{}) {
 	if data == nil {
 		l.l.Println(colorRed + msg + colorClose)
 		return
 	}
-	l.l.Printf(colorRed+msg+colorClose+"\n", data)
+	l.l.Printf(colorRed+msg+" %v"+colorClose+"\n", data)
 }
+
+// Debug writes a fatal log.
 func (l *TrailsLogger) Fatal(msg string, data map[string]interface{}) {
 	if data == nil {
-		l.l.Println(colorPink+msg+colorClose, data)
+		l.l.Println(colorPink+msg+" %v"+colorClose, data)
 		return
 	}
-	l.l.Printf(colorPink+msg+colorClose+"\n", data)
+	l.l.Printf(colorPink+msg+" %v"+colorClose+"\n", data)
 }
+
+// Info writes an info log.
 func (l *TrailsLogger) Info(msg string, data map[string]interface{}) {
 	if data == nil {
 		l.l.Println(colorBlue + msg + colorClose)
 		return
 	}
-	l.l.Printf(colorBlue+msg+colorClose+"\n", data)
+	l.l.Printf(colorBlue+msg+" %v"+colorClose+"\n", data)
 }
+
+// Warn writes a warning log.
 func (l *TrailsLogger) Warn(msg string, data map[string]interface{}) {
 	if data == nil {
 		l.l.Println(colorYellow + msg + colorClose)
 		return
 	}
-	l.l.Printf(colorYellow+msg+colorClose+"\n", data)
+	l.l.Printf(colorYellow+msg+" %v"+colorClose+"\n", data)
 }

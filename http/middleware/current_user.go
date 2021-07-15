@@ -11,11 +11,13 @@ import (
 	"github.com/xy-planning-network/trails/http/session"
 )
 
+// The User defines attributes about a user in the context of middleware.
 type User interface {
 	HasAccess() bool
 	HomePath() string
 }
 
+// UserStorer defines how to retrieve a User by an ID in the context of middleware.
 type UserStorer interface {
 	GetByID(id uint) (User, error)
 }

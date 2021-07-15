@@ -1,5 +1,7 @@
 /*
 
+Package templatetest exposes a mock fs.FS that implements basic file operations.
+Used in unit tests for the purposes of avoiding the use of testdata/ directories when unit testing template rendering.
 
 Cribbed from Mark Bates: https://www.gopherguides.com/articles/golang-1.16-io-fs-improve-test-performance
 
@@ -16,6 +18,7 @@ import (
 	"github.com/xy-planning-network/trails/http/template"
 )
 
+// NewParser constructs a template.Parser with the mocked files.
 func NewParser(tmpls ...FileMocker) template.Parser { return template.NewParser(NewMockFS(tmpls...)) }
 
 type FileMocker interface {

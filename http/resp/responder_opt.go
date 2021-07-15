@@ -9,8 +9,12 @@ import (
 	"github.com/xy-planning-network/trails/logger"
 )
 
+// A ResponderOptFn mutates the provided *Responder in some way.
+// A ResponderOptFn is used when constructing a new Responder.
 type ResponderOptFn func(*Responder)
 
+// NoopResponderOptFn is a pass-through ResponderOptFn,
+// often returned by other ResponderOptFns when they are called incorrectly.
 func NoopResponderOptFn(_ *Responder) {}
 
 // WithAuthTemplate sets the template identified by the filepath to use for rendering
@@ -75,7 +79,7 @@ func WithCtxKeys(keys ...ctx.CtxKeyable) func(*Responder) {
 // If no Logger is provided through this option, a defaultLogger will be configured.
 func WithLogger(log logger.Logger) func(*Responder) {
 	if log == nil {
-		log = logger.DefaultLogger()
+		log = logger.NewLogger()
 	}
 	return func(d *Responder) {
 		d.Logger = log

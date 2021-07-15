@@ -67,7 +67,7 @@ func (s Service) GetSession(r *http.Request) (Sessionable, error) {
 	return Session{session}, err
 }
 
-// A Service configures the provided *Service,
+// A ServiceOpt configures the provided *Service,
 // returning an error if unable to.
 type ServiceOpt func(*Service) error
 
