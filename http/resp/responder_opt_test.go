@@ -48,7 +48,7 @@ func TestResponderWithCtxKeys(t *testing.T) {
 }
 
 func TestResponderWithLogger(t *testing.T) {
-	l := logger.DefaultLogger()
+	l := logger.NewLogger()
 	d := NewResponder(WithLogger(l))
 	require.Equal(t, l, d.Logger)
 }
