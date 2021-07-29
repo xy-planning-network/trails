@@ -148,12 +148,12 @@ func TestCurrentUser(t *testing.T) {
 	require.Equal(t, "no-cache", w.Header().Get("Pragma"))
 }
 
-func TestRedirectAuthed(t *testing.T) {
+func TestRequireUnauthed(t *testing.T) {
 	// Arrange
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
-	actual := middleware.RedirectAuthed(nil)
+	actual := middleware.RequireUnauthed(nil)
 
 	// Act
 	actual(teapotHandler()).ServeHTTP(w, r)
@@ -166,7 +166,7 @@ func TestRedirectAuthed(t *testing.T) {
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
-	actual = middleware.RedirectAuthed(ck)
+	actual = middleware.RequireUnauthed(ck)
 
 	// Act
 	actual(teapotHandler()).ServeHTTP(w, r)
@@ -186,16 +186,28 @@ func TestRedirectAuthed(t *testing.T) {
 	// Assert
 	require.Equal(t, http.StatusTemporaryRedirect, w.Code)
 	require.Equal(t, cu.HomePath(), w.Header().Get("Location"))
+
+	// Arrange
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	r.Header.Set("Accept", "application/json")
+	r = r.Clone(context.WithValue(r.Context(), ck, cu))
+
+	// Act
+	actual(noopHandler()).ServeHTTP(w, r)
+
+	// Assert
+	require.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestRedirectUnauthed(t *testing.T) {
+func TestRequireAuthed(t *testing.T) {
 	// Arrange
 	login := "/login"
 	logoff := "/logoff"
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
-	actual := middleware.RedirectUnauthed(nil, login, logoff)
+	actual := middleware.RequireAuthed(nil, login, logoff)
 
 	// Act
 	actual(noopHandler()).ServeHTTP(w, r)
@@ -209,7 +221,7 @@ func TestRedirectUnauthed(t *testing.T) {
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
-	actual = middleware.RedirectUnauthed(ck, login, logoff)
+	actual = middleware.RequireAuthed(ck, login, logoff)
 
 	// Act
 	actual(noopHandler()).ServeHTTP(w, r)
@@ -217,6 +229,19 @@ func TestRedirectUnauthed(t *testing.T) {
 	// Assert
 	require.Equal(t, http.StatusTemporaryRedirect, w.Code)
 	require.Equal(t, login+"?next=", w.Header().Get("Location"))
+
+	// Arrange
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	r.Header.Set("Accept", "application/json")
+
+	actual = middleware.RequireAuthed(ck, login, logoff)
+
+	// Act
+	actual(noopHandler()).ServeHTTP(w, r)
+
+	// Assert
+	require.Equal(t, http.StatusUnauthorized, w.Code)
 
 	// Arrange
 	cu := testUser(true)

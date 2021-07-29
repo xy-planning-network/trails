@@ -75,7 +75,7 @@ func (r *DefaultRouter) AuthedRoutes(
 	routes []Route,
 	middlewares ...middleware.Adapter,
 ) {
-	r.HandleRoutes(routes, append(middlewares, middleware.RedirectUnauthed(key, loginUrl, logoffUrl))...)
+	r.HandleRoutes(routes, append(middlewares, middleware.RequireAuthed(key, loginUrl, logoffUrl))...)
 }
 
 // NewRouter constructs an implementation of Router using DefaultRouter for the given environment.
@@ -142,12 +142,16 @@ func (r *DefaultRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 //
 // e.g., r.Subrouter("/api/v1") handles requests to endpoints like /api/v1/users
 func (r *DefaultRouter) Subrouter(prefix string) Router {
-	return &DefaultRouter{Env: r.Env, Router: r.Router.PathPrefix(prefix).Subrouter()}
+	return &DefaultRouter{
+		Env:           r.Env,
+		Router:        r.Router.PathPrefix(prefix).Subrouter(),
+		everyReqStack: r.everyReqStack,
+	}
 }
 
 // UnauthedRoutes registers the set of Routes as those requiring unauthenticated users.
 func (r *DefaultRouter) UnauthedRoutes(key ctx.CtxKeyable, routes []Route, middlewares ...middleware.Adapter) {
-	r.HandleRoutes(routes, append(middlewares, middleware.RedirectAuthed(key))...)
+	r.HandleRoutes(routes, append(middlewares, middleware.RequireUnauthed(key))...)
 }
 
 // cacheControlWrapper helps by adding a "Cache-Control" header to the response.

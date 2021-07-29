@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -84,7 +83,6 @@ func CurrentUser(d *resp.Responder, store UserStorer, sessionKey, userKey ctx.Ct
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			s, ok := r.Context().Value(sessionKey).(session.TrailsSessionable)
 			if !ok {
-				fmt.Println(ok)
 				handleErr(w, r, http.StatusUnauthorized, d, nil)
 				return
 			}
@@ -135,14 +133,28 @@ func CurrentUser(d *resp.Responder, store UserStorer, sessionKey, userKey ctx.Ct
 	}
 }
 
-// RedirectAuthed returns a middleware.Adapter that checks whether a user is authenticated
-// that is set in the *http.Request.Context given the key.
+// RequireUnauthed returns a middleware.Adapter that checks whether a user is authenticated
+// and requires they not be authenticated.
+// When they are not authenticated, RequireUnauthed hands off to the next part of the middleware chain.
 //
-// context and so can be redirected to their HomePath or hands off to the next part of the middleware chain.
-func RedirectAuthed(key ctx.CtxKeyable) Adapter {
+// Authenticated means a User is set in the request context with the provided key.
+//
+// When the User is authenticated, and the request's "Accept" header has "application/json" in it,
+// RequireUnauthed writes 400 to the client.
+// If the request does not have that value in it's header,
+// RequireUnauthed redirect to User's HomePath.
+func RequireUnauthed(key ctx.CtxKeyable) Adapter {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if cu, ok := r.Context().Value(key).(User); ok {
+				vs := r.Header.Values("Accept")
+				for _, v := range vs {
+					if strings.Compare(v, "application/json") == 0 {
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+				}
+
 				http.Redirect(w, r, cu.HomePath(), http.StatusTemporaryRedirect)
 				return
 			}
@@ -152,15 +164,30 @@ func RedirectAuthed(key ctx.CtxKeyable) Adapter {
 	}
 }
 
-/// RedirectUnauthed returns a middleware.Adapter that checks whether a user is authenticated,
-// that is set in the *http.Request.Context given the key.
+/// RequireAuthed returns a middleware.Adapter that checks whether a User is authenticated,
+// and requires they be authenticated.
+// When the User is authenticated, then RequireAuthed hands off to the next part of the middleware chain.
 //
-// If not, the user is redirected to the loginUrl with a "next" query param added;
-// otherwise, hands off to the next part of the middleware chain.
-func RedirectUnauthed(key ctx.CtxKeyable, loginUrl, logoffUrl string) Adapter {
+// Authenticated means a User is set in the request context with the provided key.
+//
+// When the User is not authenticated, and the request's "Accept" header has "application/json" in it,
+// RequireUnauthed writes 401 to the client.
+// If the request does not have that value in it's header,
+// RequireAuthed redirects to the provided login URL.
+// The endpoint originally requested is appended to as a "next" query param
+// when the request method is GET and the endpoint is not the logoff URL.
+func RequireAuthed(key ctx.CtxKeyable, loginUrl, logoffUrl string) Adapter {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if _, ok := r.Context().Value(key).(User); !ok {
+				vs := r.Header.Values("Accept")
+				for _, v := range vs {
+					if strings.Compare(v, "application/json") == 0 {
+						w.WriteHeader(http.StatusUnauthorized)
+						return
+					}
+				}
+
 				next := ""
 				// Only pass URL on to next if it is a GET request
 				if r.Method == http.MethodGet && r.URL.Path != logoffUrl {
@@ -189,5 +216,4 @@ func handleErr(w http.ResponseWriter, r *http.Request, code int, d *resp.Respond
 
 	d.Redirect(w, r, resp.Err(err))
 	return
-
 }
