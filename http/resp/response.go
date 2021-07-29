@@ -157,7 +157,7 @@ func Param(key, val string) Fn {
 	}
 }
 
-// Props structures the provided data alongside default values.
+// Props structures the provided data alongside default values according to a default schema.
 //
 // Used with Responder.Html, specifically in conjunction with Vue.
 // Accordingly, prefer this over Data when using Vue.
@@ -165,6 +165,7 @@ func Param(key, val string) Fn {
 // Here's the schema:
 // {
 //	"initialProps": {
+//		"baseURL": d.rootUrl,
 //		"currentUser": r.user
 //		...key-value pairs set by d.ctxKeys
 //	},
@@ -189,7 +190,10 @@ func Props(p map[string]interface{}) Fn {
 
 		// NOTE(dlk): for a configurable approach to this pattern,
 		// review https://github.com/xy-planning-network/trails/pull/4
-		ip := map[string]interface{}{"currentUser": r.user}
+		ip := map[string]interface{}{
+			"currentUser": r.user,
+			"baseURL":     d.rootUrl,
+		}
 		for _, k := range d.ctxKeys {
 			if val := r.r.Context().Value(k); val != nil {
 				ip[k.Key()] = val
