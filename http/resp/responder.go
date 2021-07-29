@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path"
 
 	"github.com/xy-planning-network/trails/http/ctx"
 	"github.com/xy-planning-network/trails/http/session"
@@ -164,7 +165,7 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 		Flashes: s.Flashes(w, r),
 	}
 
-	if err := tmpl.ExecuteTemplate(w, rr.tmpls[0], rd); err != nil {
+	if err := tmpl.ExecuteTemplate(w, path.Base(rr.tmpls[0]), rd); err != nil {
 		doer.Err(w, r, err)
 		return err
 	}

@@ -90,7 +90,7 @@ func TestParse(t *testing.T) {
 			fps: []string{"example.tmpl", "test.tmpl"},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.Nil(t, err)
-				require.Equal(t, "test.tmpl", tmpl.Name())
+				require.Equal(t, "example.tmpl", tmpl.Name())
 
 				b := new(bytes.Buffer)
 				require.Nil(t, tmpl.ExecuteTemplate(b, "example.tmpl", nil))
