@@ -92,11 +92,8 @@ func Data(d map[string]interface{}) Fn {
 func Err(e error) Fn {
 	return func(d Responder, r *Response) error {
 		if e != nil {
-			logData := map[string]interface{}{"error": e, "request": r.r}
-			for k, v := range r.data {
-				logData[k] = v
-			}
-			d.Error(e.Error(), logData)
+			logData := map[string]interface{}{"error": e, "request": r.r, "data": r.data}
+			d.logger.Error(e.Error(), logData)
 		}
 
 		if err := Code(http.StatusInternalServerError)(d, r); err != nil {
@@ -321,12 +318,9 @@ func Vue(entry string) Fn {
 // Warn sets a flash warning in the session and logs the warning.
 func Warn(msg string) Fn {
 	return func(d Responder, r *Response) error {
-		logData := map[string]interface{}{"warn": msg, "request": r.r}
-		for k, v := range r.data {
-			logData[k] = v
-		}
+		logData := map[string]interface{}{"warn": msg, "request": r.r, "data": r.data}
 
-		d.Warn(msg, logData)
+		d.logger.Warn(msg, logData)
 
 		if err := Flash(session.Flash{Class: session.FlashWarning, Msg: msg})(d, r); err != nil {
 			return err

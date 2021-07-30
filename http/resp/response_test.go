@@ -173,7 +173,7 @@ func TestErr(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
 			l := newLogger()
-			d := Responder{Logger: l}
+			d := Responder{logger: l}
 			r := &Response{}
 
 			// Act
@@ -285,7 +285,7 @@ func TestGenericErr(t *testing.T) {
 			err := GenericErr(tc.err)(*tc.d, r)
 
 			// Assert
-			tc.assert(t, tc.d.Logger.(testLogger), s, err)
+			tc.assert(t, tc.d.logger.(testLogger), s, err)
 		})
 	}
 }
@@ -876,7 +876,7 @@ func TestWarn(t *testing.T) {
 			err := Warn(tc.msg)(*tc.d, r)
 
 			// Assert
-			l, ok := tc.d.Logger.(testLogger)
+			l, ok := tc.d.logger.(testLogger)
 			require.True(t, ok)
 			tc.assert(t, tc.msg, s, l, err)
 		})

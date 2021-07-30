@@ -30,7 +30,7 @@ import (
 // and so forth through Fn functions. While one can create functions of the same type,
 // the Responder and Response structs do not expose much - if anything - to interact with.
 type Responder struct {
-	logger.Logger
+	logger logger.Logger
 
 	// Initialized template parser
 	parser template.Parser
@@ -68,7 +68,7 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	// ranging over opts may or may not overwrite defaults
 	//
 	// TODO(dlk): include default parser?
-	d := &Responder{Logger: logger.NewLogger()}
+	d := &Responder{logger: logger.NewLogger()}
 
 	for _, opt := range opts {
 		opt(d)
@@ -110,7 +110,7 @@ func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error, op
 	if err != nil {
 		msg = err.Error()
 	}
-	doer.Logger.Error(msg, nil)
+	doer.logger.Error(msg, nil)
 	if rr.code == 0 {
 		rr.code = http.StatusInternalServerError
 	}
@@ -245,6 +245,8 @@ func (doer *Responder) Raw(w http.ResponseWriter, r *http.Request, opts ...Fn) e
 */
 
 // Redirect calls http.Redirect, given Url() set the redirect destination.
+//
+// The default response status code is 302.
 //
 // If Code() set the status code to something other than standard redirect 3xx statuses,
 // Redirect overwrites the status code with an appropriate 3xx status code.

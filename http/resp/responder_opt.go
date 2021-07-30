@@ -82,7 +82,7 @@ func WithLogger(log logger.Logger) func(*Responder) {
 		log = logger.NewLogger()
 	}
 	return func(d *Responder) {
-		d.Logger = log
+		d.logger = log
 	}
 }
 

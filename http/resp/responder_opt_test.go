@@ -50,7 +50,7 @@ func TestResponderWithCtxKeys(t *testing.T) {
 func TestResponderWithLogger(t *testing.T) {
 	l := logger.NewLogger()
 	d := NewResponder(WithLogger(l))
-	require.Equal(t, l, d.Logger)
+	require.Equal(t, l, d.logger)
 }
 
 func TestResponderWithParser(t *testing.T) {
