@@ -142,57 +142,6 @@ func Param(key, val string) Fn {
 	}
 }
 
-// Props structures the provided data alongside default values according to a default schema.
-//
-// Used with Responder.Html, specifically in conjunction with Vue.
-// Accordingly, prefer this over Data when using Vue.
-//
-// Here's the schema:
-// {
-//	"initialProps": {
-//		"baseURL": d.rootUrl,
-//		"currentUser": r.user
-//		...key-value pairs set by d.ctxKeys
-//	},
-//	...map set by p
-// }
-//
-// Props first passes p into Data.
-// Then, Props passes a new "initialProps" map into Data then p.
-//
-// It is not required to set any keys for pulling additional values
-// out of the *http.Request.Context.
-// Use WithCtxKeys to do so when applicable.
-func Props(p map[string]interface{}) Fn {
-	return func(d Responder, r *Response) error {
-		if err := populateUser(d, r); err != nil {
-			return err
-		}
-
-		if err := Data(p)(d, r); err != nil {
-			return err
-		}
-
-		// NOTE(dlk): for a configurable approach to this pattern,
-		// review https://github.com/xy-planning-network/trails/pull/4
-		ip := map[string]interface{}{
-			"currentUser": r.user,
-			"baseURL":     d.rootUrl,
-		}
-		for _, k := range d.ctxKeys {
-			if val := r.r.Context().Value(k); val != nil {
-				ip[k.Key()] = val
-			}
-		}
-
-		if err := Data(map[string]interface{}{"initialProps": ip})(d, r); err != nil {
-			return err
-		}
-
-		return nil
-	}
-}
-
 // Success sets the status OK to http.StatusOK
 // and sets a session.FlashSuccess flash in the session with the passed in msg.
 //
@@ -280,12 +229,89 @@ func Url(u string) Fn {
 	}
 }
 
+// Vue sets a *Response up for rendering a Vue app.
 // Vue appends the base Vue template to existing tmpls.
 // It adds the required entrypoint to the data to be rendered.
+
+// Vue structures the provided data alongside default values according to a default schema.
 //
-// Used with Responder.Html.
+// Here's the schema:
+// {
+//	"entry": entry,
+//	"props": {
+//		"initialProps": {
+//			"baseURL": d.rootUrl,
+//			"currentUser": r.user,
+//		},
+//		...key-value pairs set by Data
+//		...key-value pairs set by d.ctxKeys
+//	},
+//	...key-value pairs set by Data
+// }
 //
-// NOTE: Prefer Props over Data to include necessary bits in the Vue template.
+// Calls to Data are merged into the required schema in the following way.
+//
+// At it's simplest, for example, Data(map[string]interface{}{"myProp": "Hello, World"}),
+// will produce:
+//
+// {
+//	"entry": entry,
+//	"props": {
+//		"myProp": "Hello, World",
+//		"initialProps": {
+//			"baseURL": d.rootUrl,
+//			"currentUser": r.user,
+//		}
+//	}
+// }
+//
+// If the type passed into Data is not map[string]interface{}, like, Data(myStruct{}),
+// the value is placed under another "props" key, producing:
+//
+// {
+//	"entry": entry,
+//	"props": {
+//		"props": myStruct{},
+//		"initialProps": {
+//			"baseURL": d.rootUrl,
+//			"currentUser": r.user,
+//		},
+//	}
+// }
+//
+// Finally, if values need to be present to template rendering under a specific key,
+// and properties need to be passed in as well,
+// include a map[string]interface{} under the "initialProps" key
+// and the two maps will be merged.
+//
+// Here's how that's done:
+//
+// data := map[string]interface{}{
+//	"keyForMyTmpl": true,
+//	"props": map[string]interface{}{
+//		"myProp": "Hello, World"
+//	},
+// }
+// Html(Data(data), Vue(entry))
+//
+// will produce:
+//
+// {
+//	"entry": entry,
+//	"keyForMyTmpl": true
+//	"props: {
+//		"myProp": "Hello, World",
+//		"initialProps": {
+//			"baseURL": d.rootUrl,
+//			"currentUser": r.user,
+//		},
+//	},
+// }
+//
+//
+// It is not required to set any keys for pulling additional values
+// out of the *http.Request.Context.
+// Use WithCtxKeys to do so when applicable.
 func Vue(entry string) Fn {
 	return func(d Responder, r *Response) error {
 		if d.vue == "" || entry == "" {
@@ -294,8 +320,55 @@ func Vue(entry string) Fn {
 		if err := Tmpls(d.vue)(d, r); err != nil {
 			return err
 		}
+		// NOTE(dlk): ignore error since Vue does not require a User
+		populateUser(d, r)
 
-		if err := Data(map[string]interface{}{"entry": entry})(d, r); err != nil {
+		data := map[string]interface{}{"entry": entry}
+		init := map[string]interface{}{"currentUser": r.user}
+		if d.rootUrl != nil {
+			// TODO(dlk): throw error when not configured?
+			init["baseURL"] = d.rootUrl.String()
+		}
+
+		props := map[string]interface{}{"initialProps": init}
+		for _, k := range d.ctxKeys {
+			if val := r.r.Context().Value(k); val != nil {
+				props[k.Key()] = val
+			}
+		}
+
+		switch t := r.data.(type) {
+		case map[string]interface{}:
+			if _, ok := t["props"]; ok {
+				// NOTE(dlk): "props" key is set, r.data needs to be merged into
+				// both the props map and data map.
+				// Perform those checks here and apply key-value pairs accordingly.
+				for k, v := range t {
+					if k == "props" {
+						if ip, ok := v.(map[string]interface{}); ok {
+							for k, v := range ip {
+								props[k] = v
+							}
+						}
+					} else {
+						data[k] = v
+					}
+				}
+			} else {
+				// NOTE(dlk): no "props" key was set, apply all to props map.
+				for k, v := range t {
+					props[k] = v
+				}
+			}
+		default:
+			// NOTE(dlk): unhandled case, applying everything to props map under "props" key.
+			props["props"] = r.data
+		}
+
+		data["props"] = props
+
+		err := Data(data)(d, r)
+		if err != nil {
 			return err
 		}
 
