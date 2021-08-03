@@ -457,6 +457,57 @@ func TestTmpls(t *testing.T) {
 	})
 }
 
+func TestToRoot(t *testing.T) {
+	good, err := url.ParseRequestURI("https://example.com/test")
+	require.Nil(t, err)
+
+	other, err := url.ParseRequestURI("https://example.com/other")
+	require.Nil(t, err)
+	tcs := []struct {
+		name   string
+		d      Responder
+		r      *Response
+		assert func(t *testing.T, url *url.URL, err error)
+	}{
+		{
+			"Zero-Value",
+			Responder{},
+			&Response{},
+			func(t *testing.T, url *url.URL, err error) {
+				require.ErrorIs(t, err, ErrMissingData)
+			},
+		},
+		{
+			"With-RootUrl",
+			Responder{rootUrl: good},
+			&Response{},
+			func(t *testing.T, url *url.URL, err error) {
+				require.Nil(t, err)
+				require.Equal(t, good, url)
+			},
+		},
+		{
+			"Overwrite-Url",
+			Responder{rootUrl: good},
+			&Response{url: other},
+			func(t *testing.T, url *url.URL, err error) {
+				require.Nil(t, err)
+				require.Equal(t, good, url)
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// Act
+			err := ToRoot()(tc.d, tc.r)
+
+			// Assert
+			tc.assert(t, tc.r.url, err)
+		})
+	}
+}
+
 func TestUnauthed(t *testing.T) {
 	expected := "unauthed.tmpl"
 	authed := "authed.tmpl"

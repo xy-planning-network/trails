@@ -173,6 +173,9 @@ func Tmpls(fps ...string) Fn {
 // ToRoot calls URL with the Responder's default, root URL.
 func ToRoot() Fn {
 	return func(d Responder, r *Response) error {
+		if d.rootUrl == nil {
+			return fmt.Errorf("%w: cannot set url, no defined root url", ErrMissingData)
+		}
 		r.url = d.rootUrl
 		return nil
 	}
