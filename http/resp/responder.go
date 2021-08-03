@@ -158,7 +158,7 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	}
 
 	rd := struct {
-		Data    map[string]interface{}
+		Data    interface{}
 		Flashes []session.Flash
 	}{
 		Data:    rr.data,
@@ -204,8 +204,8 @@ func (doer *Responder) Json(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	w.WriteHeader(rr.code)
 
 	b := struct {
-		U interface{}            `json:"currentUser,omitempty"`
-		D map[string]interface{} `json:"data,omitempty"`
+		D interface{} `json:"data,omitempty"`
+		U interface{} `json:"currentUser,omitempty"`
 	}{
 		D: rr.data,
 		U: rr.user,
@@ -312,7 +312,6 @@ func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*
 		closeBody: true,
 		w:         w,
 		r:         r,
-		data:      make(map[string]interface{}),
 		tmpls:     make([]string, 0),
 	}
 

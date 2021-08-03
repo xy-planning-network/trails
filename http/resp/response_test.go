@@ -151,11 +151,7 @@ func TestData(t *testing.T) {
 
 			// Assert
 			require.Nil(t, err)
-			if tc.data == nil {
-				require.Equal(t, make(map[string]interface{}), r.data)
-			} else {
-				require.Equal(t, tc.data, r.data)
-			}
+			require.Equal(t, tc.data, r.data)
 		})
 	}
 }
@@ -367,125 +363,6 @@ func TestParam(t *testing.T) {
 	})
 }
 
-func TestProps(t *testing.T) {
-	aKey := ctxKey("ctx")
-	userKey := ctxKey("user")
-	tcs := []struct {
-		name   string
-		d      Responder
-		r      *Response
-		props  map[string]interface{}
-		assert func(*testing.T, *Response, error)
-	}{
-		{
-			name:  "Zero-Value",
-			d:     Responder{},
-			r:     &Response{},
-			props: nil,
-			assert: func(t *testing.T, r *Response, err error) {
-				require.ErrorIs(t, err, ErrNoUser)
-			},
-		},
-		{
-			name:  "No-CurrentUser",
-			d:     Responder{},
-			r:     &Response{},
-			props: map[string]interface{}{"go": "rocks"},
-			assert: func(t *testing.T, r *Response, err error) {
-				require.ErrorIs(t, err, ErrNoUser)
-				_, ok := r.data["initialProps"]
-				require.False(t, ok)
-			},
-		},
-		{
-			name:  "With-CurrentUser",
-			d:     Responder{userSessionKey: userKey},
-			r:     &Response{},
-			props: map[string]interface{}{"go": "rocks"},
-			assert: func(t *testing.T, r *Response, err error) {
-				require.Nil(t, err)
-
-				i, ok := r.data["initialProps"]
-				require.True(t, ok)
-
-				p, ok := i.(map[string]interface{})
-				require.True(t, ok)
-				require.Equal(t, "test", p["currentUser"])
-
-				require.Equal(t, "rocks", r.data["go"])
-			},
-		},
-		{
-			name:  "No-CurrentUser-With-User",
-			d:     Responder{},
-			r:     &Response{user: "test"},
-			props: map[string]interface{}{"go": "rocks"},
-			assert: func(t *testing.T, r *Response, err error) {
-				require.Nil(t, err)
-
-				i, ok := r.data["initialProps"]
-				require.True(t, ok)
-
-				p, ok := i.(map[string]interface{})
-				require.True(t, ok)
-				require.Equal(t, "test", p["currentUser"])
-
-				require.Equal(t, "rocks", r.data["go"])
-			},
-		},
-		{
-			name:  "Nil-Map",
-			d:     Responder{},
-			r:     &Response{user: "test"},
-			props: nil,
-			assert: func(t *testing.T, r *Response, err error) {
-				require.Nil(t, err)
-
-				i, ok := r.data["initialProps"]
-				require.True(t, ok)
-
-				p, ok := i.(map[string]interface{})
-				require.True(t, ok)
-				require.Equal(t, "test", p["currentUser"])
-			},
-		},
-		{
-			name:  "With-CtxKeys",
-			d:     Responder{ctxKeys: []ctx.CtxKeyable{aKey}},
-			r:     &Response{user: "test"},
-			props: make(map[string]interface{}),
-			assert: func(t *testing.T, r *Response, err error) {
-				require.Nil(t, err)
-
-				i, ok := r.data["initialProps"]
-				require.True(t, ok)
-
-				p, ok := i.(map[string]interface{})
-				require.True(t, ok)
-				require.Equal(t, 1, p[aKey.Key()])
-			},
-		},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			// Arrange
-			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			req = req.WithContext(context.WithValue(req.Context(), aKey, 1))
-			if tc.d.userSessionKey != nil {
-				req = req.WithContext(context.WithValue(req.Context(), tc.d.userSessionKey, "test"))
-			}
-			tc.r.r = req
-
-			// Act
-			err := Props(tc.props)(tc.d, tc.r)
-
-			// Assert
-			tc.assert(t, tc.r, err)
-		})
-	}
-}
-
 func TestSuccess(t *testing.T) {
 	tcs := []struct {
 		name   string
@@ -578,6 +455,57 @@ func TestTmpls(t *testing.T) {
 		require.Nil(t, err)
 		require.Equal(t, expected, r.tmpls[1])
 	})
+}
+
+func TestToRoot(t *testing.T) {
+	good, err := url.ParseRequestURI("https://example.com/test")
+	require.Nil(t, err)
+
+	other, err := url.ParseRequestURI("https://example.com/other")
+	require.Nil(t, err)
+	tcs := []struct {
+		name   string
+		d      Responder
+		r      *Response
+		assert func(t *testing.T, url *url.URL, err error)
+	}{
+		{
+			"Zero-Value",
+			Responder{},
+			&Response{},
+			func(t *testing.T, url *url.URL, err error) {
+				require.ErrorIs(t, err, ErrMissingData)
+			},
+		},
+		{
+			"With-RootUrl",
+			Responder{rootUrl: good},
+			&Response{},
+			func(t *testing.T, url *url.URL, err error) {
+				require.Nil(t, err)
+				require.Equal(t, good, url)
+			},
+		},
+		{
+			"Overwrite-Url",
+			Responder{rootUrl: good},
+			&Response{url: other},
+			func(t *testing.T, url *url.URL, err error) {
+				require.Nil(t, err)
+				require.Equal(t, good, url)
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// Act
+			err := ToRoot()(tc.d, tc.r)
+
+			// Assert
+			tc.assert(t, tc.r.url, err)
+		})
+	}
 }
 
 func TestUnauthed(t *testing.T) {
@@ -725,19 +653,22 @@ func TestUrl(t *testing.T) {
 }
 
 func TestVue(t *testing.T) {
+	good, err := url.ParseRequestURI("https://example.com/test")
+	require.Nil(t, err)
+	aKey := ctxKey("ctx")
 	tcs := []struct {
 		name   string
-		d      *Responder
+		d      Responder
 		r      *Response
 		entry  string
-		assert func(*testing.T, []string, map[string]interface{}, error)
+		assert func(*testing.T, []string, interface{}, error)
 	}{
 		{
 			"Zero-Value",
-			NewResponder(),
+			Responder{},
 			&Response{},
 			"",
-			func(t *testing.T, tmpls []string, data map[string]interface{}, err error) {
+			func(t *testing.T, tmpls []string, data interface{}, err error) {
 				require.Nil(t, err)
 				require.Nil(t, tmpls)
 				require.Nil(t, data)
@@ -745,32 +676,21 @@ func TestVue(t *testing.T) {
 		},
 		{
 			"With-Tmpls",
-			NewResponder(),
+			Responder{},
 			&Response{tmpls: []string{"test.tmpl"}},
 			"",
-			func(t *testing.T, tmpls []string, data map[string]interface{}, err error) {
+			func(t *testing.T, tmpls []string, data interface{}, err error) {
 				require.Nil(t, err)
 				require.Len(t, tmpls, 1)
 				require.Nil(t, data)
 			},
 		},
 		{
-			"With-Data",
-			NewResponder(),
-			&Response{data: map[string]interface{}{"test": "data"}},
-			"",
-			func(t *testing.T, tmpls []string, data map[string]interface{}, err error) {
-				require.Nil(t, err)
-				require.Nil(t, tmpls)
-				require.Equal(t, "data", data["test"])
-			},
-		},
-		{
 			"With-Vue-No-Entry",
-			NewResponder(WithVueTemplate("vue.tmpl")),
+			Responder{vue: "vue.tmpl"},
 			&Response{},
 			"",
-			func(t *testing.T, tmpls []string, data map[string]interface{}, err error) {
+			func(t *testing.T, tmpls []string, data interface{}, err error) {
 				require.Nil(t, err)
 				require.Nil(t, tmpls)
 				require.Nil(t, data)
@@ -778,44 +698,84 @@ func TestVue(t *testing.T) {
 		},
 		{
 			"With-Vue",
-			NewResponder(WithVueTemplate("vue.tmpl")),
+			Responder{vue: "vue.tmpl"},
 			&Response{},
 			"test",
-			func(t *testing.T, tmpls []string, data map[string]interface{}, err error) {
+			func(t *testing.T, tmpls []string, data interface{}, err error) {
 				require.Nil(t, err)
 				require.Equal(t, "vue.tmpl", tmpls[0])
-				require.Equal(t, "test", data["entry"])
+
+				actualData, ok := data.(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, "test", actualData["entry"])
 			},
 		},
 		{
 			"With-Vue-With-Tmpls",
-			NewResponder(WithVueTemplate("vue.tmpl")),
+			Responder{vue: "vue.tmpl"},
 			&Response{tmpls: []string{"test.tmpl"}},
 			"test",
-			func(t *testing.T, tmpls []string, data map[string]interface{}, err error) {
+			func(t *testing.T, tmpls []string, data interface{}, err error) {
 				require.Nil(t, err)
 				require.Equal(t, "vue.tmpl", tmpls[1])
-				require.Equal(t, "test", data["entry"])
+
+				actualData, ok := data.(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, "test", actualData["entry"])
 			},
 		},
 		{
-			"With-Vue-With-Tmpls-With-Data",
-			NewResponder(WithVueTemplate("vue.tmpl")),
-			&Response{tmpls: []string{"test.tmpl"}, data: map[string]interface{}{"entry": "not-test", "other": 1}},
+			"With-CtxKeys",
+			Responder{vue: "vue.tmpl", ctxKeys: []ctx.CtxKeyable{aKey}},
+			&Response{user: "test"},
 			"test",
-			func(t *testing.T, tmpls []string, data map[string]interface{}, err error) {
+			func(t *testing.T, tmpls []string, data interface{}, err error) {
+				require.Nil(t, err)
+				require.Equal(t, "vue.tmpl", tmpls[0])
+
+				actualData, ok := data.(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, "test", actualData["entry"])
+
+				actualProps, ok := actualData["props"].(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, 1, actualProps[aKey.Key()])
+			},
+		},
+		{
+			"With-All",
+			Responder{vue: "vue.tmpl", rootUrl: good, ctxKeys: []ctx.CtxKeyable{aKey}},
+			&Response{user: 1, tmpls: []string{"test.tmpl"}, data: map[string]interface{}{"entry": "not-test", "other": 1}},
+			"test",
+			func(t *testing.T, tmpls []string, data interface{}, err error) {
 				require.Nil(t, err)
 				require.Equal(t, "vue.tmpl", tmpls[1])
-				require.Equal(t, "test", data["entry"])
-				require.Equal(t, 1, data["other"])
+
+				actualData, ok := data.(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, "test", actualData["entry"])
+
+				actualProps, ok := actualData["props"].(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, 1, actualProps["other"])
+
+				actualInit, ok := actualProps["initialProps"].(map[string]interface{})
+				require.True(t, ok)
+				require.Equal(t, 1, actualInit["currentUser"])
+				require.Equal(t, "https://example.com/test", actualInit["baseURL"])
 			},
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
+			require.Nil(t, err)
+			tc.r.r = req.Clone(context.WithValue(req.Context(), aKey, 1))
+
 			// Act
-			err := Vue(tc.entry)(*tc.d, tc.r)
+			err = Vue(tc.entry)(tc.d, tc.r)
 
 			// Assert
 			tc.assert(t, tc.r.tmpls, tc.r.data, err)

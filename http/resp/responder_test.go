@@ -172,9 +172,12 @@ func TestResponderJson(t *testing.T) {
 				var b bytes.Buffer
 				err = json.NewEncoder(&b).
 					Encode(
-						map[string]interface{}{
-							"currentUser": 1,
-							"data":        map[string]string{"go": "rocks"},
+						struct {
+							D interface{} `json:"data"`
+							U interface{} `json:"currentUser"`
+						}{
+							D: map[string]string{"go": "rocks"},
+							U: 1,
 						},
 					)
 				require.Nil(t, err)
