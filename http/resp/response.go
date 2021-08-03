@@ -21,7 +21,7 @@ type Response struct {
 	r         *http.Request
 	closeBody bool
 	code      int
-	data      map[string]interface{}
+	data      interface{}
 	tmpls     []string
 	url       *url.URL
 	user      interface{}
@@ -66,24 +66,12 @@ func Code(c int) Fn {
 	}
 }
 
-// Data merges the provided map with existing data.
-// If a key already exists, it's value is overwritten.
+// Data stores the provided empty interface for writing to the client.
 //
 // Used with Responder.Html and Responder.Json.
-// When used with Json, this data will populate the "data" key.
-//
-// Prefer Props over Data when using with Vue if the map provided here is intended to be available
-// for rendering the base Vue template.
-func Data(d map[string]interface{}) Fn {
+func Data(d interface{}) Fn {
 	return func(_ Responder, r *Response) error {
-		if r.data == nil {
-			r.data = make(map[string]interface{})
-		}
-
-		for k, v := range d {
-			r.data[k] = v
-		}
-
+		r.data = d
 		return nil
 	}
 }
