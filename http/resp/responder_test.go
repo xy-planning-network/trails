@@ -287,6 +287,22 @@ func TestResponderRedirect(t *testing.T) {
 				require.Equal(t, expected.String(), actual.String())
 			},
 		},
+		{
+			"Keep-3xx",
+			[]resp.Fn{
+				resp.Url("http://example.com"),
+				resp.Code(http.StatusPermanentRedirect),
+			},
+			func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
+				require.Nil(t, err)
+				require.Equal(t, http.StatusPermanentRedirect, w.Code)
+
+				actual, err := url.ParseRequestURI(w.Header().Get("Location"))
+				require.Nil(t, err)
+
+				require.Equal(t, "http://example.com", actual.String())
+			},
+		},
 	}
 
 	for _, tc := range tcs {

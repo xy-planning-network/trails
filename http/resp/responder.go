@@ -266,6 +266,8 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 	}
 
 	switch {
+	case rr.code >= http.StatusMultipleChoices && rr.code <= http.StatusPermanentRedirect:
+		// NOTE(dlk): all good, do nothing
 	case rr.code >= http.StatusBadRequest && rr.code <= http.StatusInternalServerError:
 		rr.code = http.StatusSeeOther
 	case rr.code > http.StatusInternalServerError:
