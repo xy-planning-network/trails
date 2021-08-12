@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/xy-planning-network/trails/http/ctx"
@@ -174,7 +175,8 @@ func RequireUnauthed(key ctx.CtxKeyable) Adapter {
 // RequireUnauthed writes 401 to the client.
 // If the request does not have that value in it's header,
 // RequireAuthed redirects to the provided login URL.
-// The endpoint originally requested is appended to as a "next" query param
+//
+// The URL originally requested is appended to as a "next" query param
 // when the request method is GET and the endpoint is not the logoff URL.
 func RequireAuthed(key ctx.CtxKeyable, loginUrl, logoffUrl string) Adapter {
 	return func(handler http.Handler) http.Handler {
@@ -188,13 +190,12 @@ func RequireAuthed(key ctx.CtxKeyable, loginUrl, logoffUrl string) Adapter {
 					}
 				}
 
-				next := ""
-				// Only pass URL on to next if it is a GET request
+				u := loginUrl
 				if r.Method == http.MethodGet && r.URL.Path != logoffUrl {
-					next = r.URL.Path
+					u += "?next=" + url.QueryEscape(r.URL.String())
 				}
 
-				http.Redirect(w, r, loginUrl+"?next="+next, http.StatusTemporaryRedirect)
+				http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 				return
 			}
 

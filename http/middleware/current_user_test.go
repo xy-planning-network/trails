@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -204,8 +205,10 @@ func TestRequireAuthed(t *testing.T) {
 	// Arrange
 	login := "/login"
 	logoff := "/logoff"
+	u := "https://example.com"
+	q := url.QueryEscape(u)
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	r := httptest.NewRequest(http.MethodGet, u, nil)
 
 	actual := middleware.RequireAuthed(nil, login, logoff)
 
@@ -214,12 +217,15 @@ func TestRequireAuthed(t *testing.T) {
 
 	// Assert
 	require.Equal(t, http.StatusTemporaryRedirect, w.Code)
-	require.Equal(t, login+"?next=", w.Header().Get("Location"))
+	require.Equal(t, login+"?next="+q, w.Header().Get("Location"))
 
 	// Arrange
 	ck := ctxKey("user")
+	o := url.QueryEscape("https://example.com/return_to")
+	u += "?return_to=" + o
+	q = url.QueryEscape(u)
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	r = httptest.NewRequest(http.MethodGet, u, nil)
 
 	actual = middleware.RequireAuthed(ck, login, logoff)
 
@@ -228,7 +234,7 @@ func TestRequireAuthed(t *testing.T) {
 
 	// Assert
 	require.Equal(t, http.StatusTemporaryRedirect, w.Code)
-	require.Equal(t, login+"?next=", w.Header().Get("Location"))
+	require.Equal(t, login+"?next="+q, w.Header().Get("Location"))
 
 	// Arrange
 	w = httptest.NewRecorder()
