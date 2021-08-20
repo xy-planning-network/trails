@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	// Default Flash Class
+	// Default Flash Type
 	FlashError   = "error"
 	FlashInfo    = "info"
 	FlashSuccess = "success"
@@ -31,6 +31,6 @@ type FlashSessionable interface {
 
 // A Flash is a structured message set in a session.
 type Flash struct {
-	Class string `json:"class"`
-	Msg   string `json:"msg"`
+	Type string `json:"type"`
+	Msg  string `json:"message"`
 }

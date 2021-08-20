@@ -118,7 +118,7 @@ func GenericErr(e error) Fn {
 		if d.contactErrMsg != "" {
 			msg = d.contactErrMsg
 		}
-		if err := Flash(session.Flash{Class: session.FlashError, Msg: msg})(d, r); err != nil {
+		if err := Flash(session.Flash{Type: session.FlashError, Msg: msg})(d, r); err != nil {
 			return err
 		}
 
@@ -152,7 +152,7 @@ func Success(msg string) Fn {
 			return err
 		}
 
-		if err := Flash(session.Flash{Class: session.FlashSuccess, Msg: msg})(d, r); err != nil {
+		if err := Flash(session.Flash{Type: session.FlashSuccess, Msg: msg})(d, r); err != nil {
 			return err
 		}
 
@@ -386,7 +386,7 @@ func Warn(msg string) Fn {
 
 		d.logger.Warn(msg, logData)
 
-		if err := Flash(session.Flash{Class: session.FlashWarning, Msg: msg})(d, r); err != nil {
+		if err := Flash(session.Flash{Type: session.FlashWarning, Msg: msg})(d, r); err != nil {
 			return err
 		}
 

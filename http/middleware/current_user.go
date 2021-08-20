@@ -56,7 +56,7 @@ func ApplyAuthorizer(d *resp.Responder, key ctx.CtxKeyable, fn UserAuthorizer) A
 					}
 				}
 
-				f := session.Flash{Class: session.FlashWarning, Msg: session.NoAccessMsg}
+				f := session.Flash{Type: session.FlashWarning, Msg: session.NoAccessMsg}
 				d.Redirect(w, r, resp.Flash(f), resp.Url(url))
 				return
 			}
