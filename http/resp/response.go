@@ -80,8 +80,8 @@ func Data(d interface{}) Fn {
 func Err(e error) Fn {
 	return func(d Responder, r *Response) error {
 		if e != nil {
-			logData := map[string]interface{}{"error": e, "request": r.r, "data": r.data}
-			d.logger.Error(e.Error(), logData)
+			ctx := getLogContext(r.r, e, r.data, r.user)
+			d.logger.Error(e.Error(), ctx)
 		}
 
 		if err := Code(http.StatusInternalServerError)(d, r); err != nil {
@@ -382,9 +382,7 @@ func Vue(entry string) Fn {
 // Warn sets a flash warning in the session and logs the warning.
 func Warn(msg string) Fn {
 	return func(d Responder, r *Response) error {
-		logData := map[string]interface{}{"warn": msg, "request": r.r, "data": r.data}
-
-		d.logger.Warn(msg, logData)
+		d.logger.Warn(msg, getLogContext(r.r, nil, r.data, r.user))
 
 		if err := Flash(session.Flash{Type: session.FlashWarning, Msg: msg})(d, r); err != nil {
 			return err
@@ -392,19 +390,4 @@ func Warn(msg string) Fn {
 
 		return nil
 	}
-}
-
-// populateUser helps pull a user up out of the *Response.r.Context
-// and into the *Response itself.
-func populateUser(d Responder, r *Response) error {
-	if r.user != nil {
-		return nil
-	}
-
-	u, err := d.CurrentUser(r.r.Context())
-	if err != nil || u == nil {
-		return ErrNoUser
-	}
-
-	return User(u)(d, r)
 }

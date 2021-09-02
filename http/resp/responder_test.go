@@ -15,6 +15,7 @@ import (
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/session"
 	tt "github.com/xy-planning-network/trails/http/template/templatetest"
+	"github.com/xy-planning-network/trails/logger"
 )
 
 type testFn func(*testing.T, *httptest.ResponseRecorder, *http.Request, error)
@@ -439,12 +440,13 @@ type testLogger struct {
 	b *bytes.Buffer
 }
 
-func newLogger() testLogger                                      { return testLogger{bytes.NewBuffer(nil)} }
-func (tl testLogger) Debug(msg string, _ map[string]interface{}) { fmt.Fprint(tl.b, msg) }
-func (tl testLogger) Error(msg string, _ map[string]interface{}) { fmt.Fprint(tl.b, msg) }
-func (tl testLogger) Fatal(msg string, _ map[string]interface{}) { fmt.Fprint(tl.b, msg) }
-func (tl testLogger) Info(msg string, _ map[string]interface{})  { fmt.Fprint(tl.b, msg) }
-func (tl testLogger) Warn(msg string, _ map[string]interface{})  { fmt.Fprint(tl.b, msg) }
+func newLogger() testLogger                                  { return testLogger{bytes.NewBuffer(nil)} }
+func (tl testLogger) Debug(msg string, _ *logger.LogContext) { fmt.Fprint(tl.b, msg) }
+func (tl testLogger) Error(msg string, _ *logger.LogContext) { fmt.Fprint(tl.b, msg) }
+func (tl testLogger) Fatal(msg string, _ *logger.LogContext) { fmt.Fprint(tl.b, msg) }
+func (tl testLogger) Info(msg string, _ *logger.LogContext)  { fmt.Fprint(tl.b, msg) }
+func (tl testLogger) Warn(msg string, _ *logger.LogContext)  { fmt.Fprint(tl.b, msg) }
+func (tl testLogger) LogLevel() logger.LogLevel              { return logger.LogLevelDebug }
 
 type ctxKey string
 
