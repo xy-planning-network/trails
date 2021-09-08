@@ -15,6 +15,7 @@ import (
 
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/session"
+	"github.com/xy-planning-network/trails/logger"
 )
 
 var (
@@ -25,6 +26,8 @@ type testUser bool
 
 func (b testUser) HasAccess() bool { return bool(b) }
 func (testUser) HomePath() string  { return "/" }
+func (testUser) GetEmail() string  { return "user@example.com" }
+func (testUser) GetID() uint       { return 1 }
 
 type testUserStore testUser
 
@@ -81,8 +84,9 @@ type testLogger struct {
 
 func newLogger() testLogger { return testLogger{new(bytes.Buffer)} }
 
-func (tl testLogger) Debug(msg string, _ map[string]interface{}) { fmt.Fprint(tl, msg) }
-func (tl testLogger) Error(msg string, _ map[string]interface{}) { fmt.Fprint(tl, msg) }
-func (tl testLogger) Fatal(msg string, _ map[string]interface{}) { fmt.Fprint(tl, msg) }
-func (tl testLogger) Info(msg string, _ map[string]interface{})  { fmt.Fprint(tl, msg) }
-func (tl testLogger) Warn(msg string, _ map[string]interface{})  { fmt.Fprint(tl, msg) }
+func (tl testLogger) Debug(msg string, _ *logger.LogContext) { fmt.Fprint(tl, msg) }
+func (tl testLogger) Error(msg string, _ *logger.LogContext) { fmt.Fprint(tl, msg) }
+func (tl testLogger) Fatal(msg string, _ *logger.LogContext) { fmt.Fprint(tl, msg) }
+func (tl testLogger) Info(msg string, _ *logger.LogContext)  { fmt.Fprint(tl, msg) }
+func (tl testLogger) Warn(msg string, _ *logger.LogContext)  { fmt.Fprint(tl, msg) }
+func (tl testLogger) LogLevel() logger.LogLevel              { return logger.LogLevelDebug }

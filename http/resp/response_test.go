@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xy-planning-network/trails/http/ctx"
 	"github.com/xy-planning-network/trails/http/session"
+	"github.com/xy-planning-network/trails/logger"
 )
 
 func TestAuthed(t *testing.T) {
@@ -206,7 +207,7 @@ func TestFlash(t *testing.T) {
 		{
 			name: "With-Key",
 			d:    NewResponder(WithSessionKey(key)),
-			f:    session.Flash{Class: "success", Msg: "well done!"},
+			f:    session.Flash{Type: "success", Msg: "well done!"},
 			assert: func(t *testing.T, s session.FlashSessionable, f session.Flash, err error) {
 				require.Nil(t, err)
 				require.Equal(t, f, s.Flashes(nil, nil)[0])
@@ -253,7 +254,7 @@ func TestGenericErr(t *testing.T) {
 			func(t *testing.T, l testLogger, s session.FlashSessionable, err error) {
 				require.Nil(t, err)
 				require.Nil(t, l.Bytes())
-				require.Equal(t, session.Flash{Class: "error", Msg: session.DefaultErrMsg}, s.Flashes(nil, nil)[0])
+				require.Equal(t, session.Flash{Type: "error", Msg: session.DefaultErrMsg}, s.Flashes(nil, nil)[0])
 			},
 		},
 		{
@@ -263,7 +264,7 @@ func TestGenericErr(t *testing.T) {
 			func(t *testing.T, l testLogger, s session.FlashSessionable, err error) {
 				require.Nil(t, err)
 				require.Equal(t, ErrNotFound.Error(), l.String())
-				require.Equal(t, session.Flash{Class: "error", Msg: "howdy!"}, s.Flashes(nil, nil)[0])
+				require.Equal(t, session.Flash{Type: "error", Msg: "howdy!"}, s.Flashes(nil, nil)[0])
 			},
 		},
 	}
@@ -384,7 +385,7 @@ func TestSuccess(t *testing.T) {
 			func(t *testing.T, code int, s session.FlashSessionable, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, code)
-				require.Equal(t, session.Flash{Class: "success", Msg: "success!"}, s.Flashes(nil, nil)[0])
+				require.Equal(t, session.Flash{Type: "success", Msg: "success!"}, s.Flashes(nil, nil)[0])
 			},
 		},
 	}
@@ -817,7 +818,7 @@ func TestWarn(t *testing.T) {
 			func(t *testing.T, expected string, s session.FlashSessionable, l testLogger, err error) {
 				require.Nil(t, err)
 				require.Equal(t, expected, l.String())
-				require.Equal(t, session.Flash{Class: "warning", Msg: expected}, s.Flashes(nil, nil)[0])
+				require.Equal(t, session.Flash{Type: "warning", Msg: expected}, s.Flashes(nil, nil)[0])
 			},
 		},
 	}
@@ -849,11 +850,12 @@ type testLogger struct {
 
 func newLogger() testLogger { return testLogger{new(bytes.Buffer)} }
 
-func (tl testLogger) Debug(msg string, _ map[string]interface{}) { fmt.Fprint(tl, msg) }
-func (tl testLogger) Error(msg string, _ map[string]interface{}) { fmt.Fprint(tl, msg) }
-func (tl testLogger) Fatal(msg string, _ map[string]interface{}) { fmt.Fprint(tl, msg) }
-func (tl testLogger) Info(msg string, _ map[string]interface{})  { fmt.Fprint(tl, msg) }
-func (tl testLogger) Warn(msg string, _ map[string]interface{})  { fmt.Fprint(tl, msg) }
+func (tl testLogger) Debug(msg string, _ *logger.LogContext) { fmt.Fprint(tl, msg) }
+func (tl testLogger) Error(msg string, _ *logger.LogContext) { fmt.Fprint(tl, msg) }
+func (tl testLogger) Fatal(msg string, _ *logger.LogContext) { fmt.Fprint(tl, msg) }
+func (tl testLogger) Info(msg string, _ *logger.LogContext)  { fmt.Fprint(tl, msg) }
+func (tl testLogger) Warn(msg string, _ *logger.LogContext)  { fmt.Fprint(tl, msg) }
+func (tl testLogger) LogLevel() logger.LogLevel              { return logger.LogLevelDebug }
 
 type testFlashSession []session.Flash
 

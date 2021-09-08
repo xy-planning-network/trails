@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff
+	github.com/fatih/color v1.12.0
 	github.com/getsentry/sentry-go v0.11.0
 	github.com/golang/mock v1.5.0
 	github.com/gorilla/handlers v1.5.1

@@ -68,12 +68,14 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	// ranging over opts may or may not overwrite defaults
 	//
 	// TODO(dlk): include default parser?
-	d := &Responder{logger: logger.NewLogger()}
-
+	d := &Responder{}
 	for _, opt := range opts {
 		opt(d)
 	}
 
+	if d.logger == nil {
+		d.logger = logger.NewLogger()
+	}
 	if d.parser != nil {
 		d.parser.AddFn(template.Nonce())
 		if d.rootUrl != nil {
@@ -110,7 +112,8 @@ func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error, op
 	if err != nil {
 		msg = err.Error()
 	}
-	doer.logger.Error(msg, nil)
+
+	doer.logger.Error(msg, getLogContext(r, err, rr.data, rr.user))
 	if rr.code == 0 {
 		rr.code = http.StatusInternalServerError
 	}
