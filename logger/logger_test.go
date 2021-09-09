@@ -13,6 +13,7 @@ import (
 
 var (
 	logLevelRegexp = regexp.MustCompile(`^\[[A-Z]+\]`)
+	fpRegexp       = regexp.MustCompile(`trails.*\.go`)
 	msgRegexp      = regexp.MustCompile(`'(.*)'\n$`)
 )
 
@@ -38,6 +39,7 @@ func TestTrailsLoggerDebug(t *testing.T) {
 	// Assert
 	actual := b.Bytes()
 	require.Equal(t, []byte("[DEBUG]"), logLevelRegexp.Find(actual))
+	require.Equal(t, []byte("trails/logger/logger_test.go"), fpRegexp.Find(actual))
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 }
 
@@ -63,6 +65,7 @@ func TestTrailsLoggerError(t *testing.T) {
 	// Assert
 	actual := b.Bytes()
 	require.Equal(t, []byte("[ERROR]"), logLevelRegexp.Find(actual))
+	require.Equal(t, []byte("trails/logger/logger_test.go"), fpRegexp.Find(actual))
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 
 	// Arrange
@@ -74,6 +77,7 @@ func TestTrailsLoggerError(t *testing.T) {
 	// Assert
 	actual = b.Bytes()
 	require.Equal(t, []byte("[ERROR]"), logLevelRegexp.Find(actual))
+	require.Equal(t, []byte("trails/logger/logger_test.go"), fpRegexp.Find(actual))
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 }
 
@@ -90,6 +94,7 @@ func TestTrailsLoggerFatal(t *testing.T) {
 	// Assert
 	actual := b.Bytes()
 	require.Equal(t, []byte("[FATAL]"), logLevelRegexp.Find(actual))
+	require.Equal(t, []byte("trails/logger/logger_test.go"), fpRegexp.Find(actual))
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 
 	// Arrange
@@ -101,6 +106,7 @@ func TestTrailsLoggerFatal(t *testing.T) {
 	// Assert
 	actual = b.Bytes()
 	require.Equal(t, []byte("[FATAL]"), logLevelRegexp.Find(actual))
+	require.Equal(t, []byte("trails/logger/logger_test.go"), fpRegexp.Find(actual))
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 }
 
@@ -126,6 +132,7 @@ func TestTrailsLoggerInfo(t *testing.T) {
 	// Assert
 	actual := b.Bytes()
 	require.Equal(t, []byte("[INFO]"), logLevelRegexp.Find(actual))
+	require.Equal(t, []byte("trails/logger/logger_test.go"), fpRegexp.Find(actual))
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 
 	// Arrange
@@ -137,6 +144,7 @@ func TestTrailsLoggerInfo(t *testing.T) {
 	// Assert
 	actual = b.Bytes()
 	require.Equal(t, []byte("[INFO]"), logLevelRegexp.Find(actual))
+	require.Equal(t, []byte("trails/logger/logger_test.go"), fpRegexp.Find(actual))
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 }
 func TestTrailsLoggerWarn(t *testing.T) {
@@ -161,6 +169,7 @@ func TestTrailsLoggerWarn(t *testing.T) {
 	// Assert
 	actual := b.Bytes()
 	require.Equal(t, []byte("[WARN]"), logLevelRegexp.Find(actual))
+	require.Equal(t, []byte("trails/logger/logger_test.go"), fpRegexp.Find(actual))
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 
 	// Arrange
@@ -172,6 +181,7 @@ func TestTrailsLoggerWarn(t *testing.T) {
 	// Assert
 	actual = b.Bytes()
 	require.Equal(t, []byte("[WARN]"), logLevelRegexp.Find(actual))
+	require.Equal(t, []byte("trails/logger/logger_test.go"), fpRegexp.Find(actual))
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 
 }
