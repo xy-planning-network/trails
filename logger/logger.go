@@ -3,10 +3,14 @@ package logger
 import (
 	"log"
 	"os"
+	"path"
+	"regexp"
 	"runtime"
 
 	"github.com/fatih/color"
 )
+
+var trailsPathRegex = regexp.MustCompile("trails.*$")
 
 // The Logger interface defines the levels a logging can occur at.
 type Logger interface {
@@ -72,7 +76,7 @@ type TrailsLogger struct {
 // The default environment is DEVELOPMENT.
 // The default log level is DEBUG.
 func NewLogger(opts ...LoggerOptFn) Logger {
-	logger := log.New(os.Stdout, "", log.Lshortfile|log.LstdFlags)
+	logger := log.New(os.Stdout, "", log.LstdFlags)
 	l := &TrailsLogger{
 		skip: 2,
 		env:  getEnvOrString("ENVIRONEMNT", "DEVELOPMENT"),
@@ -155,6 +159,12 @@ func (l *TrailsLogger) log(colorizer func(string, ...interface{}) string, level 
 	// TODO(dlk): have skip be configurable or implement some logic
 	// like https://github.com/sirupsen/logrus/blob/b50299cfaaa1bca85be76c8984070e846c7abfd2/entry.go#L178-L213
 	_, file, line, _ := runtime.Caller(l.skip)
+	if match := trailsPathRegex.Find([]byte(file)); match != nil {
+		file = string(match)
+	} else {
+		file = path.Base(file)
+	}
+
 	msg = colorizer("%s %s:%d '%s'", level, file, line, msg)
 	if ctx == nil {
 		l.l.Println(msg)
