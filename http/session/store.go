@@ -1,6 +1,7 @@
 package session
 
 import (
+	"encoding/gob"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -34,6 +35,7 @@ type Service struct {
 // If no backing storage is provided through a functional option -
 // like WithRedis - NewService stores sessions in cookies.
 func NewStoreService(env, authKey, encryptKey string, opts ...ServiceOpt) (Service, error) {
+	gob.Register(Flash{})
 	var err error
 	s := Service{env: env, maxAge: defaultMaxAge}
 
