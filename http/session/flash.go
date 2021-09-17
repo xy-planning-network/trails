@@ -34,3 +34,18 @@ type Flash struct {
 	Type string `json:"type"`
 	Msg  string `json:"message"`
 }
+
+func (f Flash) GetClass() string {
+	switch f.Type {
+	case FlashError:
+		return "border-red-500"
+	case FlashInfo:
+		return "border-blue-500"
+	case FlashSuccess:
+		return "border-green-500"
+	case FlashWarning:
+		return "border-orange-500"
+	default:
+		return "border-gray-500"
+	}
+}
