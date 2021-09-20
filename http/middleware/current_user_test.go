@@ -50,7 +50,7 @@ func TestCurrentUser(t *testing.T) {
 	)(teapotHandler()).ServeHTTP(w, r)
 
 	// Assert
-	require.Equal(t, http.StatusSeeOther, w.Code)
+	require.Equal(t, http.StatusTemporaryRedirect, w.Code)
 	require.Equal(t, "https://example.com/test", w.Header().Get("Location"))
 
 	// Arrange
