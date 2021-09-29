@@ -64,6 +64,9 @@ func TagPackerModern(env string, filesys fs.FS) func(string, bool) html.HTML {
 	}
 	return func(name string, isCSS bool) html.HTML {
 		assetPath := fmt.Sprintf("http://localhost:8080/js/%s.js", name)
+		if strings.EqualFold("development", env) {
+			assetPath = fmt.Sprintf("http://localhost:8080/src/pages/%s.ts", name)
+		}
 		tagTemplate := `<script src="%s" type="module"></script>`
 		glob := fmt.Sprintf(jsGlob, name)
 
