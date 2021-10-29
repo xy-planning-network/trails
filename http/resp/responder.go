@@ -113,10 +113,16 @@ func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error, op
 		msg = err.Error()
 	}
 
-	doer.logger.Error(msg, getLogContext(r, err, rr.data, rr.user))
+	if rr.user == nil {
+		populateUser(*doer, rr) // NOTE(dlk): ignore err since user is not required
+	}
+
+	u, _ := rr.user.(logger.LogUser)
+	doer.logger.Error(msg, newLogContext(r, err, rr.data, u))
 	if rr.code == 0 {
 		rr.code = http.StatusInternalServerError
 	}
+
 	http.Error(w, msg, rr.code)
 }
 

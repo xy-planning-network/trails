@@ -6,9 +6,9 @@ import (
 	"github.com/xy-planning-network/trails/logger"
 )
 
-// getLogContext helps structure a logger.LogContext from the provided parts.
-func getLogContext(r *http.Request, err error, data, u interface{}) *logger.LogContext {
-	if r == nil && err == nil && data == nil && u == nil {
+// newLogContext helps structure a logger.LogContext from the provided parts.
+func newLogContext(r *http.Request, err error, data interface{}, user logger.LogUser) *logger.LogContext {
+	if r == nil && err == nil && data == nil && user == nil {
 		return nil
 	}
 
@@ -16,15 +16,19 @@ func getLogContext(r *http.Request, err error, data, u interface{}) *logger.LogC
 	if r != nil {
 		ctx.Request = r
 	}
+
 	if err != nil {
 		ctx.Error = err
 	}
+
 	if mapped, ok := data.(map[string]interface{}); ok {
 		ctx.Data = mapped
 	}
-	if user, ok := u.(logger.LogUser); ok {
+
+	if user != nil {
 		ctx.User = user
 	}
+
 	return ctx
 }
 

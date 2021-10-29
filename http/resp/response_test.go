@@ -171,7 +171,7 @@ func TestErr(t *testing.T) {
 			// Arrange
 			l := newLogger()
 			d := Responder{logger: l}
-			r := &Response{}
+			r := &Response{r: httptest.NewRequest(http.MethodGet, "http://example.com", nil)}
 
 			// Act
 			err := Err(tc.err)(d, r)

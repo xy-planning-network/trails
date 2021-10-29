@@ -1,11 +1,13 @@
 package resp
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/xy-planning-network/trails/http/session"
+	"github.com/xy-planning-network/trails/logger"
 )
 
 // A Fn is a functional option that mutates the state of the Response.
@@ -80,8 +82,10 @@ func Data(d interface{}) Fn {
 func Err(e error) Fn {
 	return func(d Responder, r *Response) error {
 		if e != nil {
-			ctx := getLogContext(r.r, e, r.data, r.user)
-			d.logger.Error(e.Error(), ctx)
+			populateUser(d, r) // NOTE(dlk): ignore err since a user is not required
+
+			u, _ := r.user.(logger.LogUser)
+			d.logger.Error(e.Error(), newLogContext(r.r, e, r.data, u))
 		}
 
 		if err := Code(http.StatusInternalServerError)(d, r); err != nil {
@@ -382,7 +386,10 @@ func Vue(entry string) Fn {
 // Warn sets a flash warning in the session and logs the warning.
 func Warn(msg string) Fn {
 	return func(d Responder, r *Response) error {
-		d.logger.Warn(msg, getLogContext(r.r, nil, r.data, r.user))
+		populateUser(d, r) // NOTE(dlk): ignore since a user is not required
+
+		u, _ := r.user.(logger.LogUser)
+		d.logger.Warn(msg, newLogContext(r.r, errors.New(msg), r.data, u))
 
 		if err := Flash(session.Flash{Type: session.FlashWarning, Msg: msg})(d, r); err != nil {
 			return err
