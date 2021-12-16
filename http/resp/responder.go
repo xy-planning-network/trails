@@ -130,13 +130,13 @@ func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error, op
 // and configured by Authed, Unauthed, Tmpls and other such calls.
 func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
 	rr, err := doer.do(w, r, opts...)
+	if err != nil {
+		return err
+	}
+
 	// TODO(dlk): call Error() instead of silently closing Body?
 	if rr.closeBody {
 		defer r.Body.Close()
-	}
-
-	if err != nil {
-		return err
 	}
 
 	if doer.parser == nil {
@@ -261,13 +261,13 @@ func (doer *Responder) Raw(w http.ResponseWriter, r *http.Request, opts ...Fn) e
 // Redirect overwrites the status code with an appropriate 3xx status code.
 func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
 	rr, err := doer.do(w, r, append([]Fn{ToRoot()}, opts...)...)
+	if err != nil {
+		return err
+	}
+
 	// TODO(dlk): call Error() instead of silently closing Body?
 	if rr.closeBody {
 		defer r.Body.Close()
-	}
-
-	if err != nil {
-		return err
 	}
 
 	if rr.url == nil {
