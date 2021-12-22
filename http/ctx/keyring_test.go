@@ -12,6 +12,7 @@ type testKey string
 const (
 	sk testKey = "session"
 	ck testKey = "currentUserKey"
+	ok testKey = "otherKey"
 )
 
 func (tk testKey) Key() string    { return string(tk) }
@@ -38,4 +39,13 @@ func TestKeyRing(t *testing.T) {
 	require.Equal(t, sk, kr.Key(sk.Key()))
 	require.Equal(t, ck, kr.CurrentUserKey())
 	require.Equal(t, ck, kr.Key(ck.Key()))
+
+	// Arrange
+	child := ctx.WithKeyRing(kr, ok)
+
+	// Act + Assert
+	require.Nil(t, kr.Key(ok.Key()))
+	require.Equal(t, sk, child.SessionKey())
+	require.Equal(t, ck, child.CurrentUserKey())
+	require.Equal(t, ok, child.Key(ok.Key()))
 }
