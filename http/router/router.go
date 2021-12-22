@@ -128,9 +128,10 @@ func (r *DefaultRouter) HandleRoutes(routes []Route, middlewares ...middleware.A
 
 }
 
-// OnEveryRequest sets a middleware stack to be applied to every request.
+// OnEveryRequest appends the middlewares to the existing stack
+// that the DefaultRouter will apply to every request.
 func (r *DefaultRouter) OnEveryRequest(middlewares ...middleware.Adapter) {
-	r.everyReqStack = middlewares
+	r.everyReqStack = append(r.everyReqStack, middlewares...)
 }
 
 // ServeHTTP responds to an HTTP request.
