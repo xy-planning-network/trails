@@ -52,7 +52,7 @@ func itsHammerTime() int64 { return time.Now().UnixNano() }
 // Handler shares the initialized Responder across all example responses.
 type Handler struct {
 	*Responder
-	Ring ctx.KeyRingable
+	Ring ctx.Keyringable
 }
 
 // root is a fully-formed use of Responder.
@@ -109,8 +109,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Setup new ctx.KeyRing
-	ring := ctx.NewKeyRing(sessionKey, userKey)
+	// Setup new ctx.Keyring
+	ring := ctx.NewKeyring(sessionKey, userKey)
 
 	// Setup new template.Parser
 	//
