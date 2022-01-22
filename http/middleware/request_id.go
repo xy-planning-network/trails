@@ -5,13 +5,13 @@ import (
 	"net/http"
 
 	uuid "github.com/satori/go.uuid"
-	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 )
 
 // RequestID adds a uuid to the request context.
 //
 // If key is nil, then NoopAdapter returns and this middleware does nothing.
-func RequestID(key ctx.CtxKeyable) Adapter {
+func RequestID(key keyring.Keyable) Adapter {
 	if key == nil {
 		return NoopAdapter
 	}

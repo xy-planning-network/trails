@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
@@ -29,15 +29,15 @@ func TestResponderWithContactErrMsg(t *testing.T) {
 func TestResponderWithCtxKeys(t *testing.T) {
 	tcs := []struct {
 		name     string
-		keys     []ctx.CtxKeyable
-		expected []ctx.CtxKeyable
+		keys     []keyring.Keyable
+		expected []keyring.Keyable
 	}{
 		{"nil", nil, nil},
-		{"zero-value", make([]ctx.CtxKeyable, 0), nil},
-		{"many-zero-value", make([]ctx.CtxKeyable, 99), nil},
-		{"sorted", []ctx.CtxKeyable{ctxKey("a"), ctxKey("c"), ctxKey("e"), ctxKey("d")}, []ctx.CtxKeyable{ctxKey("a"), ctxKey("c"), ctxKey("d"), ctxKey("e")}},
-		{"deduped", []ctx.CtxKeyable{ctxKey("a"), ctxKey("a"), ctxKey("a")}, []ctx.CtxKeyable{ctxKey("a")}},
-		{"filtered-zero-value", []ctx.CtxKeyable{ctxKey(""), ctxKey("a"), ctxKey(""), ctxKey("b"), ctxKey("")}, []ctx.CtxKeyable{ctxKey("a"), ctxKey("b")}},
+		{"zero-value", make([]keyring.Keyable, 0), nil},
+		{"many-zero-value", make([]keyring.Keyable, 99), nil},
+		{"sorted", []keyring.Keyable{ctxKey("a"), ctxKey("c"), ctxKey("e"), ctxKey("d")}, []keyring.Keyable{ctxKey("a"), ctxKey("c"), ctxKey("d"), ctxKey("e")}},
+		{"deduped", []keyring.Keyable{ctxKey("a"), ctxKey("a"), ctxKey("a")}, []keyring.Keyable{ctxKey("a")}},
+		{"filtered-zero-value", []keyring.Keyable{ctxKey(""), ctxKey("a"), ctxKey(""), ctxKey("b"), ctxKey("")}, []keyring.Keyable{ctxKey("a"), ctxKey("b")}},
 	}
 
 	for _, tc := range tcs {
