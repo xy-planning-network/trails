@@ -18,21 +18,21 @@ const (
 func (tk testKey) Key() string    { return string(tk) }
 func (tk testKey) String() string { return string(tk) }
 
-func TestKeyRing(t *testing.T) {
+func TestKeyring(t *testing.T) {
 	// Arrange
-	kr := ctx.NewKeyRing(nil, nil)
+	kr := ctx.NewKeyring(nil, nil)
 
 	// Act + Assert
 	require.Nil(t, kr)
 
 	// Arrange
-	kr = ctx.NewKeyRing(sk, nil)
+	kr = ctx.NewKeyring(sk, nil)
 
 	// Act + Assert
 	require.Nil(t, kr)
 
 	// Arrange
-	kr = ctx.NewKeyRing(sk, ck)
+	kr = ctx.NewKeyring(sk, ck)
 
 	// Act + Assert
 	require.Equal(t, sk, kr.SessionKey())
@@ -41,7 +41,7 @@ func TestKeyRing(t *testing.T) {
 	require.Equal(t, ck, kr.Key(ck.Key()))
 
 	// Arrange
-	child := ctx.WithKeyRing(kr, ok)
+	child := ctx.WithKeyring(kr, ok)
 
 	// Act + Assert
 	require.Nil(t, kr.Key(ok.Key()))
