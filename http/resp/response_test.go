@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/logger"
 )
@@ -726,7 +727,7 @@ func TestVue(t *testing.T) {
 		},
 		{
 			"With-CtxKeys",
-			Responder{vue: "vue.tmpl", ctxKeys: []ctx.CtxKeyable{aKey}},
+			Responder{vue: "vue.tmpl", ctxKeys: []keyring.Keyable{aKey}},
 			&Response{user: "test"},
 			"test",
 			func(t *testing.T, tmpls []string, data any, err error) {

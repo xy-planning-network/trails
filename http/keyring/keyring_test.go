@@ -1,10 +1,10 @@
-package ctx_test
+package keyring_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 )
 
 type testKey string
@@ -20,19 +20,19 @@ func (tk testKey) String() string { return string(tk) }
 
 func TestKeyring(t *testing.T) {
 	// Arrange
-	kr := ctx.NewKeyring(nil, nil)
+	kr := keyring.NewKeyring(nil, nil)
 
 	// Act + Assert
 	require.Nil(t, kr)
 
 	// Arrange
-	kr = ctx.NewKeyring(sk, nil)
+	kr = keyring.NewKeyring(sk, nil)
 
 	// Act + Assert
 	require.Nil(t, kr)
 
 	// Arrange
-	kr = ctx.NewKeyring(sk, ck)
+	kr = keyring.NewKeyring(sk, ck)
 
 	// Act + Assert
 	require.Equal(t, sk, kr.SessionKey())
@@ -41,7 +41,7 @@ func TestKeyring(t *testing.T) {
 	require.Equal(t, ck, kr.Key(ck.Key()))
 
 	// Arrange
-	child := ctx.WithKeyring(kr, ok)
+	child := keyring.WithKeyring(kr, ok)
 
 	// Act + Assert
 	require.Nil(t, kr.Key(ok.Key()))
