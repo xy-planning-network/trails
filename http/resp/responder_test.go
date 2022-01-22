@@ -20,6 +20,10 @@ import (
 
 type testFn func(*testing.T, *httptest.ResponseRecorder, *http.Request, error)
 
+const (
+	jsonMediaType = "application/json; charset=UTF-8"
+)
+
 func TestResponderDo(t *testing.T) {
 	t.Run("Cancelled", func(t *testing.T) {
 		// Arrange
@@ -87,7 +91,7 @@ func TestResponderErr(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			r := httptest.NewRequest("GET", "http://example.com", nil)
+			r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 			w := httptest.NewRecorder()
 			l := newLogger()
 			d := resp.NewResponder(resp.WithLogger(l))
@@ -116,7 +120,7 @@ func TestResponderJson(t *testing.T) {
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, w.Code)
-				require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+				require.Equal(t, jsonMediaType, w.Header().Get("Content-Type"))
 				require.Equal(t, []byte("{}\n"), w.Body.Bytes())
 			},
 		},
@@ -126,7 +130,7 @@ func TestResponderJson(t *testing.T) {
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusTeapot, w.Code)
-				require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+				require.Equal(t, jsonMediaType, w.Header().Get("Content-Type"))
 				require.Equal(t, []byte("{}\n"), w.Body.Bytes())
 			},
 		},
@@ -136,7 +140,7 @@ func TestResponderJson(t *testing.T) {
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, w.Code)
-				require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+				require.Equal(t, jsonMediaType, w.Header().Get("Content-Type"))
 
 				var b bytes.Buffer
 				err = json.NewEncoder(&b).Encode(map[string]map[string]string{"data": {"go": "rocks"}})
@@ -150,7 +154,7 @@ func TestResponderJson(t *testing.T) {
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, w.Code)
-				require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+				require.Equal(t, jsonMediaType, w.Header().Get("Content-Type"))
 
 				var b bytes.Buffer
 				err = json.NewEncoder(&b).Encode(map[string]int{"currentUser": 1})
@@ -168,17 +172,15 @@ func TestResponderJson(t *testing.T) {
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusTeapot, w.Code)
-				require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+				require.Equal(t, jsonMediaType, w.Header().Get("Content-Type"))
 
 				var b bytes.Buffer
 				err = json.NewEncoder(&b).
 					Encode(
 						struct {
 							D interface{} `json:"data"`
-							U interface{} `json:"currentUser"`
 						}{
 							D: map[string]string{"go": "rocks"},
-							U: 1,
 						},
 					)
 				require.Nil(t, err)
@@ -188,7 +190,7 @@ func TestResponderJson(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		r := httptest.NewRequest("GET", "http://example.com", nil)
+		r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 		w := httptest.NewRecorder()
 		d := resp.NewResponder()
 		t.Run(tc.name, func(t *testing.T) {
@@ -217,7 +219,7 @@ func TestResponderRedirect(t *testing.T) {
 		{
 			name: "Param-No-Url",
 			fns: []resp.Fn{
-				resp.Param("test", "true"),
+				resp.Params(map[string]string{"test": "true"}),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.ErrorIs(t, err, resp.ErrMissingData)
@@ -226,10 +228,10 @@ func TestResponderRedirect(t *testing.T) {
 		{
 			name: "Params4x-Url-Redirect",
 			fns: []resp.Fn{
-				resp.Param("test", "true"),
-				resp.Param("go", "fun"),
-				resp.Param("params", "4"),
-				resp.Param("good", "times"),
+				resp.Params(map[string]string{"test": "true"}),
+				resp.Params(map[string]string{"go": "fun"}),
+				resp.Params(map[string]string{"params": "4"}),
+				resp.Params(map[string]string{"good": "times"}),
 				resp.Url("http://example.com/redirect"),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
@@ -307,7 +309,7 @@ func TestResponderRedirect(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		r := httptest.NewRequest("GET", "http://example.com", nil)
+		r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 		w := httptest.NewRecorder()
 		d := resp.NewResponder()
 		t.Run(tc.name, func(t *testing.T) {
@@ -363,7 +365,7 @@ func TestResponderHtml(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		r := httptest.NewRequest("GET", "http://example.com", nil)
+		r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 		ctx := context.WithValue(r.Context(), sessionKey, session.Stub{})
 		r = r.WithContext(ctx)
 		w := httptest.NewRecorder()
@@ -404,18 +406,64 @@ func TestResponderSession(t *testing.T) {
 	})
 }
 
-func BenchmarkResponderJson(b *testing.B) {
-	bcs := [][]resp.Fn{
-		{resp.Code(200)},
+func BenchmarkResponderRedirect(b *testing.B) {
+	bcs := []struct {
+		name string
+		fns  []resp.Fn
+	}{
+		{"None", []resp.Fn{}},
+		{"With-Code", []resp.Fn{resp.Code(http.StatusFound)}},
+		{"With-Code-Overwrite", []resp.Fn{resp.Code(http.StatusTeapot)}},
+		{"With-Param", []resp.Fn{resp.Params(map[string]string{"test": "true"})}},
+		{"Url-Params", []resp.Fn{
+			resp.Url("http://example.com/redirect"),
+			resp.Params(map[string]string{
+				"test":   "true",
+				"go":     "fun",
+				"params": "4",
+				"good":   "times",
+			}),
+		}},
+		{"4x-Params-Url-Redo", []resp.Fn{
+			resp.Params(map[string]string{"test": "true"}),
+			resp.Params(map[string]string{"go": "fun"}),
+			resp.Params(map[string]string{"params": "4"}),
+			resp.Params(map[string]string{"good": "times"}),
+			resp.Url("http://example.com/redirect"),
+		}},
 	}
 
 	for _, bc := range bcs {
-		for n := 0; n < b.N; n++ {
-			r := httptest.NewRequest("GET", "http://example.com", nil)
-			w := httptest.NewRecorder()
-			d := resp.NewResponder()
-			d.Json(w, r, bc...)
-		}
+		b.Run(bc.name, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+				w := httptest.NewRecorder()
+				d := resp.NewResponder()
+				d.Redirect(w, r, bc.fns...)
+			}
+		})
+	}
+}
+
+func BenchmarkResponderJson(b *testing.B) {
+	bcs := []struct {
+		name string
+		fns  []resp.Fn
+	}{
+		{"None", []resp.Fn{}},
+		{"Code", []resp.Fn{resp.Code(200)}},
+		{"Code-Data", []resp.Fn{resp.Code(200), resp.Data(map[string]string{"bench": "marks!"})}},
+	}
+
+	for _, bc := range bcs {
+		b.Run(bc.name, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+				w := httptest.NewRecorder()
+				d := resp.NewResponder()
+				d.Json(w, r, bc.fns...)
+			}
+		})
 	}
 }
 
@@ -427,7 +475,7 @@ func BenchmarkResponderRaw(b *testing.B) {
 
 	for _, bc := range bcs {
 		for n := 0; n < b.N; n++ {
-			r := httptest.NewRequest("GET", "http://example.com", nil)
+			r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 			w := httptest.NewRecorder()
 			d := resp.NewResponder()
 			d.Raw(w, r, bc...)

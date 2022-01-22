@@ -287,7 +287,7 @@ func TestGenericErr(t *testing.T) {
 	}
 }
 
-func TestParam(t *testing.T) {
+func TestParams(t *testing.T) {
 	goodURL, _ := url.Parse("http://example.com")
 
 	testKey, testValue := "test", "params"
@@ -299,13 +299,13 @@ func TestParam(t *testing.T) {
 	tcs := []struct {
 		name   string
 		r      *Response
-		input  [2]string
+		input  map[string]string
 		assert func(*testing.T, *Response, error)
 	}{
 		{
 			name:  "No-Url",
 			r:     &Response{},
-			input: [2]string{"go", "rocks"},
+			input: map[string]string{"go": "rocks"},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.ErrorIs(t, err, ErrMissingData)
 			},
@@ -313,7 +313,7 @@ func TestParam(t *testing.T) {
 		{
 			name:  "Url",
 			r:     &Response{url: goodURL},
-			input: [2]string{"go", "rocks"},
+			input: map[string]string{"go": "rocks"},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
 
@@ -324,7 +324,7 @@ func TestParam(t *testing.T) {
 		{
 			name:  "With-Params",
 			r:     &Response{url: withParams},
-			input: [2]string{"go", "rocks"},
+			input: map[string]string{"go": "rocks"},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
 				require.Equal(t, "rocks", r.url.Query().Get("go"))
@@ -339,7 +339,7 @@ func TestParam(t *testing.T) {
 			d := Responder{}
 
 			// Act
-			err := Param(tc.input[0], tc.input[1])(d, tc.r)
+			err := Params(tc.input)(d, tc.r)
 
 			// Assert
 			tc.assert(t, tc.r, err)
@@ -350,14 +350,13 @@ func TestParam(t *testing.T) {
 		// Arrange
 		r := &Response{url: goodURL}
 		d := Responder{}
-		ins := [][2]string{{"go", "rocks"}, {"fun", "tests"}}
-		for _, in := range ins {
-			// Act
-			err := Param(in[0], in[1])(d, r)
+		ins := map[string]string{"go": "rocks", "fun": "tests"}
 
-			// Assert
-			require.Nil(t, err)
-		}
+		// Act
+		err := Params(ins)(d, r)
+
+		// Assert
+		require.Nil(t, err)
 
 		require.Equal(t, "rocks", r.url.Query().Get("go"))
 		require.Equal(t, "tests", r.url.Query().Get("fun"))
