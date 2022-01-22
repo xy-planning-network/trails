@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"sort"
 
-	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 )
@@ -39,7 +39,7 @@ func WithContactErrMsg(msg string) func(*Responder) {
 // WithCtxKeys appends the provided keys to be used for retrieving values from the *http.Request.Context.
 //
 // WithCtxKeys deduplicates keys and filters out zero-value strings.
-func WithCtxKeys(keys ...ctx.CtxKeyable) func(*Responder) {
+func WithCtxKeys(keys ...keyring.Keyable) func(*Responder) {
 	if len(keys) == 0 {
 		return NoopResponderOptFn
 	}
@@ -53,7 +53,7 @@ func WithCtxKeys(keys ...ctx.CtxKeyable) func(*Responder) {
 
 		// NOTE(dlk): filter and deduplicate strings
 		// cribbed from: https://github.com/golang/go/wiki/SliceTricks#in-place-deduplicate-comparable
-		sort.Sort(ctx.ByCtxKeyable(d.ctxKeys))
+		sort.Sort(keyring.ByKeyable(d.ctxKeys))
 		j := 0
 		for i := 1; i < len(d.ctxKeys); i++ {
 			switch d.ctxKeys[j].String() {
@@ -111,7 +111,7 @@ func WithRootUrl(u string) func(*Responder) {
 // WithSessionKey sets the key to use for grabbing a session.Sessionable out of the *http.Request.Context
 //
 // Responder.Session requires this option.
-func WithSessionKey(key ctx.CtxKeyable) func(*Responder) {
+func WithSessionKey(key keyring.Keyable) func(*Responder) {
 	return func(d *Responder) {
 		d.sessionKey = key
 	}
@@ -131,7 +131,7 @@ func WithUnauthTemplate(fp string) func(*Responder) {
 // out of the session.Sessionable set in the *http.Request.Context
 //
 // Responder.CurrentUser requires this option.
-func WithUserSessionKey(key ctx.CtxKeyable) func(*Responder) {
+func WithUserSessionKey(key keyring.Keyable) func(*Responder) {
 	return func(d *Responder) {
 		d.userSessionKey = key
 	}

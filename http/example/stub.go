@@ -4,13 +4,13 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/session"
 )
 
 // registerUser mocks initializizing an authenticated user's session for example purposes
-func registerUser(key ctx.CtxKeyable, userstore *users) middleware.Adapter {
+func registerUser(key keyring.Keyable, userstore *users) middleware.Adapter {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			name := r.URL.Query().Get("name")

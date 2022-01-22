@@ -13,7 +13,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	. "github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
@@ -52,7 +52,7 @@ func itsHammerTime() int64 { return time.Now().UnixNano() }
 // Handler shares the initialized Responder across all example responses.
 type Handler struct {
 	*Responder
-	Ring ctx.Keyringable
+	Ring keyring.Keyringable
 }
 
 // root is a fully-formed use of Responder.
@@ -109,8 +109,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Setup new ctx.Keyring
-	ring := ctx.NewKeyring(sessionKey, userKey)
+	// Setup new keyring.Keyring
+	ring := keyring.NewKeyring(sessionKey, userKey)
 
 	// Setup new template.Parser
 	//
