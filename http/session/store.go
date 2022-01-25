@@ -74,7 +74,7 @@ func (s Service) GetSession(r *http.Request) (Sessionable, error) {
 type ServiceOpt func(*Service) error
 
 // WithCookie configures the Service to back session storage with cookies.
-func WithCookie() func(*Service) error {
+func WithCookie() ServiceOpt {
 	var c *gorilla.CookieStore
 	return func(s *Service) error {
 		if !strings.EqualFold(s.env, "testing") {
@@ -95,7 +95,7 @@ func WithCookie() func(*Service) error {
 // Call before other options so this value is available.
 //
 // Otherwise, the Service uses defaultMaxAge.
-func WithMaxAge(secs int) func(*Service) error {
+func WithMaxAge(secs int) ServiceOpt {
 	return func(s *Service) error {
 		s.maxAge = secs
 		return nil
@@ -105,7 +105,7 @@ func WithMaxAge(secs int) func(*Service) error {
 // WithRedis configures the Service to back session storage with Redis.
 //
 // To authenticate to the Redis server, provide pass, otherwise its zero-value is acceptable.
-func WithRedis(uri, pass string) func(*Service) error {
+func WithRedis(uri, pass string) ServiceOpt {
 	var r *redistore.RediStore
 	var err error
 	return func(s *Service) error {

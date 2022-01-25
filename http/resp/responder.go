@@ -187,7 +187,6 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	defer doer.pool.Put(b)
 
 	if err := tmpl.ExecuteTemplate(b, path.Base(rr.tmpls[0]), rd); err != nil {
-		doer.Err(w, r, err)
 		return err
 	}
 
