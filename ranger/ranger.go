@@ -12,7 +12,6 @@ import (
 	// TODO(dlk): configurable env files
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/xy-planning-network/trails/http/keyring"
-	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
 	"github.com/xy-planning-network/trails/http/session"
@@ -41,7 +40,7 @@ type Ranger struct {
 // Options supplied to NewRanger overwrite default configurations.
 func NewRanger(opts ...RangerOption) (*Ranger, error) {
 	r := new(Ranger)
-	followups := make([]optFollowup, 0)
+	followups := make([]OptFollowup, 0)
 
 	// NOTE(dlk): calling an option configures the *Ranger under construction.
 	// Some options require data from other options.
@@ -67,18 +66,6 @@ func NewRanger(opts ...RangerOption) (*Ranger, error) {
 	}
 
 	return r, nil
-}
-
-// TODO(dlk)
-//
-// Implements middleware.UserStorer.
-func (r *Ranger) GetByID(id uint) (middleware.User, error) {
-	var model interface{}
-	if err := r.DB.FindByID(model, id); err != nil {
-		return nil, err
-	}
-
-	return model.(middleware.User), nil
 }
 
 // Guide begins the web server.

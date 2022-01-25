@@ -2,6 +2,7 @@ package ranger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/securecookie"
+	"github.com/xy-planning-network/trails/domain"
 	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
@@ -18,6 +20,7 @@ import (
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
+	"gorm.io/gorm"
 )
 
 const (
@@ -94,7 +97,7 @@ func defaultOpts() []RangerOption {
 // DefaultContext constructs a RangerOption initiates a new, base context.Context
 // for the trails app.
 func DefaultContext() RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		return WithContext(context.Background())(rng)
 	}
 }
@@ -104,7 +107,7 @@ func DefaultContext() RangerOption {
 // and runs the list of postgres.Migrations passed in.
 func DefaultDB(list []postgres.Migration) RangerOption {
 	var cfg *postgres.CxnConfig
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
 			switch rng.Env {
 			case Testing: // NOTE(dlk): this is an unexpected case since go test does not reach this
@@ -150,7 +153,7 @@ func DefaultDB(list []postgres.Migration) RangerOption {
 // DefaultKeyring constructs a RangerOption that applies the default context keys
 // and those keys passed in to the Ranger.
 func DefaultKeyring(keys ...keyring.Keyable) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		kr := keyring.NewKeyring(
 			defaultSessionCtxKey,
 			defaultCurrentUserCtxKey,
@@ -172,7 +175,7 @@ func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 		args = append(args, opt)
 	}
 
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		return WithLogger(logger.NewLogger(args...))(rng)
 	}
 }
@@ -194,12 +197,12 @@ func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 	u, err := url.ParseRequestURI(envVarOrString(baseURLEnvVar, defaultBaseURL))
 	if err != nil {
-		return func(_ *Ranger) (optFollowup, error) {
+		return func(_ *Ranger) (OptFollowup, error) {
 			return nil, fmt.Errorf("%w: failed parsing %s: %s", ErrBadConfig, baseURLEnvVar, err)
 		}
 	}
 
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		args := []template.ParserOptFn{
 			template.WithFn(template.Env(rng.Env.String())),
 			template.WithFn(template.Nonce()),
@@ -233,10 +236,10 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 	u, err := url.ParseRequestURI(envVarOrString(baseURLEnvVar, defaultBaseURL))
 	if err != nil {
 		err = fmt.Errorf("%w: failed parsing %s: %s", ErrBadConfig, baseURLEnvVar, err)
-		return func(rng *Ranger) (optFollowup, error) { return nil, err }
+		return func(rng *Ranger) (OptFollowup, error) { return nil, err }
 	}
 
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
 			if rng.p == nil {
 				if _, err := DefaultParser(os.DirFS("."))(rng); err != nil {
@@ -269,10 +272,28 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 	}
 }
 
+type defaultUserStorer struct {
+	postgres.DatabaseService
+}
+
+// GetByID retrieves the middleware.User matching the ID.
+func (store defaultUserStorer) GetByID(id uint) (middleware.User, error) {
+	user := new(domain.User)
+	if err := store.FindByID(user, id); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = fmt.Errorf("%w: User %d", ErrNotExist, id)
+		}
+
+		return nil, err
+	}
+
+	return user, nil
+}
+
 // DefaultRouter constructs a RangerOption that returns a followup option
 // configuring the *Ranger.Router to be used by the web server.
 func DefaultRouter() RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		var fn func() error
 		var err error
 		fn, err = DefaultResponder()(rng)
@@ -290,7 +311,7 @@ func DefaultRouter() RangerOption {
 			middleware.InjectSession(rng.sess, rng.Keyring.SessionKey()),
 			middleware.CurrentUser(
 				rng.Responder,
-				rng,
+				defaultUserStorer{rng.DB},
 				rng.Keyring.SessionKey(),
 				rng.Keyring.CurrentUserKey(),
 			),
@@ -323,7 +344,7 @@ func DefaultRouter() RangerOption {
 // If these values do not exist, DefaultSessionStore will generate new, random keys
 // and save those to the env var file for later use.
 func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		args := []session.ServiceOpt{
 			session.WithCookie(),
 			session.WithMaxAge(3600 * 24 * 7),

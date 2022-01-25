@@ -23,12 +23,12 @@ import (
 // WithRouter is an example of the second.
 // An unexported field on the passed in *Ranger
 // is updated only when the closure it returns is called.
-type RangerOption func(rng *Ranger) (optFollowup, error)
-type optFollowup func() error
+type RangerOption func(rng *Ranger) (OptFollowup, error)
+type OptFollowup func() error
 
 // WithContext exposes the provided context.Context to the trails app.
 func WithContext(ctx context.Context) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		rng.ctx = ctx
 		return nil, nil
 	}
@@ -38,7 +38,7 @@ func WithContext(ctx context.Context) RangerOption {
 //
 // WithDB assumes a connection has already been established.
 func WithDB(db postgres.DatabaseService) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		rng.DB = db
 		return nil, nil
 	}
@@ -53,14 +53,14 @@ func WithEnv(envVar string) RangerOption {
 	e := Environment(envVar)
 	err := e.Valid()
 	if err == nil {
-		return func(rng *Ranger) (optFollowup, error) {
+		return func(rng *Ranger) (OptFollowup, error) {
 			rng.Env = e
 			return nil, nil
 
 		}
 	}
 
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		rng.Env = envVarOrEnv(envVar, Development)
 		return nil, nil
 	}
@@ -68,7 +68,7 @@ func WithEnv(envVar string) RangerOption {
 
 // WithKeyring exposes the provided keyring.Keyringable to the trails app.
 func WithKeyring(k keyring.Keyringable) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		rng.Keyring = k
 		return nil, nil
 	}
@@ -76,7 +76,7 @@ func WithKeyring(k keyring.Keyringable) RangerOption {
 
 // WithLogger exposes the provided logger.Logger to the trails app.
 func WithLogger(l logger.Logger) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		rng.Logger = l
 		return nil, nil
 	}
@@ -85,7 +85,7 @@ func WithLogger(l logger.Logger) RangerOption {
 // WithResponder constructs a followup option that, when called,
 // exposes the *resp.Responder to the trails app.
 func WithResponder(r *resp.Responder) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
 			rng.Responder = r
 			return nil
@@ -96,7 +96,7 @@ func WithResponder(r *resp.Responder) RangerOption {
 // WithRouter constructs a followup option that, when called,
 // exposes the router.Router to the trails app.
 func WithRouter(r router.Router) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
 			// TODO(dlk): best approach? need to track 2 fields?
 			if rng.srv == nil {
@@ -112,7 +112,7 @@ func WithRouter(r router.Router) RangerOption {
 
 // WithSessionStore exposes the session.SessionStorer to the trails app.
 func WithSessionStore(store session.SessionStorer) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		rng.sess = store
 		return nil, nil
 	}
@@ -120,7 +120,7 @@ func WithSessionStore(store session.SessionStorer) RangerOption {
 
 // WithServer exposes the *http.Server to the trails app.
 func WithServer(s *http.Server) RangerOption {
-	return func(rng *Ranger) (optFollowup, error) {
+	return func(rng *Ranger) (OptFollowup, error) {
 		old := rng.srv
 		rng.srv = s
 
