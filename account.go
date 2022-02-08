@@ -1,4 +1,4 @@
-package domain
+package trails
 
 // An Account is a way many Users access a trails application
 // and can be related to one another.

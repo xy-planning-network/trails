@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/securecookie"
-	"github.com/xy-planning-network/trails/domain"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
@@ -278,7 +278,7 @@ type defaultUserStorer struct {
 
 // GetByID retrieves the middleware.User matching the ID.
 func (store defaultUserStorer) GetByID(id uint) (middleware.User, error) {
-	user := new(domain.User)
+	user := new(trails.User)
 	if err := store.FindByID(user, id); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = fmt.Errorf("%w: User %d", ErrNotExist, id)
