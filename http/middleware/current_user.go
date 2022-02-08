@@ -26,7 +26,7 @@ type UserStorer interface {
 //
 // Wrap a custom UserAuthorizer in ApplyAuthorizer to turn it into a middleware.
 //
-// Presumably after casting to an app specific type,
+// Presumably after casting to an app-specific type,
 // a UserAuthorizer returns false if the check was not met and an optional URL
 // to be used in cases where a redirect ought to happen.
 // Otherwise, a UserAuthorizer returns true.
