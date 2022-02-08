@@ -1,12 +1,14 @@
 package resp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"path"
+	"sync"
 
 	"github.com/xy-planning-network/trails/http/ctx"
 	"github.com/xy-planning-network/trails/http/session"
@@ -34,6 +36,9 @@ type Responder struct {
 
 	// Initialized template parser
 	parser template.Parser
+
+	// Pool of *bytes.Buffer to prerender responses into
+	pool *sync.Pool
 
 	// Error message to use for "contact us" style client-side error messages,
 	// i.e., those set in a session.Flash
@@ -68,7 +73,9 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	// ranging over opts may or may not overwrite defaults
 	//
 	// TODO(dlk): include default parser?
-	d := &Responder{}
+	d := &Responder{
+		pool: &sync.Pool{New: func() interface{} { return new(bytes.Buffer) }},
+	}
 	for _, opt := range opts {
 		opt(d)
 	}
@@ -174,21 +181,36 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 		Flashes: s.Flashes(w, r),
 	}
 
-	if err := tmpl.ExecuteTemplate(w, path.Base(rr.tmpls[0]), rd); err != nil {
+	b := doer.pool.Get().(*bytes.Buffer)
+	b.Reset()
+	defer doer.pool.Put(b)
+
+	if err := tmpl.ExecuteTemplate(b, path.Base(rr.tmpls[0]), rd); err != nil {
 		doer.Err(w, r, err)
+		return err
+	}
+
+	if _, err := b.WriteTo(w); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+type jsonSchema struct {
+	D interface{} `json:"data,omitempty"`
+	U interface{} `json:"currentUser,omitempty"`
+}
+
 // Json responds with data in JSON format, collating it from User(), Data() and setting appropriate headers.
 //
-// The JSON schema will look like this:
+// When standard 2xx codes are supplied, the JSON schema will look like this:
 // {
 //	"currentUser": {},
 //	"data": {}
 // }
+//
+// Otherwise, "currentUser" is elided.
 //
 // User() calls populate "currentUser"
 // Data() calls populate "data"
@@ -209,17 +231,23 @@ func (doer *Responder) Json(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(rr.code)
-
-	b := struct {
-		D interface{} `json:"data,omitempty"`
-		U interface{} `json:"currentUser,omitempty"`
-	}{
-		D: rr.data,
-		U: rr.user,
+	payload := jsonSchema{D: rr.data}
+	if rr.code >= http.StatusOK && rr.code <= http.StatusNoContent {
+		payload.U = rr.user
 	}
-	if err := json.NewEncoder(w).Encode(b); err != nil {
+
+	b := doer.pool.Get().(*bytes.Buffer)
+	b.Reset()
+	defer doer.pool.Put(b)
+
+	if err := json.NewEncoder(b).Encode(payload); err != nil {
+		doer.Err(w, r, err)
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(rr.code)
+	if _, err := b.WriteTo(w); err != nil {
 		return err
 	}
 

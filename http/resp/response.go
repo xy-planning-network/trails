@@ -130,17 +130,20 @@ func GenericErr(e error) Fn {
 	}
 }
 
-// Param adds they query parameter to the response's URL.
+// Params adds the query parameters to the response's URL.
+// Params appends to rather than overwrite other query parameters.
 //
 // Used with Responder.Redirect.
-func Param(key, val string) Fn {
+func Params(pairs map[string]string) Fn {
 	return func(_ Responder, r *Response) error {
 		if r.url == nil {
 			return fmt.Errorf("%w: Url() has not been called", ErrMissingData)
 		}
 
 		q := r.url.Query()
-		q.Add(key, val)
+		for k, v := range pairs {
+			q.Add(k, v)
+		}
 		r.url.RawQuery = q.Encode()
 		return nil
 	}
