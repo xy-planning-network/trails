@@ -27,12 +27,12 @@ type Ranger struct {
 	Keyring keyring.Keyringable
 	logger.Logger
 	*resp.Responder
-	Router router.Router
+	Router        router.Router
+	SessionStorer session.SessionStorer
 
-	ctx  context.Context
-	p    template.Parser
-	sess session.SessionStorer
-	srv  *http.Server
+	ctx context.Context
+	p   template.Parser
+	srv *http.Server
 }
 
 // NewRanger constructs a Ranger from the provided options.

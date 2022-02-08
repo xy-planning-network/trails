@@ -308,7 +308,7 @@ func DefaultRouter() RangerOption {
 			middleware.RequestID(rng.Keyring.Key(defaultRequestIDCtxKey.Key())),
 			middleware.InjectIPAddress(),
 			middleware.LogRequest(rng),
-			middleware.InjectSession(rng.sess, rng.Keyring.SessionKey()),
+			middleware.InjectSession(rng.SessionStorer, rng.Keyring.SessionKey()),
 			middleware.CurrentUser(
 				rng.Responder,
 				defaultUserStorer{rng.DB},

@@ -113,7 +113,7 @@ func WithRouter(r router.Router) RangerOption {
 // WithSessionStore exposes the session.SessionStorer to the trails app.
 func WithSessionStore(store session.SessionStorer) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
-		rng.sess = store
+		rng.SessionStorer = store
 		return nil, nil
 	}
 }
