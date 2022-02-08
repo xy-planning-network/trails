@@ -1,8 +1,18 @@
 package domain
 
+// An Account is a way many Users access a trails application
+// and can be related to one another.
+//
+// An Account has many Users.
+// An Account has one User designated as the owner of the Account.
+
+// TODO(dlk): what is an owner?
 type Account struct {
 	Model
-	AccessState AccessState
+	AccessState    AccessState `json:"accessState"`
+	AccountOwnerID uint        `json:"accountOwnerId"`
 
-	Users []User
+	// Associations
+	AccountOwner *User  `json:"accountOwner,omitempty"`
+	Users        []User `json:"users,omitempty"`
 }

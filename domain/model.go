@@ -2,10 +2,11 @@ package domain
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 )
 
+// A Model is the essential data points for primary ID-based models in a trails application,
+// indicating when a record was created, last updated and soft deleted.
 type Model struct {
 	ID        uint
 	CreatedAt time.Time
@@ -13,12 +14,16 @@ type Model struct {
 	DeletedAt DeletedTime
 }
 
+// DeletedTime is a nullable timestamp marking a record as soft deleted.
 type DeletedTime struct {
 	sql.NullTime
 }
 
+// IsDeleted asserts whether the record is soft deleted.
 func (dt DeletedTime) IsDeleted() bool { return !dt.Valid }
 
+// AccessState is a string representation of the broadest, general access
+// an entity such as an Account or a User has to a trails application.
 type AccessState string
 
 const (
@@ -28,13 +33,7 @@ const (
 	AccessVerifyEmail AccessState = "verify-email"
 )
 
+// String stringifies the AccessState.
+//
+// String implements fmt.Stringer.
 func (as AccessState) String() string { return string(as) }
-
-func (as AccessState) Valid() error {
-	switch as {
-	case AccessGranted, AccessInvited, AccessRevoked, AccessVerifyEmail:
-		return nil
-	default:
-		return fmt.Errorf("%w: AccessState %s", ErrNotValid, as.String())
-	}
-}
