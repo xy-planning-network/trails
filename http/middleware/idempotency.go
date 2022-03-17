@@ -16,8 +16,10 @@ const (
 )
 
 var (
-	_          http.ResponseWriter = idemReqWriter{}
-	hasherLock                     = sync.Mutex{}
+	_            http.ResponseWriter = idemReqWriter{}
+	hasherLock                       = sync.Mutex{}
+	defaultCache                     = NewIdemResMap()
+	defaultHash                      = sha256.New()
 )
 
 // Idempotent returns a middleware.Adapter that enables features
@@ -54,11 +56,11 @@ var (
 // https://tools.ietf.org/id/draft-idempotency-header-01.html
 func Idempotent(cache IdempotencyCacher, hasher hash.Hash) Adapter {
 	if cache == nil {
-		cache = NewIdemResMap()
+		cache = defaultCache
 	}
 
 	if hasher == nil {
-		hasher = sha256.New()
+		hasher = defaultHash
 	}
 
 	return func(handler http.Handler) http.Handler {
