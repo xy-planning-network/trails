@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"encoding/gob"
 	"sync"
 	"time"
 
@@ -92,7 +91,6 @@ type IdemResRedis struct {
 
 // NewRedisCache constructs an IdemResRedis with the options passed in.
 func NewRedisCache(opts *redis.Options) IdemResRedis {
-	gob.Register(IdemRes{})
 	return IdemResRedis{client: redis.NewClient(opts)}
 }
 

@@ -197,8 +197,6 @@ func (irw idemReqWriter) Write(b []byte) (int, error) {
 	case <-irw.ctx.Done():
 		return 0, nil
 	default:
-		// TODO(dlk): net/http.ResponseWriter.Write does not call WriteHeader?
-		// or an artifact of httptest.ResponseRecorder?
 		if irw.i.Status == 0 {
 			irw.WriteHeader(http.StatusOK)
 		}
