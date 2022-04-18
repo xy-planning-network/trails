@@ -52,7 +52,7 @@ func TestResponderCurrentUser(t *testing.T) {
 	tcs := []struct {
 		name        string
 		ctx         context.Context
-		expectedVal interface{}
+		expectedVal any
 		expectedErr error
 	}{
 		{"Not-Set", context.Background(), nil, resp.ErrNotFound},
@@ -136,7 +136,7 @@ func TestResponderJson(t *testing.T) {
 		},
 		{
 			name: "With-Data",
-			fns:  []resp.Fn{resp.Data(map[string]interface{}{"go": "rocks"})},
+			fns:  []resp.Fn{resp.Data(map[string]any{"go": "rocks"})},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, w.Code)
@@ -167,7 +167,7 @@ func TestResponderJson(t *testing.T) {
 			fns: []resp.Fn{
 				resp.Code(http.StatusTeapot),
 				resp.User(1),
-				resp.Data(map[string]interface{}{"go": "rocks"}),
+				resp.Data(map[string]any{"go": "rocks"}),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
@@ -178,7 +178,7 @@ func TestResponderJson(t *testing.T) {
 				err = json.NewEncoder(&b).
 					Encode(
 						struct {
-							D interface{} `json:"data"`
+							D any `json:"data"`
 						}{
 							D: map[string]string{"go": "rocks"},
 						},
@@ -380,7 +380,7 @@ func TestResponderSession(t *testing.T) {
 	tcs := []struct {
 		name        string
 		ctx         context.Context
-		expectedVal interface{}
+		expectedVal any
 		expectedErr error
 	}{
 		{"Not-Set", context.Background(), nil, resp.ErrNotFound},

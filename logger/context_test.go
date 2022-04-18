@@ -27,7 +27,7 @@ func TestLogContextMarshalText(t *testing.T) {
 	require.Equal(t, []byte("{}"), b)
 
 	// Arrange
-	lc = logger.LogContext{Data: map[string]interface{}{"test": "data"}}
+	lc = logger.LogContext{Data: map[string]any{"test": "data"}}
 
 	// Act
 	b, err = lc.MarshalText()
@@ -57,12 +57,12 @@ func TestLogContextMarshalText(t *testing.T) {
 	require.Equal(t, `{"user":{"email":"test@example.com","id":1}}`, string(b))
 
 	// Arrange
-	expected := map[string]interface{}{
-		"request": map[string]interface{}{
+	expected := map[string]any{
+		"request": map[string]any{
 			"method": http.MethodGet,
 			"url":    "https://example.com",
-			"header": map[string]interface{}{
-				"Host": []interface{}{"example.com"},
+			"header": map[string]any{
+				"Host": []any{"example.com"},
 			},
 		},
 	}
@@ -76,23 +76,23 @@ func TestLogContextMarshalText(t *testing.T) {
 
 	// Assert
 	require.Nil(t, err)
-	m := make(map[string]interface{})
+	m := make(map[string]any)
 	require.Nil(t, json.Unmarshal(b, &m))
 	require.Equal(t, expected, m)
 
 	// Arrange
-	expected = map[string]interface{}{
-		"request": map[string]interface{}{
+	expected = map[string]any{
+		"request": map[string]any{
 			"method": http.MethodPost,
 			"url":    "https://example.com/test?some=param",
-			"header": map[string]interface{}{
-				"Host":         []interface{}{"example.com"},
-				"Content-Type": []interface{}{"application/x-www-form-urlencoded"},
+			"header": map[string]any{
+				"Host":         []any{"example.com"},
+				"Content-Type": []any{"application/x-www-form-urlencoded"},
 			},
-			"form": map[string]interface{}{
-				"email": []interface{}{"husserl@example.com"},
-				"name":  []interface{}{"Edmund Husserl"},
-				"some":  []interface{}{"param"},
+			"form": map[string]any{
+				"email": []any{"husserl@example.com"},
+				"name":  []any{"Edmund Husserl"},
+				"some":  []any{"param"},
 			},
 		},
 	}
@@ -114,7 +114,7 @@ func TestLogContextMarshalText(t *testing.T) {
 
 	// Assert
 	require.Nil(t, err)
-	m = make(map[string]interface{})
+	m = make(map[string]any)
 	require.Nil(t, json.Unmarshal(b, &m))
 	require.Equal(t, expected, m)
 
@@ -124,15 +124,15 @@ func TestLogContextMarshalText(t *testing.T) {
 		"email": "husserl@example.com",
 		"name":  "Edmund Husserl",
 	}))
-	expected = map[string]interface{}{
-		"request": map[string]interface{}{
+	expected = map[string]any{
+		"request": map[string]any{
 			"method": http.MethodPost,
 			"url":    "https://example.com/test?some=param",
-			"header": map[string]interface{}{
-				"Host":         []interface{}{"example.com"},
-				"Content-Type": []interface{}{"application/json"},
+			"header": map[string]any{
+				"Host":         []any{"example.com"},
+				"Content-Type": []any{"application/json"},
 			},
-			"json": map[string]interface{}{
+			"json": map[string]any{
 				"email": "husserl@example.com",
 				"name":  "Edmund Husserl",
 			},
@@ -150,7 +150,7 @@ func TestLogContextMarshalText(t *testing.T) {
 
 	// Assert
 	require.Nil(t, err)
-	m = make(map[string]interface{})
+	m = make(map[string]any)
 	require.Nil(t, json.Unmarshal(b, &m))
 	require.Equal(t, expected, m)
 	_, err = io.ReadAll(r.Body)

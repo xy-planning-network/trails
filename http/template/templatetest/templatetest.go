@@ -78,7 +78,7 @@ type MockFile struct {
 	mode    fs.FileMode
 	name    string
 	size    int64
-	sys     interface{}
+	sys     any
 }
 
 func NewMockFile(name string, data []byte) FileMocker {
@@ -93,7 +93,7 @@ func (m *MockFile) Mode() os.FileMode          { return m.mode }
 func (m *MockFile) ModTime() time.Time         { return m.modTime }
 func (m *MockFile) Size() int64                { return m.size }
 func (m *MockFile) Stat() (fs.FileInfo, error) { return m, nil }
-func (m *MockFile) Sys() interface{}           { return m.sys }
+func (m *MockFile) Sys() any                   { return m.sys }
 func (m *MockFile) Type() fs.FileMode          { return m.Mode().Type() }
 func (m *MockFile) Read(p []byte) (int, error) {
 	copy(p, m.data)

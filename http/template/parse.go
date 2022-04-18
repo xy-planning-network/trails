@@ -9,7 +9,7 @@ import (
 
 // Parser is the interface for parsing HTML templates with the functions provided.
 type Parser interface {
-	AddFn(name string, fn interface{})
+	AddFn(name string, fn any)
 	Parse(fps ...string) (*html.Template, error)
 }
 

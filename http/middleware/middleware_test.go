@@ -64,10 +64,10 @@ func (e failedSession) SetFlash(w http.ResponseWriter, r *http.Request, flash se
 	return error(e.e)
 }
 func (e failedSession) Delete(w http.ResponseWriter, r *http.Request) error      { return error(e.e) }
-func (e failedSession) Get(key string) interface{}                               { return nil }
+func (e failedSession) Get(key string) any                                       { return nil }
 func (e failedSession) ResetExpiry(w http.ResponseWriter, r *http.Request) error { return error(e.e) }
 func (e failedSession) Save(w http.ResponseWriter, r *http.Request) error        { return error(e.e) }
-func (e failedSession) Set(w http.ResponseWriter, r *http.Request, key string, val interface{}) error {
+func (e failedSession) Set(w http.ResponseWriter, r *http.Request, key string, val any) error {
 	return error(e.e)
 }
 func (e failedSession) DeregisterUser(w http.ResponseWriter, r *http.Request) error {

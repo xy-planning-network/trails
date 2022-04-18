@@ -7,7 +7,7 @@ import (
 )
 
 // newLogContext helps structure a logger.LogContext from the provided parts.
-func newLogContext(r *http.Request, err error, data interface{}, user logger.LogUser) *logger.LogContext {
+func newLogContext(r *http.Request, err error, data any, user logger.LogUser) *logger.LogContext {
 	if r == nil && err == nil && data == nil && user == nil {
 		return nil
 	}
@@ -21,7 +21,7 @@ func newLogContext(r *http.Request, err error, data interface{}, user logger.Log
 		ctx.Error = err
 	}
 
-	if mapped, ok := data.(map[string]interface{}); ok {
+	if mapped, ok := data.(map[string]any); ok {
 		ctx.Data = mapped
 	}
 

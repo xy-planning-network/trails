@@ -134,10 +134,10 @@ func TestCode(t *testing.T) {
 func TestData(t *testing.T) {
 	tcs := []struct {
 		name string
-		data map[string]interface{}
+		data map[string]any
 	}{
-		{"Zero-Value", make(map[string]interface{})},
-		{"Data", map[string]interface{}{"go": "rocks"}},
+		{"Zero-Value", make(map[string]any)},
+		{"Data", map[string]any{"go": "rocks"}},
 		{"Nil", nil},
 	}
 
@@ -584,7 +584,7 @@ func TestUnauthed(t *testing.T) {
 func TestUser(t *testing.T) {
 	tcs := []struct {
 		name string
-		user interface{}
+		user any
 	}{
 		{name: "Nil", user: nil},
 		{name: "Struct", user: struct{}{}},
@@ -661,14 +661,14 @@ func TestVue(t *testing.T) {
 		d      Responder
 		r      *Response
 		entry  string
-		assert func(*testing.T, []string, interface{}, error)
+		assert func(*testing.T, []string, any, error)
 	}{
 		{
 			"Zero-Value",
 			Responder{},
 			&Response{},
 			"",
-			func(t *testing.T, tmpls []string, data interface{}, err error) {
+			func(t *testing.T, tmpls []string, data any, err error) {
 				require.Nil(t, err)
 				require.Nil(t, tmpls)
 				require.Nil(t, data)
@@ -679,7 +679,7 @@ func TestVue(t *testing.T) {
 			Responder{},
 			&Response{tmpls: []string{"test.tmpl"}},
 			"",
-			func(t *testing.T, tmpls []string, data interface{}, err error) {
+			func(t *testing.T, tmpls []string, data any, err error) {
 				require.Nil(t, err)
 				require.Len(t, tmpls, 1)
 				require.Nil(t, data)
@@ -690,7 +690,7 @@ func TestVue(t *testing.T) {
 			Responder{vue: "vue.tmpl"},
 			&Response{},
 			"",
-			func(t *testing.T, tmpls []string, data interface{}, err error) {
+			func(t *testing.T, tmpls []string, data any, err error) {
 				require.Nil(t, err)
 				require.Nil(t, tmpls)
 				require.Nil(t, data)
@@ -701,11 +701,11 @@ func TestVue(t *testing.T) {
 			Responder{vue: "vue.tmpl"},
 			&Response{},
 			"test",
-			func(t *testing.T, tmpls []string, data interface{}, err error) {
+			func(t *testing.T, tmpls []string, data any, err error) {
 				require.Nil(t, err)
 				require.Equal(t, "vue.tmpl", tmpls[0])
 
-				actualData, ok := data.(map[string]interface{})
+				actualData, ok := data.(map[string]any)
 				require.True(t, ok)
 				require.Equal(t, "test", actualData["entry"])
 			},
@@ -715,11 +715,11 @@ func TestVue(t *testing.T) {
 			Responder{vue: "vue.tmpl"},
 			&Response{tmpls: []string{"test.tmpl"}},
 			"test",
-			func(t *testing.T, tmpls []string, data interface{}, err error) {
+			func(t *testing.T, tmpls []string, data any, err error) {
 				require.Nil(t, err)
 				require.Equal(t, "vue.tmpl", tmpls[1])
 
-				actualData, ok := data.(map[string]interface{})
+				actualData, ok := data.(map[string]any)
 				require.True(t, ok)
 				require.Equal(t, "test", actualData["entry"])
 			},
@@ -729,15 +729,15 @@ func TestVue(t *testing.T) {
 			Responder{vue: "vue.tmpl", ctxKeys: []ctx.CtxKeyable{aKey}},
 			&Response{user: "test"},
 			"test",
-			func(t *testing.T, tmpls []string, data interface{}, err error) {
+			func(t *testing.T, tmpls []string, data any, err error) {
 				require.Nil(t, err)
 				require.Equal(t, "vue.tmpl", tmpls[0])
 
-				actualData, ok := data.(map[string]interface{})
+				actualData, ok := data.(map[string]any)
 				require.True(t, ok)
 				require.Equal(t, "test", actualData["entry"])
 
-				actualProps, ok := actualData["props"].(map[string]interface{})
+				actualProps, ok := actualData["props"].(map[string]any)
 				require.True(t, ok)
 				require.Equal(t, 1, actualProps[aKey.Key()])
 			},
@@ -745,21 +745,21 @@ func TestVue(t *testing.T) {
 		{
 			"With-All",
 			Responder{vue: "vue.tmpl", rootUrl: good, ctxKeys: []ctx.CtxKeyable{aKey}},
-			&Response{user: 1, tmpls: []string{"test.tmpl"}, data: map[string]interface{}{"entry": "not-test", "other": 1}},
+			&Response{user: 1, tmpls: []string{"test.tmpl"}, data: map[string]any{"entry": "not-test", "other": 1}},
 			"test",
-			func(t *testing.T, tmpls []string, data interface{}, err error) {
+			func(t *testing.T, tmpls []string, data any, err error) {
 				require.Nil(t, err)
 				require.Equal(t, "vue.tmpl", tmpls[1])
 
-				actualData, ok := data.(map[string]interface{})
+				actualData, ok := data.(map[string]any)
 				require.True(t, ok)
 				require.Equal(t, "test", actualData["entry"])
 
-				actualProps, ok := actualData["props"].(map[string]interface{})
+				actualProps, ok := actualData["props"].(map[string]any)
 				require.True(t, ok)
 				require.Equal(t, 1, actualProps["other"])
 
-				actualInit, ok := actualProps["initialProps"].(map[string]interface{})
+				actualInit, ok := actualProps["initialProps"].(map[string]any)
 				require.True(t, ok)
 				require.Equal(t, 1, actualInit["currentUser"])
 				require.Equal(t, "https://example.com/test", actualInit["baseURL"])

@@ -8,7 +8,7 @@ import (
 )
 
 // AddFn includes the named function in the Parse function map.
-func (p *Parse) AddFn(name string, fn interface{}) {
+func (p *Parse) AddFn(name string, fn any) {
 	if p.fns == nil {
 		p.fns = make(html.FuncMap)
 	}
@@ -18,8 +18,8 @@ func (p *Parse) AddFn(name string, fn interface{}) {
 // CurrentUser encloses some value representing a user.
 // It returns "currentUser" as the name of the function for convenient passing to a template.FuncMap
 // and returns a function returning the enclosed value when called.
-func CurrentUser(u interface{}) (string, func() interface{}) {
-	return "currentUser", func() interface{} { return u }
+func CurrentUser(u any) (string, func() any) {
+	return "currentUser", func() any { return u }
 }
 
 // Env encloses some string representing an environment.

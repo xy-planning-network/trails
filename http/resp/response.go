@@ -23,10 +23,10 @@ type Response struct {
 	r         *http.Request
 	closeBody bool
 	code      int
-	data      interface{}
+	data      any
 	tmpls     []string
 	url       *url.URL
-	user      interface{}
+	user      any
 }
 
 // Authed prepends all templates with the base authenticated template and adds resp.user from the session.
@@ -71,7 +71,7 @@ func Code(c int) Fn {
 // Data stores the provided empty interface for writing to the client.
 //
 // Used with Responder.Html and Responder.Json.
-func Data(d interface{}) Fn {
+func Data(d any) Fn {
 	return func(_ Responder, r *Response) error {
 		r.data = d
 		return nil
@@ -218,7 +218,7 @@ func Unauthed() Fn {
 //
 // Used with Responder.Html and Responder.Json.
 // When used with Json, the user is assigned to the "currentUser" key.
-func User(u interface{}) Fn {
+func User(u any) Fn {
 	return func(d Responder, r *Response) error {
 		r.user = u
 		return nil
@@ -333,14 +333,14 @@ func Vue(entry string) Fn {
 		// NOTE(dlk): ignore error since Vue does not require a User
 		populateUser(d, r)
 
-		data := map[string]interface{}{"entry": entry}
-		init := map[string]interface{}{"currentUser": r.user}
+		data := map[string]any{"entry": entry}
+		init := map[string]any{"currentUser": r.user}
 		if d.rootUrl != nil {
 			// TODO(dlk): throw error when not configured?
 			init["baseURL"] = d.rootUrl.String()
 		}
 
-		props := map[string]interface{}{"initialProps": init}
+		props := map[string]any{"initialProps": init}
 		for _, k := range d.ctxKeys {
 			if val := r.r.Context().Value(k); val != nil {
 				props[k.Key()] = val
@@ -348,14 +348,14 @@ func Vue(entry string) Fn {
 		}
 
 		switch t := r.data.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			if _, ok := t["props"]; ok {
 				// NOTE(dlk): "props" key is set, r.data needs to be merged into
 				// both the props map and data map.
 				// Perform those checks here and apply key-value pairs accordingly.
 				for k, v := range t {
 					if k == "props" {
-						if ip, ok := v.(map[string]interface{}); ok {
+						if ip, ok := v.(map[string]any); ok {
 							for k, v := range ip {
 								props[k] = v
 							}

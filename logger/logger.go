@@ -155,7 +155,7 @@ func (l *TrailsLogger) WithContext(ctx LogContext) Logger {
 
 // log executes printing the log message,
 // including any context if available.
-func (l *TrailsLogger) log(colorizer func(string, ...interface{}) string, level LogLevel, msg string, ctx *LogContext) {
+func (l *TrailsLogger) log(colorizer func(string, ...any) string, level LogLevel, msg string, ctx *LogContext) {
 	// TODO(dlk): have skip be configurable or implement some logic
 	// like https://github.com/sirupsen/logrus/blob/b50299cfaaa1bca85be76c8984070e846c7abfd2/entry.go#L178-L213
 	_, file, line, _ := runtime.Caller(l.skip)

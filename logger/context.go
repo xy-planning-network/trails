@@ -19,7 +19,7 @@ type LogUser interface {
 }
 
 type LogContext struct {
-	Data    map[string]interface{}
+	Data    map[string]any
 	Error   error
 	Request *http.Request
 	User    LogUser
@@ -31,7 +31,7 @@ type LogContext struct {
 //
 // MarshalText implements encoding.TextMarshaler.
 func (lc LogContext) MarshalText() ([]byte, error) {
-	m := make(map[string]interface{})
+	m := make(map[string]any)
 	if lc.Data != nil {
 		m["data"] = lc.Data
 	}
@@ -41,12 +41,12 @@ func (lc LogContext) MarshalText() ([]byte, error) {
 	}
 
 	if lc.Request != nil {
-		r := make(map[string]interface{})
+		r := make(map[string]any)
 		r["method"] = lc.Request.Method
 		r["url"] = lc.Request.URL.String()
 		r["header"] = lc.Request.Header
 		if ct := lc.Request.Header.Get("Content-Type"); ct == "application/json" {
-			j := make(map[string]interface{})
+			j := make(map[string]any)
 			b := new(bytes.Buffer)
 			tee := io.TeeReader(lc.Request.Body, b)
 			if err := json.NewDecoder(tee).Decode(&j); err == nil {
@@ -67,7 +67,7 @@ func (lc LogContext) MarshalText() ([]byte, error) {
 	}
 
 	if lc.User != nil {
-		u := make(map[string]interface{})
+		u := make(map[string]any)
 		if id := lc.User.GetID(); id != 0 {
 			u["id"] = id
 		}

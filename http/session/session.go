@@ -16,10 +16,10 @@ const (
 // associated with an *http.Request and saving those to the session store.
 type Sessionable interface {
 	Delete(w http.ResponseWriter, r *http.Request) error
-	Get(key string) interface{}
+	Get(key string) any
 	ResetExpiry(w http.ResponseWriter, r *http.Request) error
 	Save(w http.ResponseWriter, r *http.Request) error
-	Set(w http.ResponseWriter, r *http.Request, key string, val interface{}) error
+	Set(w http.ResponseWriter, r *http.Request, key string, val any) error
 }
 
 // The UserSessionable wraps methods for adding, removing, and retrieving
@@ -95,7 +95,7 @@ func (s Session) Flashes(w http.ResponseWriter, r *http.Request) []Flash {
 }
 
 // Get retrieves a value from the session according to the key passed in.
-func (s Session) Get(key string) interface{} {
+func (s Session) Get(key string) any {
 	return s.s.Values[key]
 }
 
@@ -114,7 +114,7 @@ func (s Session) ResetExpiry(w http.ResponseWriter, r *http.Request) error {
 func (s Session) Save(w http.ResponseWriter, r *http.Request) error { return s.s.Save(r, w) }
 
 // Set stores a value according to the key passed in on the session.
-func (s Session) Set(w http.ResponseWriter, r *http.Request, key string, val interface{}) error {
+func (s Session) Set(w http.ResponseWriter, r *http.Request, key string, val any) error {
 	s.s.Values[key] = val
 	return s.Save(w, r)
 }
@@ -153,10 +153,10 @@ func (s Stub) ClearFlashes(w http.ResponseWriter, r *http.Request)              
 func (s Stub) Flashes(w http.ResponseWriter, r *http.Request) []Flash             { return nil }
 func (s Stub) SetFlash(w http.ResponseWriter, r *http.Request, flash Flash) error { return nil }
 func (s Stub) Delete(w http.ResponseWriter, r *http.Request) error                { return nil }
-func (s Stub) Get(key string) interface{}                                         { return nil }
+func (s Stub) Get(key string) any                                                 { return nil }
 func (s Stub) ResetExpiry(w http.ResponseWriter, r *http.Request) error           { return nil }
 func (s Stub) Save(w http.ResponseWriter, r *http.Request) error                  { return nil }
-func (s Stub) Set(w http.ResponseWriter, r *http.Request, key string, val interface{}) error {
+func (s Stub) Set(w http.ResponseWriter, r *http.Request, key string, val any) error {
 	return nil
 }
 func (s Stub) DeregisterUser(w http.ResponseWriter, r *http.Request) error        { return nil }

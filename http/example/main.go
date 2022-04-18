@@ -57,7 +57,7 @@ type Handler struct {
 
 // root is a fully-formed use of Responder.
 func (h *Handler) root(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"sick": "such data",
 		"wow":  "so data",
 		"ooh":  "dataaaa",

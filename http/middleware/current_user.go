@@ -30,7 +30,7 @@ type UserStorer interface {
 // a UserAuthorizer returns false if the check was not met and an optional URL
 // to be used in cases where a redirect ought to happen.
 // Otherwise, a UserAuthorizer returns true.
-type UserAuthorizer func(user interface{}) (string, bool)
+type UserAuthorizer func(user any) (string, bool)
 
 // ApplyAuthorizer wraps a custom function validating the authorization of a User.
 //

@@ -74,7 +74,7 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	//
 	// TODO(dlk): include default parser?
 	d := &Responder{
-		pool: &sync.Pool{New: func() interface{} { return new(bytes.Buffer) }},
+		pool: &sync.Pool{New: func() any { return new(bytes.Buffer) }},
 	}
 	for _, opt := range opts {
 		opt(d)
@@ -97,7 +97,7 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 //
 // If WithUserSessionKey was not called setting up the Responder or the context.Context has no
 // value for that key, ErrNotFound returns.
-func (doer Responder) CurrentUser(ctx context.Context) (interface{}, error) {
+func (doer Responder) CurrentUser(ctx context.Context) (any, error) {
 	val := ctx.Value(doer.userSessionKey)
 	if val == nil {
 		return nil, fmt.Errorf("%w: no user found with userSessionKey", ErrNotFound)
@@ -174,7 +174,7 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	}
 
 	rd := struct {
-		Data    interface{}
+		Data    any
 		Flashes []session.Flash
 	}{
 		Data:    rr.data,
@@ -198,8 +198,8 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 }
 
 type jsonSchema struct {
-	D interface{} `json:"data,omitempty"`
-	U interface{} `json:"currentUser,omitempty"`
+	D any `json:"data,omitempty"`
+	U any `json:"currentUser,omitempty"`
 }
 
 // Json responds with data in JSON format, collating it from User(), Data() and setting appropriate headers.

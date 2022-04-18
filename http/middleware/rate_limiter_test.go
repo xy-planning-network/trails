@@ -1,3 +1,4 @@
+//go:build all || rate_limiter
 // +build all rate_limiter
 
 // Include these tests with either -tags all or -tags rate_limiter

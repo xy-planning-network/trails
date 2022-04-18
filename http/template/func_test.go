@@ -12,7 +12,7 @@ func TestAddFn(t *testing.T) {
 	tcs := []struct {
 		name   string
 		first  string
-		second interface{}
+		second any
 		length int
 	}{
 		{"zero-first", "", nil, 1},
@@ -43,7 +43,7 @@ func TestCurrentUser(t *testing.T) {
 	// Arrange
 	tcs := []struct {
 		name     string
-		expected interface{}
+		expected any
 	}{
 		{"nil", nil},
 		{"struct", struct{}{}},
