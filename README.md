@@ -189,7 +189,7 @@ With the \*resp.Responder embedded in our `handler`, we can utilize it's `Html` 
 
 ```golang
 func (h *handler) getLogin(w http.ResponseWriter, r *http.Request) {
-        hello := map[string]interface{}{"welcomeMsg": "Hello, World!"}
+        hello := map[string]any{"welcomeMsg": "Hello, World!"}
         err := h.Html(w, r, resp.Tmpl("root.tmpl"), resp.Data(hello))
         if err != nil {
                 h.Err(w, r, err)

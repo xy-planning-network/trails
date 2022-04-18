@@ -15,9 +15,6 @@ type Fn func(Responder, *Response) error
 
 // A Response is the internal object a Responder response method builds while applying all
 // functional options.
-//
-// Notably, a Response holds a map[string]interface{} that stores data necessary for responding
-// to the HTTP request.
 type Response struct {
 	w         http.ResponseWriter
 	r         *http.Request
@@ -68,7 +65,7 @@ func Code(c int) Fn {
 	}
 }
 
-// Data stores the provided empty interface for writing to the client.
+// Data stores the provided value for writing to the client.
 //
 // Used with Responder.Html and Responder.Json.
 func Data(d any) Fn {
@@ -261,7 +258,7 @@ func Url(u string) Fn {
 //
 // Calls to Data are merged into the required schema in the following way.
 //
-// At it's simplest, for example, Data(map[string]interface{}{"myProp": "Hello, World"}),
+// At it's simplest, for example, Data(map[string]any{"myProp": "Hello, World"}),
 // will produce:
 //
 // {
@@ -275,7 +272,7 @@ func Url(u string) Fn {
 //	}
 // }
 //
-// If the type passed into Data is not map[string]interface{}, like, Data(myStruct{}),
+// If the type passed into Data is not map[string]any, Data(myStruct{}),
 // the value is placed under another "props" key, producing:
 //
 // {
@@ -291,14 +288,14 @@ func Url(u string) Fn {
 //
 // Finally, if values need to be present to template rendering under a specific key,
 // and properties need to be passed in as well,
-// include a map[string]interface{} under the "initialProps" key
+// include a map[string]any the "initialProps" key
 // and the two maps will be merged.
 //
 // Here's how that's done:
 //
-// data := map[string]interface{}{
+// data := map[string]any{
 //	"keyForMyTmpl": true,
-//	"props": map[string]interface{}{
+//	"props": map[string]any{
 //		"myProp": "Hello, World"
 //	},
 // }
