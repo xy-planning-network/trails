@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"net/http"
@@ -57,7 +58,7 @@ func TestIdempotent(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, http.StatusTeapot, v.Status)
 	require.Equal(t, b, v.Req)
-	require.Zero(t, v.Body)
+	require.Equal(t, new(bytes.Buffer), v.Body)
 	require.Equal(t, "/", v.URI)
 
 	// Arrange
@@ -151,5 +152,5 @@ func TestNewIdemRes(t *testing.T) {
 	require.Equal(t, uri, ir.URI)
 	require.Equal(t, b, ir.Req)
 	require.Zero(t, ir.Status)
-	require.Zero(t, ir.Body)
+	require.Equal(t, new(bytes.Buffer), ir.Body)
 }
