@@ -42,3 +42,5 @@ func (u User) HomePath() string {
 
 	return "/"
 }
+
+func (u User) GetID() uint { return u.ID }
