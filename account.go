@@ -5,8 +5,6 @@ package trails
 //
 // An Account has many Users.
 // An Account has one User designated as the owner of the Account.
-
-// TODO(dlk): what is an owner?
 type Account struct {
 	Model
 	AccessState    AccessState `json:"accessState"`
