@@ -12,10 +12,10 @@ import (
 // A Model is the essential data points for primary ID-based models in a trails application,
 // indicating when a record was created, last updated and soft deleted.
 type Model struct {
-	ID        uint
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt DeletedTime
+	ID        uint        `json:"id"`
+	CreatedAt time.Time   `json:"createdAt"`
+	UpdatedAt time.Time   `json:"updatedAt"`
+	DeletedAt DeletedTime `json:"deletedAt"`
 }
 
 // DeletedTime is a nullable timestamp marking a record as soft deleted.

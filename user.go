@@ -1,6 +1,6 @@
 package trails
 
-import uuid "github.com/satori/go.uuid"
+import "github.com/google/uuid"
 
 // A User is the core entity that interacts with a trails application.
 //
@@ -12,14 +12,14 @@ import uuid "github.com/satori/go.uuid"
 // A User has one Account.
 type User struct {
 	Model
-	AccessState AccessState
-	AccountID   uint
-	Email       string
-	ExternalID  uuid.UUID
-	Password    []byte
+	AccessState AccessState `json:"accessState"`
+	AccountID   uint        `json:"accountId"`
+	Email       string      `json:"email"`
+	ExternalID  uuid.UUID   `json:"externalId"`
+	Password    []byte      `json:"-"`
 
 	// Associations
-	Account *Account
+	Account *Account `json:"account,omitempty"`
 }
 
 // HasAccess asserts whether the User's properties give it general
