@@ -6,12 +6,6 @@ import (
 	gorilla "github.com/gorilla/sessions"
 )
 
-// keys used internal to specific implementations of different interfaces.
-const (
-	sessionKey     = "trails-session-gorilla" // used by Service
-	userSessionKey = sessionKey + "-user"     // used by Session
-)
-
 // The Sessionable wraps methods for basic adding values to, deleting, and getting values from a session
 // associated with an *http.Request and saving those to the session store.
 type Sessionable interface {
@@ -43,7 +37,8 @@ type TrailsSessionable interface {
 //
 // TODO(dlk): embed *gorilla.Session anonymously? do not export?
 type Session struct {
-	s *gorilla.Session
+	s  *gorilla.Session
+	uk string
 }
 
 // NewSession constructs a new Session as an implementation of TrailsSessionable
@@ -67,7 +62,7 @@ func (s Session) Delete(w http.ResponseWriter, r *http.Request) error {
 
 // DeregisterUser removes the User from the session.
 func (s Session) DeregisterUser(w http.ResponseWriter, r *http.Request) error {
-	delete(s.s.Values, userSessionKey)
+	delete(s.s.Values, s.uk)
 	return s.Save(w, r)
 }
 
@@ -101,7 +96,7 @@ func (s Session) Get(key string) any {
 
 // RegisterUserSession stores the user's ID in the session.
 func (s Session) RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error {
-	s.s.Values[userSessionKey] = ID
+	s.s.Values[s.uk] = ID
 	return s.Save(w, r)
 }
 
@@ -132,7 +127,7 @@ func (s Session) SetFlash(w http.ResponseWriter, r *http.Request, flash Flash) e
 //
 // If the value returned from the session is not a uint, ErrNotValid is returned and represents a programming error.
 func (s Session) UserID() (uint, error) {
-	intfVal, ok := s.s.Values[userSessionKey]
+	intfVal, ok := s.s.Values[s.uk]
 	if !ok {
 		return 0, ErrNoUser
 	}

@@ -25,6 +25,8 @@ type SessionStorer interface {
 type Service struct {
 	ak     []byte
 	ek     []byte
+	sk     string
+	uk     string
 	env    string
 	maxAge int
 	store  gorilla.Store
@@ -34,10 +36,10 @@ type Service struct {
 // with the provided hex-encoded authentication key and encryption keys.
 // If no backing storage is provided through a functional option -
 // like WithRedis - NewService stores sessions in cookies.
-func NewStoreService(env, authKey, encryptKey string, opts ...ServiceOpt) (Service, error) {
+func NewStoreService(env, authKey, encryptKey, sessionKey, userKey string, opts ...ServiceOpt) (Service, error) {
 	gob.Register(Flash{})
 	var err error
-	s := Service{env: env, maxAge: defaultMaxAge}
+	s := Service{env: env, maxAge: defaultMaxAge, sk: sessionKey, uk: userKey}
 
 	s.ak, err = hex.DecodeString(authKey)
 	if err != nil {
@@ -65,8 +67,8 @@ func NewStoreService(env, authKey, encryptKey string, opts ...ServiceOpt) (Servi
 
 // GetSession wraps gorilla.Get, creating a brand new Session or one from the session retrieved.
 func (s Service) GetSession(r *http.Request) (Sessionable, error) {
-	session, err := s.store.Get(r, sessionKey)
-	return Session{session}, err
+	session, err := s.store.Get(r, s.sk)
+	return Session{s: session, uk: s.uk}, err
 }
 
 // A ServiceOpt configures the provided *Service,
