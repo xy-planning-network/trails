@@ -60,6 +60,7 @@ const (
 	defaultLayoutDir    = "tmpl/layout"
 	defaultAuthedTmpl   = defaultLayoutDir + "/authenticated_base.tmpl"
 	defaultUnauthedTmpl = defaultLayoutDir + "/unauthenticated_base.tmpl"
+	defaultVueTmpl      = defaultLayoutDir + "/vue.tmpl"
 
 	// Web server defaults
 	serverReadTimeoutEnvVar   = "SERVER_READ_TIMEOUT"
@@ -253,6 +254,7 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 				resp.WithParser(rng.p),
 				resp.WithAuthTemplate(defaultAuthedTmpl),
 				resp.WithUnauthTemplate(defaultUnauthedTmpl),
+				resp.WithVueTemplate(defaultVueTmpl),
 				resp.WithSessionKey(rng.Keyring.SessionKey()),
 				resp.WithUserSessionKey(rng.Keyring.CurrentUserKey()),
 			}
@@ -294,33 +296,31 @@ func (store defaultUserStorer) GetByID(id uint) (middleware.User, error) {
 // configuring the *Ranger.Router to be used by the web server.
 func DefaultRouter() RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
-		var fn func() error
-		var err error
-		fn, err = DefaultResponder()(rng)
-		if err != nil {
-			return nil, err
-		}
-
-		r := router.NewRouter(rng.Env.String())
-		r.OnEveryRequest(
-			middleware.RateLimit(middleware.NewVisitors()),
-			middleware.ForceHTTPS(rng.Env.String()),
-			middleware.RequestID(rng.Keyring.Key(defaultRequestIDCtxKey.Key())),
-			middleware.InjectIPAddress(),
-			middleware.LogRequest(rng),
-			middleware.InjectSession(rng.SessionStorer, rng.Keyring.SessionKey()),
-			middleware.CurrentUser(
-				rng.Responder,
-				defaultUserStorer{rng.DB},
-				rng.Keyring.SessionKey(),
-				rng.Keyring.CurrentUserKey(),
-			),
-		)
-
 		return func() error {
+			fn, err := DefaultResponder()(rng)
+			if err != nil {
+				return err
+			}
+
 			if err := fn(); err != nil {
 				return err
 			}
+
+			r := router.NewRouter(rng.Env.String())
+			r.OnEveryRequest(
+				middleware.RateLimit(middleware.NewVisitors()),
+				middleware.ForceHTTPS(rng.Env.String()),
+				middleware.RequestID(rng.Keyring.Key(defaultRequestIDCtxKey.Key())),
+				middleware.InjectIPAddress(),
+				middleware.LogRequest(rng),
+				middleware.InjectSession(rng.SessionStorer, rng.Keyring.SessionKey()),
+				middleware.CurrentUser(
+					rng.Responder,
+					defaultUserStorer{rng.DB},
+					rng.Keyring.SessionKey(),
+					rng.Keyring.CurrentUserKey(),
+				),
+			)
 
 			fn, err = WithRouter(r)(rng)
 			if err != nil {
@@ -374,7 +374,14 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 			encrypt = k
 		}
 
-		store, err := session.NewStoreService(rng.Env.String(), auth, encrypt, args...)
+		store, err := session.NewStoreService(
+			rng.Env.String(),
+			auth,
+			encrypt,
+			string(defaultSessionCtxKey),
+			string(defaultCurrentUserCtxKey),
+			args...,
+		)
 		if err != nil {
 			return nil, err
 		}
