@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/xy-planning-network/trails/http/keyring"
 )
 
@@ -18,7 +18,7 @@ func RequestID(key keyring.Keyable) Adapter {
 
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := context.WithValue(r.Context(), key, uuid.NewV4().String())
+			ctx := context.WithValue(r.Context(), key, uuid.NewString())
 			h.ServeHTTP(w, r.Clone(ctx))
 		})
 	}

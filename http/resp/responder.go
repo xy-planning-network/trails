@@ -293,7 +293,6 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 		return err
 	}
 
-	// TODO(dlk): call Error() instead of silently closing Body?
 	if rr.closeBody {
 		defer r.Body.Close()
 	}
@@ -304,8 +303,9 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 
 	switch {
 	case rr.code >= http.StatusMultipleChoices && rr.code <= http.StatusPermanentRedirect:
-		// NOTE(dlk): all good, do nothing
+		// NOTE(dlk): code is already a 3xx, so do nothing
 	case rr.code >= http.StatusBadRequest && rr.code < http.StatusInternalServerError:
+		// TODO(dlk): use 303?
 		rr.code = http.StatusSeeOther
 	case rr.code >= http.StatusInternalServerError:
 		rr.code = http.StatusTemporaryRedirect
