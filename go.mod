@@ -7,6 +7,7 @@ require (
 	github.com/fatih/color v1.12.0
 	github.com/getsentry/sentry-go v0.11.0
 	github.com/golang/mock v1.5.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/securecookie v1.1.1
@@ -23,7 +24,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
-	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.8.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
