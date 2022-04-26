@@ -168,18 +168,17 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 		return fmt.Errorf("cannot parse: %w", err)
 	}
 
-	// TODO(dlk): necessary to throw error, redirect instead?
+	rd := struct {
+		Data    any
+		Flashes []session.Flash
+	}{Data: rr.data}
+
 	s, err := doer.Session(r.Context())
 	if err != nil {
 		return fmt.Errorf("can't retrieve session: %w", err)
 	}
-
-	rd := struct {
-		Data    any
-		Flashes []session.Flash
-	}{
-		Data:    rr.data,
-		Flashes: s.Flashes(w, r),
+	if s != nil {
+		rd.Flashes = s.Flashes(w, r)
 	}
 
 	b := doer.pool.Get().(*bytes.Buffer)
@@ -325,14 +324,20 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 // If WithSessionKey was not called setting up the Responder or the context.Context has no
 // value for that key, ErrNotFound returns.
 func (doer Responder) Session(ctx context.Context) (session.FlashSessionable, error) {
+	if doer.sessionKey == nil {
+		return nil, nil
+	}
+
 	val := ctx.Value(doer.sessionKey)
 	if val == nil {
 		return nil, fmt.Errorf("%w: no session found with sessionKey", ErrNotFound)
 	}
+
 	s, ok := val.(session.FlashSessionable)
 	if !ok {
 		return nil, fmt.Errorf("%w: does not implement session.FlashSessionable", ErrInvalid)
 	}
+
 	return s, nil
 }
 

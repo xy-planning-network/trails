@@ -118,6 +118,10 @@ func Flash(flash session.Flash) Fn {
 			return err
 		}
 
+		if s == nil {
+			return nil
+		}
+
 		s.SetFlash(r.w, r.r, flash)
 		return nil
 	}

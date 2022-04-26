@@ -200,7 +200,6 @@ func TestFlash(t *testing.T) {
 			d:    NewResponder(),
 			f:    session.Flash{},
 			assert: func(t *testing.T, s session.FlashSessionable, _ session.Flash, err error) {
-				require.ErrorIs(t, err, ErrNotFound)
 				require.Nil(t, s.Flashes(nil, nil))
 			},
 		},
@@ -242,7 +241,7 @@ func TestGenericErr(t *testing.T) {
 			NewResponder(WithLogger(newLogger())),
 			nil,
 			func(t *testing.T, l testLogger, s session.FlashSessionable, err error) {
-				require.NotNil(t, err)
+				require.Nil(t, err)
 				require.Nil(t, l.Bytes())
 				require.Nil(t, s.Flashes(nil, nil))
 			},
@@ -373,7 +372,7 @@ func TestSuccess(t *testing.T) {
 			"No-Session",
 			NewResponder(),
 			func(t *testing.T, code int, s session.FlashSessionable, err error) {
-				require.NotNil(t, err)
+				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, code)
 				require.Nil(t, s.Flashes(nil, nil))
 			},
@@ -795,7 +794,7 @@ func TestWarn(t *testing.T) {
 			NewResponder(WithLogger(newLogger())),
 			"",
 			func(t *testing.T, expected string, s session.FlashSessionable, l testLogger, err error) {
-				require.ErrorIs(t, err, ErrNotFound)
+				require.Nil(t, err)
 				require.Equal(t, expected, l.String())
 				require.Nil(t, s.Flashes(nil, nil))
 			},
@@ -805,7 +804,7 @@ func TestWarn(t *testing.T) {
 			NewResponder(WithLogger(newLogger())),
 			"Hey! Listen!",
 			func(t *testing.T, expected string, s session.FlashSessionable, l testLogger, err error) {
-				require.ErrorIs(t, err, ErrNotFound)
+				require.Nil(t, err)
 				require.Equal(t, expected, l.String())
 				require.Nil(t, s.Flashes(nil, nil))
 			},
