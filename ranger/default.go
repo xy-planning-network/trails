@@ -10,7 +10,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/gorilla/securecookie"
 	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
@@ -25,12 +24,10 @@ import (
 
 const (
 	// Base URL defaults
-	baseURLEnvVar  = "BASE_URL"
-	defaultBaseURL = "http://localhost"
+	baseURLEnvVar = "BASE_URL"
 
 	// Environment defaults
-	envFile   = ".env"
-	envEnvVar = "ENVIRONMENT"
+	environmentEnvVar = "ENVIRONMENT"
 
 	// Log defaults
 	logLevelEnvVar = "LOG_LEVEL"
@@ -63,6 +60,7 @@ const (
 	defaultVueTmpl      = defaultLayoutDir + "/vue.tmpl"
 
 	// Web server defaults
+	DefaultPort               = ":3000"
 	serverReadTimeoutEnvVar   = "SERVER_READ_TIMEOUT"
 	DefaultServerReadTimeout  = 5 * time.Second
 	serverIdleTimeoutEnvVar   = "SERVER_IDLE_TIMEOUT"
@@ -80,6 +78,10 @@ const (
 	defaultRequestIDCtxKey   = keyring.Key("trails-ranger-default-request-id-key")
 )
 
+var (
+	defaultBaseURL, _ = url.ParseRequestURI("http://localhost:3000")
+)
+
 // defaultOpts returns the default RangerOptions used in every call to NewRanger.
 //
 // These can be overwrittern using With* functional options
@@ -88,7 +90,7 @@ func defaultOpts() []RangerOption {
 	return []RangerOption{
 		DefaultContext(),
 		DefaultLogger(),
-		WithEnv(envEnvVar),
+		WithEnv(environmentEnvVar),
 		DefaultKeyring(),
 		DefaultSessionStore(),
 		DefaultRouter(),
@@ -110,7 +112,7 @@ func DefaultDB(list []postgres.Migration) RangerOption {
 	var cfg *postgres.CxnConfig
 	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
-			switch rng.Env {
+			switch rng.env {
 			case Testing: // NOTE(dlk): this is an unexpected case since go test does not reach this
 				cfg = &postgres.CxnConfig{
 					Host:     envVarOrString(dbTestHostEnvVar, defaultDBTestHost),
@@ -196,22 +198,19 @@ func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 // - "isStaging"
 // - "isProduction"
 func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
-	u, err := url.ParseRequestURI(envVarOrString(baseURLEnvVar, defaultBaseURL))
-	if err != nil {
-		return func(_ *Ranger) (OptFollowup, error) {
-			return nil, fmt.Errorf("%w: failed parsing %s: %s", ErrBadConfig, baseURLEnvVar, err)
-		}
-	}
-
 	return func(rng *Ranger) (OptFollowup, error) {
+		if rng.url == nil {
+			rng.url = envVarOrURL(baseURLEnvVar, defaultBaseURL)
+		}
+
 		args := []template.ParserOptFn{
-			template.WithFn(template.Env(rng.Env.String())),
+			template.WithFn(template.Env(rng.env.String())),
 			template.WithFn(template.Nonce()),
-			template.WithFn(template.RootUrl(u)),
-			template.WithFn("packTag", template.TagPackerModern(rng.Env.String(), files)),
-			template.WithFn("isDevelopment", func() bool { return rng.Env == Development }),
-			template.WithFn("isStaging", func() bool { return rng.Env == Staging }),
-			template.WithFn("isProduction", func() bool { return rng.Env == Production }),
+			template.WithFn(template.RootUrl(rng.url)),
+			template.WithFn("packTag", template.TagPackerModern(rng.env.String(), files)),
+			template.WithFn("isDevelopment", func() bool { return rng.env == Development }),
+			template.WithFn("isStaging", func() bool { return rng.env == Staging }),
+			template.WithFn("isProduction", func() bool { return rng.env == Production }),
 		}
 
 		for _, opt := range opts {
@@ -234,14 +233,12 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 // in order to avail itself of data - such as template.Parser -
 // that other RangerOptions configure.
 func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
-	u, err := url.ParseRequestURI(envVarOrString(baseURLEnvVar, defaultBaseURL))
-	if err != nil {
-		err = fmt.Errorf("%w: failed parsing %s: %s", ErrBadConfig, baseURLEnvVar, err)
-		return func(rng *Ranger) (OptFollowup, error) { return nil, err }
-	}
-
 	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
+			if rng.url == nil {
+				rng.url = envVarOrURL(baseURLEnvVar, defaultBaseURL)
+			}
+
 			if rng.p == nil {
 				if _, err := DefaultParser(os.DirFS("."))(rng); err != nil {
 					return err
@@ -249,14 +246,14 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 			}
 
 			args := []resp.ResponderOptFn{
-				resp.WithRootUrl(u.String()),
-				resp.WithLogger(rng.Logger),
+				resp.WithRootUrl(rng.url.String()),
+				resp.WithLogger(rng.l),
 				resp.WithParser(rng.p),
 				resp.WithAuthTemplate(defaultAuthedTmpl),
 				resp.WithUnauthTemplate(defaultUnauthedTmpl),
 				resp.WithVueTemplate(defaultVueTmpl),
-				resp.WithSessionKey(rng.Keyring.SessionKey()),
-				resp.WithUserSessionKey(rng.Keyring.CurrentUserKey()),
+				resp.WithSessionKey(rng.kr.SessionKey()),
+				resp.WithUserSessionKey(rng.kr.CurrentUserKey()),
 			}
 			for _, opt := range opts {
 				args = append(args, opt)
@@ -306,19 +303,19 @@ func DefaultRouter() RangerOption {
 				return err
 			}
 
-			r := router.NewRouter(rng.Env.String())
+			r := router.NewRouter(rng.env.String())
 			r.OnEveryRequest(
 				middleware.RateLimit(middleware.NewVisitors()),
-				middleware.ForceHTTPS(rng.Env.String()),
-				middleware.RequestID(rng.Keyring.Key(defaultRequestIDCtxKey.Key())),
+				middleware.ForceHTTPS(rng.env.String()),
+				middleware.RequestID(rng.kr.Key(defaultRequestIDCtxKey.Key())),
 				middleware.InjectIPAddress(),
-				middleware.LogRequest(rng),
-				middleware.InjectSession(rng.SessionStorer, rng.Keyring.SessionKey()),
+				middleware.LogRequest(rng.l),
+				middleware.InjectSession(rng.sessions, rng.kr.SessionKey()),
 				middleware.CurrentUser(
 					rng.Responder,
-					defaultUserStorer{rng.DB},
-					rng.Keyring.SessionKey(),
-					rng.Keyring.CurrentUserKey(),
+					defaultUserStorer{rng.db},
+					rng.kr.SessionKey(),
+					rng.kr.CurrentUserKey(),
 				),
 			)
 
@@ -335,7 +332,7 @@ func DefaultRouter() RangerOption {
 // DefaultSessionStore constructs a RangerOption that configures the SessionStore
 // to be used for storing session data.
 //
-// DefaultSessionStore relies on two env vars:
+// DefaultSessionStore requires two env vars:
 // - "SESSION_AUTH_KEY"
 // - "SESSION_ENCRYPTION_KEY"
 //
@@ -356,26 +353,16 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 
 		auth := os.Getenv(sessionAuthKeyEnvVar)
 		if auth == "" {
-			k := fmt.Sprintf("%x", securecookie.GenerateRandomKey(64))
-			if err := writeToEnvFile(sessionAuthKeyEnvVar, k); err != nil {
-				return nil, err
-			}
-
-			auth = k
+			return nil, errors.New("missing required value for " + sessionAuthKeyEnvVar)
 		}
 
 		encrypt := os.Getenv(sessionEncryptKeyEnvVar)
 		if encrypt == "" {
-			k := fmt.Sprintf("%x", securecookie.GenerateRandomKey(32))
-			if err := writeToEnvFile(sessionEncryptKeyEnvVar, k); err != nil {
-				return nil, err
-			}
-
-			encrypt = k
+			return nil, errors.New("missing required value for " + sessionEncryptKeyEnvVar)
 		}
 
 		store, err := session.NewStoreService(
-			rng.Env.String(),
+			rng.env.String(),
 			auth,
 			encrypt,
 			string(defaultSessionCtxKey),
@@ -391,28 +378,17 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 }
 
 // defaultServer constructs a default *http.Server.
-func defaultServer() *http.Server {
+func defaultServer(port string) *http.Server {
+	if port == "" {
+		port = DefaultPort
+	} else if port[0] != ':' {
+		port = ":" + port
+	}
+
 	return &http.Server{
-		Addr:         ":3000", // TODO(dlk): configurable
+		Addr:         port,
 		ReadTimeout:  envVarOrDuration(serverReadTimeoutEnvVar, DefaultServerReadTimeout),
 		IdleTimeout:  envVarOrDuration(serverIdleTimeoutEnvVar, DefaultServerIdleTimeout),
 		WriteTimeout: envVarOrDuration(serverWriteTimeoutEnvVar, DefaultServerWriteTimeout),
 	}
-}
-
-// writeToEnvFile appends the key value pair to the default env var file, .env
-func writeToEnvFile(key, value string) error {
-	file, err := os.OpenFile(envFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		// TODO(dlk): smart error handling,  e.g., os.ErrPermission?
-		return err
-	}
-
-	line := fmt.Sprintf("%s=%s\n", key, value)
-	if _, err := file.WriteString(line); err != nil {
-		return err
-	}
-
-	return nil
-
 }

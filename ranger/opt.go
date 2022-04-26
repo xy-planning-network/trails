@@ -39,7 +39,7 @@ func WithContext(ctx context.Context) RangerOption {
 // WithDB assumes a connection has already been established.
 func WithDB(db postgres.DatabaseService) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
-		rng.DB = db
+		rng.db = db
 		return nil, nil
 	}
 }
@@ -54,14 +54,14 @@ func WithEnv(envVar string) RangerOption {
 	err := e.Valid()
 	if err == nil {
 		return func(rng *Ranger) (OptFollowup, error) {
-			rng.Env = e
+			rng.env = e
 			return nil, nil
 
 		}
 	}
 
 	return func(rng *Ranger) (OptFollowup, error) {
-		rng.Env = envVarOrEnv(envVar, Development)
+		rng.env = envVarOrEnv(envVar, Development)
 		return nil, nil
 	}
 }
@@ -69,7 +69,7 @@ func WithEnv(envVar string) RangerOption {
 // WithKeyring exposes the provided keyring.Keyringable to the trails app.
 func WithKeyring(k keyring.Keyringable) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
-		rng.Keyring = k
+		rng.kr = k
 		return nil, nil
 	}
 }
@@ -77,7 +77,7 @@ func WithKeyring(k keyring.Keyringable) RangerOption {
 // WithLogger exposes the provided logger.Logger to the trails app.
 func WithLogger(l logger.Logger) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
-		rng.Logger = l
+		rng.l = l
 		return nil, nil
 	}
 }
@@ -100,8 +100,9 @@ func WithRouter(r router.Router) RangerOption {
 		return func() error {
 			// TODO(dlk): best approach? need to track 2 fields?
 			if rng.srv == nil {
-				rng.srv = defaultServer()
+				rng.srv = defaultServer(rng.url.Port())
 			}
+
 			rng.Router = r
 			rng.srv.Handler = r
 
@@ -113,7 +114,7 @@ func WithRouter(r router.Router) RangerOption {
 // WithSessionStore exposes the session.SessionStorer to the trails app.
 func WithSessionStore(store session.SessionStorer) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
-		rng.SessionStorer = store
+		rng.sessions = store
 		return nil, nil
 	}
 }

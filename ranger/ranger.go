@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,23 +23,24 @@ import (
 
 // A Ranger manages and exposes all components of a trails app to one another.
 type Ranger struct {
-	DB      postgres.DatabaseService
-	Env     Environment
-	Keyring keyring.Keyringable
-	logger.Logger
 	*resp.Responder
-	Router        router.Router
-	SessionStorer session.SessionStorer
+	router.Router
 
-	ctx context.Context
-	p   template.Parser
-	srv *http.Server
+	ctx      context.Context
+	db       postgres.DatabaseService
+	env      Environment
+	kr       keyring.Keyringable
+	l        logger.Logger
+	p        template.Parser
+	sessions session.SessionStorer
+	srv      *http.Server
+	url      *url.URL
 }
 
-// NewRanger constructs a Ranger from the provided options.
-// Default options are applied first followed by the options passed into NewRanger.
-// Options supplied to NewRanger overwrite default configurations.
-func NewRanger(opts ...RangerOption) (*Ranger, error) {
+// New constructs a Ranger from the provided options.
+// Default options are applied first followed by the options passed into New.
+// Options supplied to New overwrite default configurations.
+func New(opts ...RangerOption) (*Ranger, error) {
 	r := new(Ranger)
 	followups := make([]OptFollowup, 0)
 
@@ -65,8 +67,15 @@ func NewRanger(opts ...RangerOption) (*Ranger, error) {
 		}
 	}
 
+	r.p = nil
+
 	return r, nil
 }
+
+func (r *Ranger) EmitDB() postgres.DatabaseService        { return r.db }
+func (r *Ranger) EmitKeyring() keyring.Keyringable        { return r.kr }
+func (r *Ranger) EmitLogger() logger.Logger               { return r.l }
+func (r *Ranger) EmitSessionStore() session.SessionStorer { return r.sessions }
 
 // Guide begins the web server.
 //
@@ -95,16 +104,16 @@ func (r *Ranger) Guide() error {
 
 	go func() {
 		s := <-ch
-		r.Info(fmt.Sprint("received shutdown signal: ", s), nil)
+		r.l.Info(fmt.Sprint("received shutdown signal: ", s), nil)
 		cancel()
 	}()
 
 	go func() {
-		r.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), nil)
+		r.l.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), nil)
 		r.srv.Handler = r.Router
 		if err := r.srv.ListenAndServe(); err != http.ErrServerClosed {
 			err = fmt.Errorf("could not listen: %w", err)
-			r.Error(err.Error(), nil)
+			r.l.Error(err.Error(), nil)
 		}
 	}()
 
@@ -117,10 +126,10 @@ func (r *Ranger) Shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	r.Info("shutting down web server", nil)
+	r.l.Info("shutting down web server", nil)
 	err := r.srv.Shutdown(shutdownCtx)
 	if err == http.ErrServerClosed {
-		r.Info("web server shutdown successfully", nil)
+		r.l.Info("web server shutdown successfully", nil)
 		return nil
 	}
 
@@ -128,6 +137,6 @@ func (r *Ranger) Shutdown() error {
 		return fmt.Errorf("could not shutdown: %w", err)
 	}
 
-	r.Info("web server shutdown successfully", nil)
+	r.l.Info("web server shutdown successfully", nil)
 	return nil
 }

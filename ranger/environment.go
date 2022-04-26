@@ -1,6 +1,7 @@
 package ranger
 
 import (
+	"net/url"
 	"os"
 	"time"
 
@@ -84,4 +85,18 @@ func envVarOrString(key string, def string) string {
 	}
 
 	return val
+}
+
+func envVarOrURL(key string, def *url.URL) *url.URL {
+	val := os.Getenv(key)
+	if val == "" {
+		return def
+	}
+
+	u, err := url.ParseRequestURI(val)
+	if err != nil {
+		return def
+	}
+
+	return u
 }
