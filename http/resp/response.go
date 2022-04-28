@@ -86,7 +86,7 @@ func Err(e error) Fn {
 			u, _ := r.user.(logger.LogUser)
 			l := d.logger
 			if sl, ok := d.logger.(logger.SkipLogger); ok {
-				l = sl.AddSkip(responderFrames + responseFnFrames)
+				l = sl.AddSkip(sl.Skip() + responseFnFrames)
 			}
 			l.Error(e.Error(), newLogContext(r.r, e, r.data, u))
 		}
@@ -397,7 +397,7 @@ func Warn(msg string) Fn {
 		u, _ := r.user.(logger.LogUser)
 		l := d.logger
 		if sl, ok := d.logger.(logger.SkipLogger); ok {
-			l = sl.AddSkip(responderFrames + responseFnFrames)
+			l = sl.AddSkip(sl.Skip() + responseFnFrames)
 		}
 		l.Warn(msg, newLogContext(r.r, errors.New(msg), r.data, u))
 
