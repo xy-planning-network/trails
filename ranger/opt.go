@@ -2,6 +2,7 @@ package ranger
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/xy-planning-network/trails/http/keyring"
@@ -30,6 +31,10 @@ type OptFollowup func() error
 func WithContext(ctx context.Context) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		rng.ctx = ctx
+		if setupLog != nil {
+			setupLog.Debug(fmt.Sprintf("using context %T", ctx), nil)
+		}
+
 		return nil, nil
 	}
 }
@@ -40,6 +45,10 @@ func WithContext(ctx context.Context) RangerOption {
 func WithDB(db postgres.DatabaseService) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		rng.db = db
+		if setupLog != nil {
+			setupLog.Debug(fmt.Sprintf("using db %T", db), nil)
+		}
+
 		return nil, nil
 	}
 }
@@ -55,6 +64,10 @@ func WithEnv(envVar string) RangerOption {
 	if err == nil {
 		return func(rng *Ranger) (OptFollowup, error) {
 			rng.env = e
+			if setupLog != nil {
+				setupLog.Debug(fmt.Sprintf("using env %s", e), nil)
+			}
+
 			return nil, nil
 
 		}
@@ -62,6 +75,10 @@ func WithEnv(envVar string) RangerOption {
 
 	return func(rng *Ranger) (OptFollowup, error) {
 		rng.env = envVarOrEnv(envVar, Development)
+		if setupLog != nil {
+			setupLog.Debug(fmt.Sprintf("using env %s", rng.env), nil)
+		}
+
 		return nil, nil
 	}
 }
@@ -70,6 +87,10 @@ func WithEnv(envVar string) RangerOption {
 func WithKeyring(k keyring.Keyringable) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		rng.kr = k
+		if setupLog != nil {
+			setupLog.Debug(fmt.Sprintf("using env %T", k), nil)
+		}
+
 		return nil, nil
 	}
 }
@@ -77,7 +98,13 @@ func WithKeyring(k keyring.Keyringable) RangerOption {
 // WithLogger exposes the provided logger.Logger to the trails app.
 func WithLogger(l logger.Logger) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
-		rng.l = l
+		rng.Logger = l
+		if setupLog == nil {
+			setupLog = l
+		}
+
+		setupLog.Debug(fmt.Sprintf("using logger %T", l), nil)
+
 		return nil, nil
 	}
 }
@@ -88,6 +115,10 @@ func WithResponder(r *resp.Responder) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
 			rng.Responder = r
+			if setupLog != nil {
+				setupLog.Debug("using responder", nil)
+			}
+
 			return nil
 		}, nil
 	}
@@ -100,11 +131,16 @@ func WithRouter(r router.Router) RangerOption {
 		return func() error {
 			// TODO(dlk): best approach? need to track 2 fields?
 			if rng.srv == nil {
-				rng.srv = defaultServer(rng.url.Port())
+				rng.srv = defaultServer(rng.ctx, rng.url.Port())
 			}
 
 			rng.Router = r
 			rng.srv.Handler = r
+
+			if setupLog != nil {
+				setupLog.Debug(fmt.Sprintf("using router %T", r), nil)
+				setupLog.Debug(fmt.Sprintf("using server %T", rng.srv), nil)
+			}
 
 			return nil
 		}, nil
@@ -115,6 +151,10 @@ func WithRouter(r router.Router) RangerOption {
 func WithSessionStore(store session.SessionStorer) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		rng.sessions = store
+		if setupLog != nil {
+			setupLog.Debug(fmt.Sprintf("using session store %T", store), nil)
+		}
+
 		return nil, nil
 	}
 }

@@ -21,8 +21,11 @@ import (
 	"github.com/xy-planning-network/trails/postgres"
 )
 
+var setupLog = logger.NewLogger()
+
 // A Ranger manages and exposes all components of a trails app to one another.
 type Ranger struct {
+	logger.Logger
 	*resp.Responder
 	router.Router
 
@@ -30,7 +33,6 @@ type Ranger struct {
 	db       postgres.DatabaseService
 	env      Environment
 	kr       keyring.Keyringable
-	l        logger.Logger
 	p        template.Parser
 	sessions session.SessionStorer
 	srv      *http.Server
@@ -74,7 +76,6 @@ func New(opts ...RangerOption) (*Ranger, error) {
 
 func (r *Ranger) EmitDB() postgres.DatabaseService        { return r.db }
 func (r *Ranger) EmitKeyring() keyring.Keyringable        { return r.kr }
-func (r *Ranger) EmitLogger() logger.Logger               { return r.l }
 func (r *Ranger) EmitSessionStore() session.SessionStorer { return r.sessions }
 
 // Guide begins the web server.
@@ -104,16 +105,16 @@ func (r *Ranger) Guide() error {
 
 	go func() {
 		s := <-ch
-		r.l.Info(fmt.Sprint("received shutdown signal: ", s), nil)
+		r.Info(fmt.Sprint("received shutdown signal: ", s), nil)
 		cancel()
 	}()
 
 	go func() {
-		r.l.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), nil)
+		r.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), nil)
 		r.srv.Handler = r.Router
 		if err := r.srv.ListenAndServe(); err != http.ErrServerClosed {
 			err = fmt.Errorf("could not listen: %w", err)
-			r.l.Error(err.Error(), nil)
+			r.Error(err.Error(), nil)
 		}
 	}()
 
@@ -126,10 +127,10 @@ func (r *Ranger) Shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	r.l.Info("shutting down web server", nil)
+	r.Info("shutting down web server", nil)
 	err := r.srv.Shutdown(shutdownCtx)
 	if err == http.ErrServerClosed {
-		r.l.Info("web server shutdown successfully", nil)
+		r.Info("web server shutdown successfully", nil)
 		return nil
 	}
 
@@ -137,6 +138,6 @@ func (r *Ranger) Shutdown() error {
 		return fmt.Errorf("could not shutdown: %w", err)
 	}
 
-	r.l.Info("web server shutdown successfully", nil)
+	r.Info("web server shutdown successfully", nil)
 	return nil
 }

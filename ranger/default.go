@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/xy-planning-network/trails"
@@ -53,7 +55,6 @@ const (
 	dbTestUserEnvVar  = "DATABASE_TEST_USER"
 
 	// Default template files
-	// TODO(dlk): embed a default template dir
 	defaultLayoutDir    = "tmpl/layout"
 	defaultAuthedTmpl   = defaultLayoutDir + "/authenticated_base.tmpl"
 	defaultUnauthedTmpl = defaultLayoutDir + "/unauthenticated_base.tmpl"
@@ -179,12 +180,16 @@ func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 	}
 
 	return func(rng *Ranger) (OptFollowup, error) {
-		return WithLogger(logger.NewLogger(args...))(rng)
+		l := logger.NewLogger(args...)
+		setupLog = l
+		return WithLogger(l)(rng)
 	}
 }
 
 // DefaultParser constructs a RangerOption that configures a default HTML template parser to be used
 // when responding to HTTP requests with *resp.Responder.Html.
+//
+// files can be nil, resulting in the parser using the local directory to find templates.
 //
 // BASE_URL ought to be set when the default http://localhost:3000 is not wanted.
 //
@@ -198,12 +203,17 @@ func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 // - "isStaging"
 // - "isProduction"
 func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
+	if files == nil {
+		files = os.DirFS(".")
+	}
+
 	return func(rng *Ranger) (OptFollowup, error) {
 		if rng.url == nil {
 			rng.url = envVarOrURL(baseURLEnvVar, defaultBaseURL)
 		}
 
 		args := []template.ParserOptFn{
+			template.WithFS(files),
 			template.WithFn(template.Env(rng.env.String())),
 			template.WithFn(template.Nonce()),
 			template.WithFn(template.RootUrl(rng.url)),
@@ -217,11 +227,10 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 			args = append(args, opt)
 		}
 
-		rng.p = template.NewParser(files, args...)
+		rng.p = template.NewParser(args...)
 
 		return nil, nil
 	}
-
 }
 
 // DefaultResponder constructs a RangerOption that returns a followup option
@@ -247,7 +256,7 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 
 			args := []resp.ResponderOptFn{
 				resp.WithRootUrl(rng.url.String()),
-				resp.WithLogger(rng.l),
+				resp.WithLogger(rng.Logger),
 				resp.WithParser(rng.p),
 				resp.WithAuthTemplate(defaultAuthedTmpl),
 				resp.WithUnauthTemplate(defaultUnauthedTmpl),
@@ -271,24 +280,6 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 	}
 }
 
-type defaultUserStorer struct {
-	postgres.DatabaseService
-}
-
-// GetByID retrieves the middleware.User matching the ID.
-func (store defaultUserStorer) GetByID(id uint) (middleware.User, error) {
-	user := new(trails.User)
-	if err := store.FindByID(user, id); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = fmt.Errorf("%w: User %d", ErrNotExist, id)
-		}
-
-		return nil, err
-	}
-
-	return user, nil
-}
-
 // DefaultRouter constructs a RangerOption that returns a followup option
 // configuring the *Ranger.Router to be used by the web server.
 func DefaultRouter() RangerOption {
@@ -303,13 +294,20 @@ func DefaultRouter() RangerOption {
 				return err
 			}
 
-			r := router.NewRouter(rng.env.String())
-			r.OnEveryRequest(
-				middleware.RateLimit(middleware.NewVisitors()),
-				middleware.ForceHTTPS(rng.env.String()),
+			mws := make([]middleware.Adapter, 0)
+			if rng.env == Production {
+				mws = append(
+					mws,
+					middleware.RateLimit(middleware.NewVisitors()),
+					middleware.ForceHTTPS(rng.env.String()),
+				)
+			}
+
+			mws = append(
+				mws,
 				middleware.RequestID(rng.kr.Key(defaultRequestIDCtxKey.Key())),
 				middleware.InjectIPAddress(),
-				middleware.LogRequest(rng.l),
+				middleware.LogRequest(rng.Logger),
 				middleware.InjectSession(rng.sessions, rng.kr.SessionKey()),
 				middleware.CurrentUser(
 					rng.Responder,
@@ -318,6 +316,17 @@ func DefaultRouter() RangerOption {
 					rng.kr.CurrentUserKey(),
 				),
 			)
+
+			r := router.NewRouter(rng.env.String())
+			r.OnEveryRequest(mws...)
+			r.HandleNotFound(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
+				if strings.Index(rx.Header.Get("Accept"), "text/html") >= 0 {
+					rng.Redirect(wx, rx, resp.ToRoot())
+					return
+				}
+
+				wx.WriteHeader(http.StatusNotFound)
+			}))
 
 			fn, err = WithRouter(r)(rng)
 			if err != nil {
@@ -378,17 +387,40 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 }
 
 // defaultServer constructs a default *http.Server.
-func defaultServer(port string) *http.Server {
+func defaultServer(ctx context.Context, port string) *http.Server {
 	if port == "" {
 		port = DefaultPort
 	} else if port[0] != ':' {
 		port = ":" + port
 	}
 
-	return &http.Server{
+	srv := &http.Server{
 		Addr:         port,
 		ReadTimeout:  envVarOrDuration(serverReadTimeoutEnvVar, DefaultServerReadTimeout),
 		IdleTimeout:  envVarOrDuration(serverIdleTimeoutEnvVar, DefaultServerIdleTimeout),
 		WriteTimeout: envVarOrDuration(serverWriteTimeoutEnvVar, DefaultServerWriteTimeout),
 	}
+	if ctx != nil {
+		srv.BaseContext = func(_ net.Listener) context.Context { return ctx }
+	}
+
+	return srv
+}
+
+type defaultUserStorer struct {
+	postgres.DatabaseService
+}
+
+// GetByID retrieves the middleware.User matching the ID.
+func (store defaultUserStorer) GetByID(id uint) (middleware.User, error) {
+	user := new(trails.User)
+	if err := store.FindByID(user, id); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = fmt.Errorf("%w: User %d", ErrNotExist, id)
+		}
+
+		return nil, err
+	}
+
+	return user, nil
 }
