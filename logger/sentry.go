@@ -8,8 +8,8 @@ import (
 
 // A SentryLogger
 type SentryLogger struct {
-	l Logger
-	//ctx LogContext
+	l    SkipLogger
+	skip int
 }
 
 // NewSentryLogger constructs a SentryLogger based off the provided TrailsLogger.
@@ -25,15 +25,17 @@ func NewSentryLogger(tl *TrailsLogger, dsn string) Logger {
 		return tl
 	}
 
-	tl.skip = 3
-	return &SentryLogger{l: tl}
+	l := tl.AddSkip(1)
+	return &SentryLogger{l: l}
+}
+
+func (sl *SentryLogger) AddSkip(i int) SkipLogger {
+	return sl.l.AddSkip(i + sl.skip)
 }
 
 // Debug writes a debug log.
 func (sl *SentryLogger) Debug(msg string, ctx *LogContext) {
 	sl.l.Debug(msg, ctx)
-	//	sl.l.WithContext(sl.ctx).Debug(msg)
-	//sl.ctx = LogContext{}
 }
 
 // Error writes an error log and sends it to Sentry.
@@ -42,10 +44,8 @@ func (sl *SentryLogger) Error(msg string, ctx *LogContext) {
 		return
 	}
 
-	//	sl.l.WithContext(sl.ctx).Error(msg)
 	sl.l.Error(msg, ctx)
 	sl.send(sentry.LevelError, ctx)
-	//sl.ctx = LogContext{}
 }
 
 // Fatal writes a fatal log and sends it to Sentry.
@@ -54,17 +54,13 @@ func (sl *SentryLogger) Fatal(msg string, ctx *LogContext) {
 		return
 	}
 
-	//	sl.l.WithContext(sl.ctx).Fatal(msg)
 	sl.l.Fatal(msg, ctx)
 	sl.send(sentry.LevelFatal, ctx)
-	//sl.ctx = LogContext{}
 }
 
 // Info writes an info log.
 func (sl *SentryLogger) Info(msg string, ctx *LogContext) {
 	sl.l.Info(msg, ctx)
-	//	sl.l.WithContext(sl.ctx).Info(msg)
-	//sl.ctx = LogContext{}
 }
 
 // Warn writes a warning log and sends it to Sentry.
@@ -73,25 +69,12 @@ func (sl *SentryLogger) Warn(msg string, ctx *LogContext) {
 		return
 	}
 
-	//	sl.l.WithContext(sl.ctx).Warn(msg)
 	sl.l.Warn(msg, ctx)
 	sl.send(sentry.LevelWarning, ctx)
-	//sl.ctx = LogContext{}
 }
 
 // LogLevel returns the LogLevel set for the SentryLogger.
 func (sl *SentryLogger) LogLevel() LogLevel { return sl.l.LogLevel() }
-
-/*
-// WithContext includes the provided LogContext in the next log.
-func (sl *SentryLogger) WithContext(ctx LogContext) Logger {
-	logger := new(SentryLogger)
-	*logger = *sl
-	logger.ctx = ctx
-	return logger
-
-}
-*/
 
 // send ships the LogContext.Error to Sentry,
 // including any additional data from LogContext.

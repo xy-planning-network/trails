@@ -10,6 +10,8 @@ import (
 	"github.com/fatih/color"
 )
 
+const knownFrames = 2
+
 var trailsPathRegex = regexp.MustCompile("trails.*$")
 
 // The Logger interface defines the levels a logging can occur at.
@@ -21,6 +23,11 @@ type Logger interface {
 	Warn(msg string, ctx *LogContext)
 
 	LogLevel() LogLevel
+}
+
+type SkipLogger interface {
+	AddSkip(i int) SkipLogger
+	Logger
 }
 
 type LogLevel int
@@ -78,10 +85,9 @@ type TrailsLogger struct {
 func NewLogger(opts ...LoggerOptFn) Logger {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 	l := &TrailsLogger{
-		skip: 2,
-		env:  getEnvOrString("ENVIRONEMNT", "DEVELOPMENT"),
-		l:    logger,
-		ll:   LogLevelInfo,
+		env: getEnvOrString("ENVIRONEMNT", "DEVELOPMENT"),
+		l:   logger,
+		ll:  LogLevelInfo,
 	}
 	for _, opt := range opts {
 		opt(l)
@@ -93,6 +99,12 @@ func NewLogger(opts ...LoggerOptFn) Logger {
 	}
 
 	return l
+}
+
+func (l *TrailsLogger) AddSkip(i int) SkipLogger {
+	newl := *l
+	newl.skip = i
+	return &newl
 }
 
 // Debug writes a debug log.
@@ -143,29 +155,26 @@ func (l *TrailsLogger) Warn(msg string, ctx *LogContext) {
 // LogLevel returns the LogLevel set for the TrailsLogger.
 func (l *TrailsLogger) LogLevel() LogLevel { return l.ll }
 
-/*
-// WithContext includes the provided LogContext in the next log.
-func (l *TrailsLogger) WithContext(ctx LogContext) Logger {
-	logger := new(TrailsLogger)
-	*logger = *l
-	logger.ctx = ctx
-	return logger
-}
-*/
-
 // log executes printing the log message,
 // including any context if available.
 func (l *TrailsLogger) log(colorizer func(string, ...any) string, level LogLevel, msg string, ctx *LogContext) {
-	// TODO(dlk): have skip be configurable or implement some logic
-	// like https://github.com/sirupsen/logrus/blob/b50299cfaaa1bca85be76c8984070e846c7abfd2/entry.go#L178-L213
-	_, file, line, _ := runtime.Caller(l.skip)
+	// NOTE(dlk): skip the number of frames the TrailsLogger has
+	// and however many the TrailsLogger is configured with
+	_, file, line, _ := runtime.Caller(knownFrames + l.skip)
+
+	var toPrint string
 	if match := trailsPathRegex.Find([]byte(file)); match != nil {
-		file = string(match)
+		toPrint = string(match)
 	} else {
-		file = path.Base(file)
+		// NOTE(dlk): print the file and the directory it is in
+		// e.g.,:
+		// /home/dlk/my-project/main.go => my-project/main.go
+		// /home/dlk/my-project/internal/internal.go => internal/internal.go
+		fullPath, file := path.Split(file)
+		toPrint = path.Base(fullPath) + string(os.PathSeparator) + file
 	}
 
-	msg = colorizer("%s %s:%d '%s'", level, file, line, msg)
+	msg = colorizer("%s %s:%d '%s'", level, toPrint, line, msg)
 	if ctx == nil {
 		l.l.Println(msg)
 		return
