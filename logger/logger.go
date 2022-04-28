@@ -25,8 +25,11 @@ type Logger interface {
 	LogLevel() LogLevel
 }
 
+// The SkipLogger interface defines a Logger that scrolls back
+// the number of frames provided in order to ascertain the call site.
 type SkipLogger interface {
 	AddSkip(i int) SkipLogger
+	Skip() int
 	Logger
 }
 
@@ -101,6 +104,11 @@ func NewLogger(opts ...LoggerOptFn) Logger {
 	return l
 }
 
+// AddSkip replaces the current number of frames to scroll back
+// when logging a message.
+//
+// Use Skip to get the current skip amount
+// when needing to add to it with AddSkip.
 func (l *TrailsLogger) AddSkip(i int) SkipLogger {
 	newl := *l
 	newl.skip = i
@@ -154,6 +162,10 @@ func (l *TrailsLogger) Warn(msg string, ctx *LogContext) {
 
 // LogLevel returns the LogLevel set for the TrailsLogger.
 func (l *TrailsLogger) LogLevel() LogLevel { return l.ll }
+
+// Skip returns the current amount of frames to scroll back
+// when logging a message.
+func (l *TrailsLogger) Skip() int { return l.skip }
 
 // log executes printing the log message,
 // including any context if available.
