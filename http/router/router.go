@@ -83,6 +83,7 @@ func (r *DefaultRouter) AuthedRoutes(
 // TODO(dlk): use provided fs.FS and http.FS instead of http.FileServer.
 func NewRouter(env string) Router {
 	r := mux.NewRouter()
+
 	// NOTE(dlk): direct reqs for the client to its distribution
 	r.PathPrefix("/" + clientDistPath).Handler(
 		http.StripPrefix("/"+clientDistPath,
