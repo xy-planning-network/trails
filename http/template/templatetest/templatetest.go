@@ -19,7 +19,9 @@ import (
 )
 
 // NewParser constructs a template.Parser with the mocked files.
-func NewParser(tmpls ...FileMocker) template.Parser { return template.NewParser(NewMockFS(tmpls...)) }
+func NewParser(tmpls ...FileMocker) template.Parser {
+	return template.NewParser(template.WithFS(NewMockFS(tmpls...)))
+}
 
 type FileMocker interface {
 	fs.File
