@@ -43,9 +43,6 @@ Constructing a new *Ranger with NewRanger reads from the OS's environment variab
 With that, trails leverages a file called .env to pickup configuration.
 A file named .env ought to exist
 in the same directory as the compiled trails' app's executable.
-If it does not, package Ranger will attempt to create it and write default values to it.
-This may result in permissions errors if the compiled trails' app's executable
-does not have proper permissions in it's directory.
 Finally, environment variables explicitly set
 when running the trails app executable
 have precedence over those read from the .env file.
