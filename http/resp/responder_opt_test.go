@@ -53,7 +53,7 @@ func TestResponderWithLogger(t *testing.T) {
 	// Arrange
 	b := new(bytes.Buffer)
 	l := log.New(b, "", log.LstdFlags)
-	ll := logger.NewLogger(logger.WithLogger(l))
+	ll := logger.New(logger.WithLogger(l))
 	d := NewResponder(WithLogger(ll))
 
 	msg := "unit testing is fun!"

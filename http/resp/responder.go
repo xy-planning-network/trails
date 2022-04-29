@@ -83,7 +83,7 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	}
 
 	if d.logger == nil {
-		d.logger = logger.NewLogger()
+		d.logger = logger.New()
 	}
 
 	if l, ok := d.logger.(logger.SkipLogger); ok {

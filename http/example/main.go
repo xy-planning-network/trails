@@ -102,7 +102,7 @@ func (h *Handler) broken(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	env := "EXAMPLE"
-	log := logger.NewLogger()
+	log := logger.New()
 	u, err := url.ParseRequestURI("localhost:8081")
 	if err != nil {
 		log.Fatal(err.Error(), nil)
