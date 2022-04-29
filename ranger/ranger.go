@@ -90,7 +90,11 @@ func (r *Ranger) EmitSessionStore() session.SessionStorer { return r.sessions }
 // - syscall.SIGTERM
 func (r *Ranger) Guide() error {
 	var cancel context.CancelFunc
-	r.ctx, cancel = context.WithCancel(context.Background())
+	if r.ctx == nil {
+		r.ctx, cancel = context.WithCancel(context.Background())
+	} else {
+		r.ctx, cancel = context.WithCancel(r.ctx)
+	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(
@@ -119,6 +123,8 @@ func (r *Ranger) Guide() error {
 	}()
 
 	<-r.ctx.Done()
+	close(ch)
+
 	return r.Shutdown()
 }
 
