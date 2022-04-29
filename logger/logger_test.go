@@ -22,7 +22,7 @@ func TestTrailsLoggerDebug(t *testing.T) {
 	expected := []byte("hello")
 	b := new(bytes.Buffer)
 	l := newTestLogger(b)
-	tl := logger.NewLogger(logger.WithLogger(l))
+	tl := logger.New(logger.WithLogger(l))
 
 	// Act
 	tl.Debug(string(expected), nil)
@@ -31,7 +31,7 @@ func TestTrailsLoggerDebug(t *testing.T) {
 	require.Nil(t, b.Bytes())
 
 	// Arrange
-	tl = logger.NewLogger(logger.WithLevel(logger.LogLevelDebug), logger.WithLogger(l))
+	tl = logger.New(logger.WithLevel(logger.LogLevelDebug), logger.WithLogger(l))
 
 	// Act
 	tl.Debug(string(expected), nil)
@@ -48,7 +48,7 @@ func TestTrailsLoggerError(t *testing.T) {
 	expected := []byte("hello")
 	b := new(bytes.Buffer)
 	l := newTestLogger(b)
-	tl := logger.NewLogger(logger.WithLevel(logger.LogLevelFatal), logger.WithLogger(l))
+	tl := logger.New(logger.WithLevel(logger.LogLevelFatal), logger.WithLogger(l))
 
 	// Act
 	tl.Error(string(expected), nil)
@@ -57,7 +57,7 @@ func TestTrailsLoggerError(t *testing.T) {
 	require.Nil(t, b.Bytes())
 
 	// Arrange
-	tl = logger.NewLogger(logger.WithLevel(logger.LogLevelError), logger.WithLogger(l))
+	tl = logger.New(logger.WithLevel(logger.LogLevelError), logger.WithLogger(l))
 
 	// Act
 	tl.Error(string(expected), nil)
@@ -69,7 +69,7 @@ func TestTrailsLoggerError(t *testing.T) {
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 
 	// Arrange
-	tl = logger.NewLogger(logger.WithLogger(l))
+	tl = logger.New(logger.WithLogger(l))
 
 	// Act
 	tl.Error(string(expected), nil)
@@ -86,7 +86,7 @@ func TestTrailsLoggerFatal(t *testing.T) {
 	expected := []byte("hello")
 	b := new(bytes.Buffer)
 	l := newTestLogger(b)
-	tl := logger.NewLogger(logger.WithLogger(l))
+	tl := logger.New(logger.WithLogger(l))
 
 	// Act
 	tl.Fatal(string(expected), nil)
@@ -98,7 +98,7 @@ func TestTrailsLoggerFatal(t *testing.T) {
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 
 	// Arrange
-	tl = logger.NewLogger(logger.WithLevel(logger.LogLevelFatal), logger.WithLogger(l))
+	tl = logger.New(logger.WithLevel(logger.LogLevelFatal), logger.WithLogger(l))
 
 	// Act
 	tl.Fatal(string(expected), nil)
@@ -115,7 +115,7 @@ func TestTrailsLoggerInfo(t *testing.T) {
 	expected := []byte("hello")
 	b := new(bytes.Buffer)
 	l := newTestLogger(b)
-	tl := logger.NewLogger(logger.WithLevel(logger.LogLevelFatal), logger.WithLogger(l))
+	tl := logger.New(logger.WithLevel(logger.LogLevelFatal), logger.WithLogger(l))
 
 	// Act
 	tl.Info(string(expected), nil)
@@ -124,7 +124,7 @@ func TestTrailsLoggerInfo(t *testing.T) {
 	require.Nil(t, b.Bytes())
 
 	// Arrange
-	tl = logger.NewLogger(logger.WithLevel(logger.LogLevelInfo), logger.WithLogger(l))
+	tl = logger.New(logger.WithLevel(logger.LogLevelInfo), logger.WithLogger(l))
 
 	// Act
 	tl.Info(string(expected), nil)
@@ -136,7 +136,7 @@ func TestTrailsLoggerInfo(t *testing.T) {
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 
 	// Arrange
-	tl = logger.NewLogger(logger.WithLogger(l))
+	tl = logger.New(logger.WithLogger(l))
 
 	// Act
 	tl.Info(string(expected), nil)
@@ -152,7 +152,7 @@ func TestTrailsLoggerWarn(t *testing.T) {
 	expected := []byte("hello")
 	b := new(bytes.Buffer)
 	l := newTestLogger(b)
-	tl := logger.NewLogger(logger.WithLevel(logger.LogLevelFatal), logger.WithLogger(l))
+	tl := logger.New(logger.WithLevel(logger.LogLevelFatal), logger.WithLogger(l))
 
 	// Act
 	tl.Warn(string(expected), nil)
@@ -161,7 +161,7 @@ func TestTrailsLoggerWarn(t *testing.T) {
 	require.Nil(t, b.Bytes())
 
 	// Arrange
-	tl = logger.NewLogger(logger.WithLevel(logger.LogLevelWarn), logger.WithLogger(l))
+	tl = logger.New(logger.WithLevel(logger.LogLevelWarn), logger.WithLogger(l))
 
 	// Act
 	tl.Warn(string(expected), nil)
@@ -173,7 +173,7 @@ func TestTrailsLoggerWarn(t *testing.T) {
 	require.Equal(t, expected, msgRegexp.FindAllSubmatch(actual, 1)[0][1])
 
 	// Arrange
-	tl = logger.NewLogger(logger.WithLogger(l))
+	tl = logger.New(logger.WithLogger(l))
 
 	// Act
 	tl.Warn(string(expected), nil)

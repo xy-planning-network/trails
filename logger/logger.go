@@ -80,12 +80,12 @@ type TrailsLogger struct {
 	ll   LogLevel
 }
 
-// NewLogger constructs a TrailsLogger.
+// New constructs a TrailsLogger.
 //
 // Logs are printed to os.Stdout by default, using the std lib log pkg.
 // The default environment is DEVELOPMENT.
 // The default log level is DEBUG.
-func NewLogger(opts ...LoggerOptFn) Logger {
+func New(opts ...LoggerOptFn) Logger {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 	l := &TrailsLogger{
 		env: getEnvOrString("ENVIRONEMNT", "DEVELOPMENT"),

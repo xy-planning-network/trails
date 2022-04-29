@@ -6,13 +6,15 @@ import (
 	"github.com/getsentry/sentry-go"
 )
 
-// A SentryLogger
+// A SentryLogger logs messages and reports sufficiently important
+// ones to error tracking software Sentry (sentry.io).
 type SentryLogger struct {
 	l    SkipLogger
 	skip int
 }
 
-// NewSentryLogger constructs a SentryLogger based off the provided TrailsLogger.
+// NewSentryLogger constructs a SentryLogger based off the provided TrailsLogger,
+// routing messages to the DSN provided.
 func NewSentryLogger(tl *TrailsLogger, dsn string) Logger {
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:          dsn,
