@@ -88,6 +88,10 @@ func envVarOrString(key string, def string) string {
 }
 
 func envVarOrURL(key string, def *url.URL) *url.URL {
+	if def.Path != "/" {
+		def.Path = "/"
+	}
+
 	val := os.Getenv(key)
 	if val == "" {
 		return def
@@ -96,6 +100,10 @@ func envVarOrURL(key string, def *url.URL) *url.URL {
 	u, err := url.ParseRequestURI(val)
 	if err != nil {
 		return def
+	}
+
+	if u.Path != "/" {
+		u.Path = "/"
 	}
 
 	return u

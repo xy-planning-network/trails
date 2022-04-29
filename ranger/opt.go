@@ -88,7 +88,7 @@ func WithKeyring(k keyring.Keyringable) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		rng.kr = k
 		if setupLog != nil {
-			setupLog.Debug(fmt.Sprintf("using env %T", k), nil)
+			setupLog.Debug(fmt.Sprintf("using keyring %T", k), nil)
 		}
 
 		return nil, nil

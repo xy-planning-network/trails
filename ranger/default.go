@@ -261,9 +261,15 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 				resp.WithAuthTemplate(defaultAuthedTmpl),
 				resp.WithUnauthTemplate(defaultUnauthedTmpl),
 				resp.WithVueTemplate(defaultVueTmpl),
-				resp.WithSessionKey(rng.kr.SessionKey()),
-				resp.WithUserSessionKey(rng.kr.CurrentUserKey()),
 			}
+			if rng.kr != nil {
+				args = append(
+					args,
+					resp.WithSessionKey(rng.kr.SessionKey()),
+					resp.WithUserSessionKey(rng.kr.CurrentUserKey()),
+				)
+			}
+
 			for _, opt := range opts {
 				args = append(args, opt)
 			}
@@ -305,22 +311,28 @@ func DefaultRouter() RangerOption {
 
 			mws = append(
 				mws,
-				middleware.RequestID(rng.kr.Key(defaultRequestIDCtxKey.Key())),
+				middleware.RequestID(defaultRequestIDCtxKey),
 				middleware.InjectIPAddress(),
 				middleware.LogRequest(rng.Logger),
-				middleware.InjectSession(rng.sessions, rng.kr.SessionKey()),
-				middleware.CurrentUser(
-					rng.Responder,
-					defaultUserStorer{rng.db},
-					rng.kr.SessionKey(),
-					rng.kr.CurrentUserKey(),
-				),
 			)
+
+			if rng.sessions != nil {
+				mws = append(
+					mws,
+					middleware.InjectSession(rng.sessions, rng.kr.SessionKey()),
+					middleware.CurrentUser(
+						rng.Responder,
+						defaultUserStorer{rng.db},
+						rng.kr.SessionKey(),
+						rng.kr.CurrentUserKey(),
+					),
+				)
+			}
 
 			r := router.NewRouter(rng.env.String())
 			r.OnEveryRequest(mws...)
 			r.HandleNotFound(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
-				if strings.Index(rx.Header.Get("Accept"), "text/html") >= 0 {
+				if strings.Index(rx.Header.Get("Accept"), "text/html") >= 0 && rx.URL.Path != rng.url.Path {
 					rng.Redirect(wx, rx, resp.ToRoot())
 					return
 				}
@@ -362,12 +374,14 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 
 		auth := os.Getenv(sessionAuthKeyEnvVar)
 		if auth == "" {
-			return nil, errors.New("missing required value for " + sessionAuthKeyEnvVar)
+			setupLog.Warn("missing required value for "+sessionAuthKeyEnvVar, nil)
+			return nil, nil
 		}
 
 		encrypt := os.Getenv(sessionEncryptKeyEnvVar)
 		if encrypt == "" {
-			return nil, errors.New("missing required value for " + sessionEncryptKeyEnvVar)
+			setupLog.Warn("missing required value for "+sessionEncryptKeyEnvVar, nil)
+			return nil, nil
 		}
 
 		store, err := session.NewStoreService(
