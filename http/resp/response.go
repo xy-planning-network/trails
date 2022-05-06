@@ -65,6 +65,17 @@ func Code(c int) Fn {
 	}
 }
 
+// CurrentUser stores the user in the *Response.
+//
+// Used with Responder.Html and Responder.Json.
+// When used with Json, the user is assigned to the "currentUser" key.
+func CurrentUser(u any) Fn {
+	return func(d Responder, r *Response) error {
+		r.user = u
+		return nil
+	}
+}
+
 // Data stores the provided value for writing to the client.
 //
 // Used with Responder.Html and Responder.Json.
@@ -207,17 +218,6 @@ func Unauthed() Fn {
 		}
 
 		r.tmpls = append([]string{d.unauthed}, r.tmpls...)
-		return nil
-	}
-}
-
-// User stores the user in the *Response.
-//
-// Used with Responder.Html and Responder.Json.
-// When used with Json, the user is assigned to the "currentUser" key.
-func User(u any) Fn {
-	return func(d Responder, r *Response) error {
-		r.user = u
 		return nil
 	}
 }

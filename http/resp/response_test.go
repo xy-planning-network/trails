@@ -581,7 +581,7 @@ func TestUnauthed(t *testing.T) {
 	}
 }
 
-func TestUser(t *testing.T) {
+func TestCurrentUser(t *testing.T) {
 	tcs := []struct {
 		name string
 		user any
@@ -597,7 +597,7 @@ func TestUser(t *testing.T) {
 			r := &Response{}
 
 			// Act
-			err := User(tc.user)(d, r)
+			err := CurrentUser(tc.user)(d, r)
 
 			// Assert
 			require.Nil(t, err)
@@ -611,14 +611,14 @@ func TestUser(t *testing.T) {
 		r := &Response{}
 
 		// Act
-		err := User(struct{}{})(d, r)
+		err := CurrentUser(struct{}{})(d, r)
 
 		// Assert
 		require.Nil(t, err)
 		require.Equal(t, struct{}{}, r.user)
 
 		// Arrange + Act
-		err = User(1)(d, r)
+		err = CurrentUser(1)(d, r)
 
 		// Assert
 		require.Nil(t, err)

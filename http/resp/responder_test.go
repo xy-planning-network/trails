@@ -150,7 +150,7 @@ func TestResponderJson(t *testing.T) {
 		},
 		{
 			name: "With-User",
-			fns:  []resp.Fn{resp.User(1)},
+			fns:  []resp.Fn{resp.CurrentUser(1)},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, w.Code)
@@ -166,7 +166,7 @@ func TestResponderJson(t *testing.T) {
 			name: "With-Code-Data-User",
 			fns: []resp.Fn{
 				resp.Code(http.StatusTeapot),
-				resp.User(1),
+				resp.CurrentUser(1),
 				resp.Data(map[string]any{"go": "rocks"}),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {

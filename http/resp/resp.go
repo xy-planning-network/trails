@@ -44,5 +44,5 @@ func populateUser(d Responder, r *Response) error {
 		return ErrNoUser
 	}
 
-	return User(u)(d, r)
+	return CurrentUser(u)(d, r)
 }
