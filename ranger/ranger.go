@@ -21,7 +21,7 @@ import (
 	"github.com/xy-planning-network/trails/postgres"
 )
 
-var setupLog = logger.NewLogger()
+var setupLog = logger.New()
 
 // A Ranger manages and exposes all components of a trails app to one another.
 type Ranger struct {

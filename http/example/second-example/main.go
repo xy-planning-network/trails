@@ -115,7 +115,7 @@ type pingPonger struct {
 }
 
 func NewPingPonger() *pingPonger {
-	return &pingPonger{0, logger.NewLogger(), sync.Mutex{}}
+	return &pingPonger{0, logger.New(), sync.Mutex{}}
 }
 
 func (p *pingPonger) pingpong() string {
