@@ -1,7 +1,9 @@
 package resp
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"net/url"
 	"testing"
 
@@ -48,9 +50,22 @@ func TestResponderWithCtxKeys(t *testing.T) {
 }
 
 func TestResponderWithLogger(t *testing.T) {
-	l := logger.NewLogger()
-	d := NewResponder(WithLogger(l))
-	require.Equal(t, l, d.logger)
+	// Arrange
+	b := new(bytes.Buffer)
+	l := log.New(b, "", log.LstdFlags)
+	ll := logger.New(logger.WithLogger(l))
+	d := NewResponder(WithLogger(ll))
+
+	msg := "unit testing is fun!"
+
+	// Act
+	d.logger.Info(msg, nil)
+
+	// Assert
+	actual := b.String()
+	require.Contains(t, actual, "[INFO]")
+	require.Contains(t, actual, "responder_opt_test.go")
+	require.Contains(t, actual, msg)
 }
 
 func TestResponderWithParser(t *testing.T) {

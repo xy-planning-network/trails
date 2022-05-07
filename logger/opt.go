@@ -25,3 +25,12 @@ func WithLogger(log *log.Logger) func(*TrailsLogger) {
 		l.l = log
 	}
 }
+
+// WithSkip sets the number of frames in the call stack
+// to skip in order to log the desired file and line number
+// of the calling code.
+func WithSkip(skip int) func(*TrailsLogger) {
+	return func(l *TrailsLogger) {
+		l.skip = skip
+	}
+}

@@ -63,7 +63,6 @@ func (lc LogContext) MarshalText() ([]byte, error) {
 		if len(r) > 0 {
 			m["request"] = r
 		}
-
 	}
 
 	if lc.User != nil {

@@ -10,6 +10,8 @@ import (
 	"github.com/fatih/color"
 )
 
+const knownFrames = 2
+
 var trailsPathRegex = regexp.MustCompile("trails.*$")
 
 // The Logger interface defines the levels a logging can occur at.
@@ -21,6 +23,14 @@ type Logger interface {
 	Warn(msg string, ctx *LogContext)
 
 	LogLevel() LogLevel
+}
+
+// The SkipLogger interface defines a Logger that scrolls back
+// the number of frames provided in order to ascertain the call site.
+type SkipLogger interface {
+	AddSkip(i int) SkipLogger
+	Skip() int
+	Logger
 }
 
 type LogLevel int
@@ -70,18 +80,17 @@ type TrailsLogger struct {
 	ll   LogLevel
 }
 
-// NewLogger constructs a TrailsLogger.
+// New constructs a TrailsLogger.
 //
 // Logs are printed to os.Stdout by default, using the std lib log pkg.
 // The default environment is DEVELOPMENT.
 // The default log level is DEBUG.
-func NewLogger(opts ...LoggerOptFn) Logger {
+func New(opts ...LoggerOptFn) Logger {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 	l := &TrailsLogger{
-		skip: 2,
-		env:  getEnvOrString("ENVIRONEMNT", "DEVELOPMENT"),
-		l:    logger,
-		ll:   LogLevelInfo,
+		env: getEnvOrString("ENVIRONEMNT", "DEVELOPMENT"),
+		l:   logger,
+		ll:  LogLevelInfo,
 	}
 	for _, opt := range opts {
 		opt(l)
@@ -93,6 +102,17 @@ func NewLogger(opts ...LoggerOptFn) Logger {
 	}
 
 	return l
+}
+
+// AddSkip replaces the current number of frames to scroll back
+// when logging a message.
+//
+// Use Skip to get the current skip amount
+// when needing to add to it with AddSkip.
+func (l *TrailsLogger) AddSkip(i int) SkipLogger {
+	newl := *l
+	newl.skip = i
+	return &newl
 }
 
 // Debug writes a debug log.
@@ -143,29 +163,30 @@ func (l *TrailsLogger) Warn(msg string, ctx *LogContext) {
 // LogLevel returns the LogLevel set for the TrailsLogger.
 func (l *TrailsLogger) LogLevel() LogLevel { return l.ll }
 
-/*
-// WithContext includes the provided LogContext in the next log.
-func (l *TrailsLogger) WithContext(ctx LogContext) Logger {
-	logger := new(TrailsLogger)
-	*logger = *l
-	logger.ctx = ctx
-	return logger
-}
-*/
+// Skip returns the current amount of frames to scroll back
+// when logging a message.
+func (l *TrailsLogger) Skip() int { return l.skip }
 
 // log executes printing the log message,
 // including any context if available.
 func (l *TrailsLogger) log(colorizer func(string, ...any) string, level LogLevel, msg string, ctx *LogContext) {
-	// TODO(dlk): have skip be configurable or implement some logic
-	// like https://github.com/sirupsen/logrus/blob/b50299cfaaa1bca85be76c8984070e846c7abfd2/entry.go#L178-L213
-	_, file, line, _ := runtime.Caller(l.skip)
+	// NOTE(dlk): skip the number of frames the TrailsLogger has
+	// and however many the TrailsLogger is configured with
+	_, file, line, _ := runtime.Caller(knownFrames + l.skip)
+
+	var toPrint string
 	if match := trailsPathRegex.Find([]byte(file)); match != nil {
-		file = string(match)
+		toPrint = string(match)
 	} else {
-		file = path.Base(file)
+		// NOTE(dlk): print the file and the directory it is in
+		// e.g.,:
+		// /home/dlk/my-project/main.go => my-project/main.go
+		// /home/dlk/my-project/internal/internal.go => internal/internal.go
+		fullPath, file := path.Split(file)
+		toPrint = path.Base(fullPath) + string(os.PathSeparator) + file
 	}
 
-	msg = colorizer("%s %s:%d '%s'", level, file, line, msg)
+	msg = colorizer("%s %s:%d '%s'", level, toPrint, line, msg)
 	if ctx == nil {
 		l.l.Println(msg)
 		return

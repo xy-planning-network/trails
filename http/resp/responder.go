@@ -16,6 +16,8 @@ import (
 	"github.com/xy-planning-network/trails/logger"
 )
 
+const responderFrames = 0
+
 // Responder maintains reusable pieces for responding to HTTP requests.
 // It exposes many common methods for writing structured data as an HTTP response.
 // These are the forms of response Responder can execute:
@@ -81,8 +83,13 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	}
 
 	if d.logger == nil {
-		d.logger = logger.NewLogger()
+		d.logger = logger.New()
 	}
+
+	if l, ok := d.logger.(logger.SkipLogger); ok {
+		d.logger = l.AddSkip(responderFrames)
+	}
+
 	if d.parser != nil {
 		d.parser.AddFn(template.Nonce())
 		if d.rootUrl != nil {
@@ -109,7 +116,7 @@ func (doer Responder) CurrentUser(ctx context.Context) (any, error) {
 //
 // Use in exceptional circumstances when no Redirect or Html can occur.
 func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error, opts ...Fn) {
-	rr, nested := doer.do(w, r, opts...)
+	rr, nested := doer.do(w, r, append(opts, Err(err))...)
 	defer r.Body.Close()
 	if nested != nil {
 		err = fmt.Errorf("%w: %s", err, nested)
@@ -120,12 +127,6 @@ func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error, op
 		msg = err.Error()
 	}
 
-	if rr.user == nil {
-		populateUser(*doer, rr) // NOTE(dlk): ignore err since user is not required
-	}
-
-	u, _ := rr.user.(logger.LogUser)
-	doer.logger.Error(msg, newLogContext(r, err, rr.data, u))
 	if rr.code == 0 {
 		rr.code = http.StatusInternalServerError
 	}

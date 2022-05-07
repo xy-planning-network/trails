@@ -10,6 +10,8 @@ import (
 	"github.com/xy-planning-network/trails/logger"
 )
 
+const responseFnFrames = 3
+
 // A Fn is a functional option that mutates the state of the Response.
 type Fn func(Responder, *Response) error
 
@@ -93,7 +95,11 @@ func Err(e error) Fn {
 			populateUser(d, r) // NOTE(dlk): ignore err since a user is not required
 
 			u, _ := r.user.(logger.LogUser)
-			d.logger.Error(e.Error(), newLogContext(r.r, e, r.data, u))
+			l := d.logger
+			if sl, ok := d.logger.(logger.SkipLogger); ok {
+				l = sl.AddSkip(sl.Skip() + responseFnFrames)
+			}
+			l.Error(e.Error(), newLogContext(r.r, e, r.data, u))
 		}
 
 		if err := Code(http.StatusInternalServerError)(d, r); err != nil {
@@ -389,7 +395,11 @@ func Warn(msg string) Fn {
 		populateUser(d, r) // NOTE(dlk): ignore since a user is not required
 
 		u, _ := r.user.(logger.LogUser)
-		d.logger.Warn(msg, newLogContext(r.r, errors.New(msg), r.data, u))
+		l := d.logger
+		if sl, ok := d.logger.(logger.SkipLogger); ok {
+			l = sl.AddSkip(sl.Skip() + responseFnFrames)
+		}
+		l.Warn(msg, newLogContext(r.r, errors.New(msg), r.data, u))
 
 		if err := Flash(session.Flash{Type: session.FlashWarning, Msg: msg})(d, r); err != nil {
 			return err
