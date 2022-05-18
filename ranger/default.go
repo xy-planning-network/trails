@@ -353,7 +353,7 @@ func DefaultRouter() RangerOption {
 // DefaultSessionStore constructs a RangerOption that configures the SessionStore
 // to be used for storing session data.
 //
-// DefaultSessionStore requires two env vars:
+// DefaultSessionStore relies on two env vars:
 // - "SESSION_AUTH_KEY"
 // - "SESSION_ENCRYPTION_KEY"
 //
