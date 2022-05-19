@@ -4,14 +4,14 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/session"
 )
 
 // InjectSession stores the session associated with the *http.Request in *http.Request.Context.
 //
 // If store or key are their zero-values, NoopAdapter returns and this middleware does nothing.
-func InjectSession(store session.SessionStorer, key ctx.CtxKeyable) Adapter {
+func InjectSession(store session.SessionStorer, key keyring.Keyable) Adapter {
 	if store == nil || key == nil {
 		return NoopAdapter
 	}

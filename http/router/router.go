@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 )
 
@@ -27,7 +27,7 @@ type Route struct {
 // A Router handles many Routes, directing HTTP requests to the appropriate endpoint.
 type Router interface {
 	// AuthedRoutes registers the set of Routes as those requiring authentication.
-	AuthedRoutes(key ctx.CtxKeyable, loginUrl string, logoffUrl string, routes []Route, middlewares ...middleware.Adapter)
+	AuthedRoutes(key keyring.Keyable, loginUrl string, logoffUrl string, routes []Route, middlewares ...middleware.Adapter)
 
 	// Handle applies the Route to the Router
 	Handle(route Route)
@@ -50,7 +50,7 @@ type Router interface {
 	Subrouter(prefix string) Router
 
 	// UnauthedRoutes handles the set of Routes
-	UnauthedRoutes(key ctx.CtxKeyable, routes []Route, middlewares ...middleware.Adapter)
+	UnauthedRoutes(key keyring.Keyable, routes []Route, middlewares ...middleware.Adapter)
 
 	http.Handler
 }
@@ -69,7 +69,7 @@ type DefaultRouter struct {
 
 // AuthedRoutes registers the set of Routes as those requiring authentication.
 func (r *DefaultRouter) AuthedRoutes(
-	key ctx.CtxKeyable,
+	key keyring.Keyable,
 	loginUrl string,
 	logoffUrl string,
 	routes []Route,
@@ -151,7 +151,7 @@ func (r *DefaultRouter) Subrouter(prefix string) Router {
 }
 
 // UnauthedRoutes registers the set of Routes as those requiring unauthenticated users.
-func (r *DefaultRouter) UnauthedRoutes(key ctx.CtxKeyable, routes []Route, middlewares ...middleware.Adapter) {
+func (r *DefaultRouter) UnauthedRoutes(key keyring.Keyable, routes []Route, middlewares ...middleware.Adapter) {
 	r.HandleRoutes(routes, append(middlewares, middleware.RequireUnauthed(key))...)
 }
 

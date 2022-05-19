@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/xy-planning-network/trails/http/ctx"
+	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/session"
 )
@@ -39,7 +39,7 @@ type UserAuthorizer func(user any) (string, bool)
 // ApplyAuthorizer responds with http.StatusUnauthorized or a redirect to the URL
 // provided by the custom function, depending on the "Accept" HTTP header of the request.
 // If redirecting, a warning flash is added.
-func ApplyAuthorizer(d *resp.Responder, key ctx.CtxKeyable, fn UserAuthorizer) Adapter {
+func ApplyAuthorizer(d *resp.Responder, key keyring.Keyable, fn UserAuthorizer) Adapter {
 	if fn == nil {
 		return NoopAdapter
 	}
@@ -75,7 +75,7 @@ func ApplyAuthorizer(d *resp.Responder, key ctx.CtxKeyable, fn UserAuthorizer) A
 // CurrentUser checks whether the "Accept" MIME type is "application/json"
 // and write a status code if so.
 // If it isn't, CurrentUser redirects to the Responder's root URL.
-func CurrentUser(d *resp.Responder, store UserStorer, sessionKey, userKey ctx.CtxKeyable) Adapter {
+func CurrentUser(d *resp.Responder, store UserStorer, sessionKey, userKey keyring.Keyable) Adapter {
 	if d == nil || store == nil || sessionKey == nil || userKey == nil {
 		return NoopAdapter
 	}
@@ -144,7 +144,7 @@ func CurrentUser(d *resp.Responder, store UserStorer, sessionKey, userKey ctx.Ct
 // RequireUnauthed writes 400 to the client.
 // If the request does not have that value in it's header,
 // RequireUnauthed redirect to User's HomePath.
-func RequireUnauthed(key ctx.CtxKeyable) Adapter {
+func RequireUnauthed(key keyring.Keyable) Adapter {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if cu, ok := r.Context().Value(key).(User); ok {
@@ -178,7 +178,7 @@ func RequireUnauthed(key ctx.CtxKeyable) Adapter {
 //
 // The URL originally requested is appended to as a "next" query param
 // when the request method is GET and the endpoint is not the logoff URL.
-func RequireAuthed(key ctx.CtxKeyable, loginUrl, logoffUrl string) Adapter {
+func RequireAuthed(key keyring.Keyable, loginUrl, logoffUrl string) Adapter {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if _, ok := r.Context().Value(key).(User); !ok {
