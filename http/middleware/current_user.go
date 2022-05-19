@@ -22,50 +22,6 @@ type UserStorer interface {
 	GetByID(id uint) (User, error)
 }
 
-// A UserAuthorizer checks some attribute the empty interface has.
-//
-// Wrap a custom UserAuthorizer in ApplyAuthorizer to turn it into a middleware.
-//
-// Presumably after casting to an app specific type,
-// a UserAuthorizer returns false if the check was not met and an optional URL
-// to be used in cases where a redirect ought to happen.
-// Otherwise, a UserAuthorizer returns true.
-type UserAuthorizer func(user any) (string, bool)
-
-// ApplyAuthorizer wraps a custom function validating the authorization of a User.
-//
-// If that custom function returns false, ApplyAuthorizer responds to the request.
-//
-// ApplyAuthorizer responds with http.StatusUnauthorized or a redirect to the URL
-// provided by the custom function, depending on the "Accept" HTTP header of the request.
-// If redirecting, a warning flash is added.
-func ApplyAuthorizer(d *resp.Responder, key keyring.Keyable, fn UserAuthorizer) Adapter {
-	if fn == nil {
-		return NoopAdapter
-	}
-
-	return func(handler http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u := r.Context().Value(key)
-			if url, ok := fn(u); !ok {
-				vs := r.Header.Values("Accept")
-				for _, v := range vs {
-					if strings.Compare(v, "application/json") == 0 {
-						d.Json(w, r, resp.Code(http.StatusUnauthorized))
-						return
-					}
-				}
-
-				f := session.Flash{Type: session.FlashWarning, Msg: session.NoAccessMsg}
-				d.Redirect(w, r, resp.Flash(f), resp.Url(url))
-				return
-			}
-
-			handler.ServeHTTP(w, r)
-		})
-	}
-}
-
 // CurrentUser pulls the User out of the session.UserSessionable stored in the *http.Request.Context.
 //
 // A *resp.Responder is needed to handle cases a CurrentUser cannot be retrieved or does not have access.
