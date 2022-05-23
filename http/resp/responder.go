@@ -281,6 +281,7 @@ func (doer *Responder) Raw(w http.ResponseWriter, r *http.Request, opts ...Fn) e
 */
 
 // Redirect calls http.Redirect, given Url() set the redirect destination.
+// If Url() is not passed in opts, then ToRoot() sets the redirect destination.
 //
 // The default response status code is 302.
 //
@@ -296,6 +297,8 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 		defer r.Body.Close()
 	}
 
+	// NOTE(dlk): because of the default ToRoot(),
+	// this check safeguards against bugs in the above.
 	if rr.url == nil {
 		return fmt.Errorf("%w: cannot redirect, no resp.url", ErrMissingData)
 	}
