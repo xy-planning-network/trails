@@ -30,7 +30,7 @@ func (e Environment) Valid() error {
 	}
 }
 
-// envVarOrDuration gets the environment variable from the provided key,
+// envVarOrDuration gets the environment variable for the provided key,
 // parses it into a time.Duration, or, returns
 // the default time.Duration.
 func envVarOrDuration(key string, def time.Duration) time.Duration {
@@ -42,7 +42,7 @@ func envVarOrDuration(key string, def time.Duration) time.Duration {
 	return d
 }
 
-// envVarOrEnv gets the environment variable from the provided key,
+// envVarOrEnv gets the environment variable for the provided key,
 // casts it into an Environment,
 // or returns the provided default Environment if key is not a valid Environment.
 func envVarOrEnv(key string, def Environment) Environment {
@@ -59,7 +59,7 @@ func envVarOrEnv(key string, def Environment) Environment {
 	return env
 }
 
-// envVarOrLogLevel gets the environment variable from the provided key,
+// envVarOrLogLevel gets the environment variable for the provided key,
 // creates a logger.LogLevel from the retrieved value,
 // or returns the provided default logger.LogLevel
 // if the value is an unknown logger.LogLevel.
@@ -77,7 +77,7 @@ func envVarOrLogLevel(key string, def logger.LogLevel) logger.LogLevel {
 	return ll
 }
 
-// envVarOrString gets the environment variable from the provided key or the provided default string.
+// envVarOrString gets the environment variable for the provided key or the provided default string.
 func envVarOrString(key string, def string) string {
 	val := os.Getenv(key)
 	if val == "" {
@@ -87,6 +87,7 @@ func envVarOrString(key string, def string) string {
 	return val
 }
 
+// envVarOrURL gets the environment variable for the provided or the provided default *url.URL.
 func envVarOrURL(key string, def *url.URL) *url.URL {
 	if def.Path != "/" {
 		def.Path = "/"
