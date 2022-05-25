@@ -180,9 +180,7 @@ func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 	}
 
 	return func(rng *Ranger) (OptFollowup, error) {
-		l := logger.New(args...)
-		setupLog = l
-		return WithLogger(l)(rng)
+		return WithLogger(logger.New(args...))(rng)
 	}
 }
 

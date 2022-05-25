@@ -21,7 +21,7 @@ import (
 	"github.com/xy-planning-network/trails/postgres"
 )
 
-var setupLog = logger.New()
+var setupLog logger.Logger
 
 // A Ranger manages and exposes all components of a trails app to one another.
 type Ranger struct {
@@ -109,16 +109,21 @@ func (r *Ranger) Guide() error {
 
 	go func() {
 		s := <-ch
-		r.Info(fmt.Sprint("received shutdown signal: ", s), nil)
+		r.Logger.Info(fmt.Sprint("received shutdown signal: ", s), nil)
 		cancel()
 	}()
 
+	ll := r.Logger
+	if sl, ok := ll.(logger.SkipLogger); ok {
+		ll = sl.AddSkip(sl.Skip() + 1)
+	}
+
+	ll.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), nil)
 	go func() {
-		r.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), nil)
 		r.srv.Handler = r.Router
 		if err := r.srv.ListenAndServe(); err != http.ErrServerClosed {
 			err = fmt.Errorf("could not listen: %w", err)
-			r.Error(err.Error(), nil)
+			r.Logger.Error(err.Error(), nil)
 		}
 	}()
 
@@ -133,10 +138,15 @@ func (r *Ranger) Shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	r.Info("shutting down web server", nil)
+	ll := r.Logger
+	if sl, ok := ll.(logger.SkipLogger); ok {
+		ll = sl.AddSkip(sl.Skip() + 2)
+	}
+
+	ll.Info("shutting down web server", nil)
 	err := r.srv.Shutdown(shutdownCtx)
 	if err == http.ErrServerClosed {
-		r.Info("web server shutdown successfully", nil)
+		ll.Info("web server shutdown successfully", nil)
 		return nil
 	}
 
@@ -144,6 +154,6 @@ func (r *Ranger) Shutdown() error {
 		return fmt.Errorf("could not shutdown: %w", err)
 	}
 
-	r.Info("web server shutdown successfully", nil)
+	ll.Info("web server shutdown successfully", nil)
 	return nil
 }
