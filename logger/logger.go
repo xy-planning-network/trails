@@ -1,6 +1,9 @@
 package logger
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -10,9 +13,15 @@ import (
 	"github.com/fatih/color"
 )
 
-const knownFrames = 2
+const (
+	callerTmpl  = "%s:%d"
+	knownFrames = 2
+)
 
-var trailsPathRegex = regexp.MustCompile("trails.*$")
+var (
+	emptyJSON       = []byte(`"{}"`)
+	trailsPathRegex = regexp.MustCompile("trails.*$")
+)
 
 // The Logger interface defines the levels a logging can occur at.
 type Logger interface {
@@ -170,29 +179,30 @@ func (l *TrailsLogger) Skip() int { return l.skip }
 // log executes printing the log message,
 // including any context if available.
 func (l *TrailsLogger) log(colorizer func(string, ...any) string, level LogLevel, msg string, ctx *LogContext) {
-	// NOTE(dlk): skip the number of frames the TrailsLogger has
-	// and however many the TrailsLogger is configured with
-	_, file, line, _ := runtime.Caller(knownFrames + l.skip)
-
-	var toPrint string
-	if match := trailsPathRegex.Find([]byte(file)); match != nil {
-		toPrint = string(match)
+	var caller string
+	if ctx != nil && ctx.Caller != "" {
+		caller = ctx.Caller
 	} else {
-		// NOTE(dlk): print the file and the directory it is in
-		// e.g.,:
-		// /home/dlk/my-project/main.go => my-project/main.go
-		// /home/dlk/my-project/internal/internal.go => internal/internal.go
-		fullPath, file := path.Split(file)
-		toPrint = path.Base(fullPath) + string(os.PathSeparator) + file
+		// NOTE(dlk): skip the number of frames the TrailsLogger has
+		// and however many the TrailsLogger is configured with
+		_, file, line, _ := runtime.Caller(knownFrames + l.Skip())
+		caller = fmt.Sprintf(callerTmpl, immediateFilepath(file), line)
 	}
 
-	msg = colorizer("%s %s:%d '%s'", level, toPrint, line, msg)
-	if ctx == nil {
-		l.l.Println(msg)
-		return
+	msg = colorizer("%s %s %q", level, caller, msg)
+	if ctx != nil {
+		b, err := json.Marshal(ctx)
+		if err != nil {
+			l.l.Println("failed marshaling LogContext:", err)
+		}
+
+		if b != nil && bytes.Compare(b, emptyJSON) != 0 {
+			l.l.Println(msg, "log_context:", string(b))
+			return
+		}
 	}
 
-	l.l.Println(msg, "log_context:", ctx)
+	l.l.Println(msg)
 }
 
 func getEnvOrString(key, def string) string {
@@ -201,4 +211,19 @@ func getEnvOrString(key, def string) string {
 		return def
 	}
 	return val
+}
+
+// immediateFilepath either shortens a full filepath to the most immediate parent directory and file,
+// or returns the full trails package path; e.g.,
+//
+// /path/to/my-project/main.go => my-project/main.go
+//
+// /path/to/trails/http/resp/responder.go => trails/http/resp/responder.go
+func immediateFilepath(file string) string {
+	if match := trailsPathRegex.Find([]byte(file)); match != nil {
+		return string(match)
+	}
+
+	fullPath, file := path.Split(file)
+	return path.Base(fullPath) + string(os.PathSeparator) + file
 }
