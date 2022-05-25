@@ -107,23 +107,19 @@ func (r *Ranger) Guide() error {
 		syscall.SIGTERM,
 	)
 
+	cc := logger.CurrentCaller()
 	go func() {
 		s := <-ch
-		r.Logger.Info(fmt.Sprint("received shutdown signal: ", s), nil)
+		r.Logger.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: cc})
 		cancel()
 	}()
 
-	ll := r.Logger
-	if sl, ok := ll.(logger.SkipLogger); ok {
-		ll = sl.AddSkip(sl.Skip() + 1)
-	}
-
-	ll.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), nil)
 	go func() {
+		r.Logger.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: cc})
 		r.srv.Handler = r.Router
 		if err := r.srv.ListenAndServe(); err != http.ErrServerClosed {
 			err = fmt.Errorf("could not listen: %w", err)
-			r.Logger.Error(err.Error(), nil)
+			r.Logger.Error(err.Error(), &logger.LogContext{Caller: cc})
 		}
 	}()
 

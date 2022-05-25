@@ -89,8 +89,8 @@ var (
 // or building off Default* configurations.
 func defaultOpts() []RangerOption {
 	return []RangerOption{
-		DefaultContext(),
 		DefaultLogger(),
+		DefaultContext(),
 		WithEnv(environmentEnvVar),
 		DefaultKeyring(),
 		DefaultSessionStore(),
@@ -370,15 +370,20 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 			args = append(args, opt)
 		}
 
+		ll := setupLog
+		if sl, ok := ll.(logger.SkipLogger); ok {
+			ll = sl.AddSkip(sl.Skip() + 2)
+		}
+
 		auth := os.Getenv(sessionAuthKeyEnvVar)
 		if auth == "" {
-			setupLog.Warn("missing required value for "+sessionAuthKeyEnvVar, nil)
+			ll.Warn("missing required value for "+sessionAuthKeyEnvVar, nil)
 			return nil, nil
 		}
 
 		encrypt := os.Getenv(sessionEncryptKeyEnvVar)
 		if encrypt == "" {
-			setupLog.Warn("missing required value for "+sessionEncryptKeyEnvVar, nil)
+			ll.Warn("missing required value for "+sessionEncryptKeyEnvVar, nil)
 			return nil, nil
 		}
 
