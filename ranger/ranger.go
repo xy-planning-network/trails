@@ -30,14 +30,15 @@ type Ranger struct {
 	*resp.Responder
 	router.Router
 
-	ctx      context.Context
-	db       postgres.DatabaseService
-	env      Environment
-	kr       keyring.Keyringable
-	p        template.Parser
-	sessions session.SessionStorer
-	srv      *http.Server
-	url      *url.URL
+	ctx       context.Context
+	db        postgres.DatabaseService
+	env       Environment
+	kr        keyring.Keyringable
+	p         template.Parser
+	sessions  session.SessionStorer
+	shutdowns []ShutdownFn
+	srv       *http.Server
+	url       *url.URL
 	users    middleware.UserStorer
 }
 
@@ -132,6 +133,16 @@ func (r *Ranger) Guide() error {
 }
 
 // Shutdown shutdowns the web server.
+//
+// If you pass custom ShutdownFns using WithShutdowns,
+// Shutdown calls these before closing the web server.
+//
+// You may want to provide custom ShutdownFns if other services
+// ought to be stopped before the web server stops accepts requests.
+//
+// In such a case, Ranger continues to accept HTTP requests
+// until these custom ShutdownFns finish.
+// This state of affairs ought to be gracefully handled in your web handlers.
 func (r *Ranger) Shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -142,6 +153,16 @@ func (r *Ranger) Shutdown() error {
 	}
 
 	ll.Info("shutting down web server", nil)
+	if len(r.shutdowns) > 0 {
+		ll.Info("shutting down plugins", nil)
+		for _, fn := range r.shutdowns {
+			if err := fn(shutdownCtx); err != nil {
+				ll.Error("failed shutting down: "+err.Error(), nil)
+				return err
+			}
+		}
+	}
+
 	err := r.srv.Shutdown(shutdownCtx)
 	if err == http.ErrServerClosed {
 		ll.Info("web server shutdown successfully", nil)
