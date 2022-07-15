@@ -1,9 +1,13 @@
 /*
 
-Package main provides a toy example use of Trails' http stack.
+start-here provides a toy example use of Trails' http stack,
+focusing on the basics of:
 
-
-
+(1) constructing a default Ranger;
+(2) binding routes to handlers;
+(3) using resp.Responder methods for responding to requests;
+(4) and the use of resp.Fn functional options for declaring how
+	the method forms the response payload.
 */
 package main
 
@@ -77,6 +81,7 @@ func (h *RangerHandler) broken(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	//func run() {
 	// construct a Ranger using all defaults.
 	rng, err := ranger.New()
 	if err != nil {

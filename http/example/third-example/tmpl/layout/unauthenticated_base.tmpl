@@ -1,0 +1,17 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Test</title>
+    <!-- NOTE: notice use of the default location -->
+    <link rel="stylesheet" type="text/css" href="/client/dist/index.css"></link>
+  </head>
+  <body>
+    <div class="template-name">-- unauthenticated_base.tmpl --</div>
+    {{ template "first" . }}
+    <br>
+    We are coming at you from: {{ rootUrl }}
+    <br>
+    The environment is: {{ env }}
+  </body>
+</html>
