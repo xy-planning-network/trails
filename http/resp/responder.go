@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -174,7 +175,7 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	}{Data: rr.data}
 
 	s, err := doer.Session(r.Context())
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrNotFound) {
 		return fmt.Errorf("can't retrieve session: %w", err)
 	}
 	if s != nil {

@@ -13,6 +13,7 @@ import (
 	// TODO(dlk): configurable env files
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/xy-planning-network/trails/http/keyring"
+	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
 	"github.com/xy-planning-network/trails/http/session"
@@ -38,6 +39,7 @@ type Ranger struct {
 	shutdowns []ShutdownFn
 	srv       *http.Server
 	url       *url.URL
+	users    middleware.UserStorer
 }
 
 // New constructs a Ranger from the provided options.
