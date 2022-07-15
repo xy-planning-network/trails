@@ -9,8 +9,37 @@ Trails unifies the patterns and solutions [XY Planning Network](https://xyplanni
 Trails provides libraries for quickly building web applications that have standard, well-defined web application needs, such as managing user sessions or routing based on user authorization. It defines the concepts needed for solving those problems through interfaces and provides default implementations of those so development can begin immediately.
 
 ## So, what's in here?
+### `ranger/`
+A trails app is set managed and guided by a `\*ranger.Ranger`. A `\*ranger.Ranger` composes the different tools trails makes available and provides opinionated defaults. It is as simple as:
+```go 
+package main
+
+import (
+        "github.com/xy-planning-network/trails/resp"
+        "github.com/xy-planning-network/trails/ranger"
+)
+
+type handler struct {
+        *resp.Responder
+}
+
+func (h *handler) GetHelloWorld(w http.ResponseWriter, r *http.Request) {
+        h.Raw(w, r, Data("Hello, World!"))
+}
+
+func main() {
+        rng := ranger.New()
+
+        h := &handler{rng.Responder}
+
+        rng.Handle(router.Route{Method: http.MethodGet, Path: "/", Handler: h})
+}
+```
+
 ### `http/`
-Trails has a web server powered by a router, middleware stack, HTML template rendering, user session management and a high-level API for crafting HTTP responses. Let's get this setup!
+It may be trails' Ranger is too opinionated for your use case. Very well, trails pushes each and every element of a web app into its own module. These can be used on their own as a toolkit, rather than a framework.
+
+In `http/` we find trails' web server powered by a router, middleware stack, HTML template rendering, user session management and a high-level declarative API for crafting HTTP responses. Let's get this setup!
 
 #### `http/router`
 The first thing Trails does is initialize an HTTP router:
@@ -222,9 +251,26 @@ Trails integrates with XYPN's open-source Vue component library, [Trees](http://
 - [x] Session management
 - [ ] Form scaffolding
 - [ ] Vue 3 integrations
-- [ ] Logging
+- [x] Logging
 - [ ] Authentication/Authorization
 - [ ] Parsing + sending emails
+
+## HELP 🔥🔥🔥
+- My web server just keeps send `200`s and nothing else!
+  - All examples have been tested (minus bugs!) and so use the convenience of not checking the `error` a `*http.Responder` method may return. When in doubt, start handling those errors. Instead of:
+    ```go
+      func myHandler(w http.ResponseWriter, r *http.Request) {
+        Html(w, r, Tmpls("my-root.tmpl"))
+      }
+    ```
+    try
+    ```go
+      func myHandler(w http.ResponseWriter, r *http.Request) {
+        if err := Html(w, r, Tmpls("my-root.tmpl")); err != nil {
+          Err(w, r, err)
+        }
+      }
+    ```
 
 ## Pioneers
 Below are "pioneers" who make our work easier and deserve more credit than just an import in the `go.mod`:

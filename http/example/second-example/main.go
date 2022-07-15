@@ -1,3 +1,10 @@
+/*
+
+second-example shows off a simple trails app that utilizes
+completely custom application code and
+defaults a user provides additional configuration to.
+
+*/
 package main
 
 import (
@@ -46,7 +53,6 @@ func (h handler) root(w http.ResponseWriter, r *http.Request) {
 // no reason to not use the std lib!
 func initShutdown(h handler, cancel context.CancelFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.Debug("see ya!", nil)
 		w.WriteHeader(http.StatusOK)
 		r.Body.Close()
 		cancel()
@@ -77,17 +83,7 @@ func main() {
 	// Notably, this Ranger does not utilize sessions.
 	// Starting the web server will warn us of this fact,
 	// but start up anyways and being accepted requests.
-	rng, err := ranger.New(
-		ranger.WithContext(ctx),
-		ranger.WithLogger(l),
-
-		// TODO(dlk):
-		// to prevent fetching a session key from the keyring, we have to pass in a nil value.
-		// Instead consider removing SessionKey & CurrentUserKey from keyring.Keyringable
-		// and implement a simpler version in http/session that adds these methods.
-		ranger.WithKeyring(nil),
-		p,
-	)
+	rng, err := ranger.New(ranger.WithContext(ctx), ranger.WithLogger(l), p)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -106,8 +102,6 @@ func main() {
 }
 
 // A pingPonger logs messages while prepending "ping" or "pong" before it.
-//
-// TODO(dlk): check SkipLogger
 type pingPonger struct {
 	i  int
 	l  logger.Logger

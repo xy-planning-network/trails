@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/xy-planning-network/trails/http/keyring"
+	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
 	"github.com/xy-planning-network/trails/http/session"
@@ -130,6 +131,20 @@ func WithRouter(r router.Router) RangerOption {
 	}
 }
 
+// WithServer exposes the *http.Server to the trails app.
+func WithServer(s *http.Server) RangerOption {
+	return func(rng *Ranger) (OptFollowup, error) {
+		old := rng.srv
+		rng.srv = s
+
+		if old != nil {
+			rng.srv.Handler = old.Handler
+		}
+
+		return nil, nil
+	}
+}
+
 // WithSessionStore exposes the session.SessionStorer to the trails app.
 func WithSessionStore(store session.SessionStorer) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
@@ -140,15 +155,16 @@ func WithSessionStore(store session.SessionStorer) RangerOption {
 	}
 }
 
-// WithServer exposes the *http.Server to the trails app.
-func WithServer(s *http.Server) RangerOption {
+// WithUserSessions exposes the middleware.UserStorer
+// that will be used to injectg the current session and user into http.Request.Contexts.
+//
+// When WithUserSessions is called, it overrides the default middleware.UserStorer.
+// The default middleware.UserStorer gets or creates a postgres.DatabaseService connection.
+func WithUserSessions(users middleware.UserStorer) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
-		old := rng.srv
-		rng.srv = s
+		rng.users = users
 
-		if old != nil {
-			rng.srv.Handler = old.Handler
-		}
+		setupLog.Debug(fmt.Sprintf("using user store %T", users), nil)
 
 		return nil, nil
 	}

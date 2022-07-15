@@ -3,6 +3,7 @@ package ranger
 import (
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/xy-planning-network/trails/logger"
@@ -28,6 +29,22 @@ func (e Environment) Valid() error {
 	default:
 		return ErrNotValid
 	}
+}
+
+// envVarOrBool gets the environment variable for the provided key and
+// returns whether it matches "true" or "false" (after lower casing it)
+// or the default value.
+func envVarOrBool(key string, def bool) bool {
+	val := os.Getenv(key)
+	if strings.ToLower(val) == "true" {
+		return true
+	}
+
+	if strings.ToLower(val) == "false" {
+		return false
+	}
+
+	return def
 }
 
 // envVarOrDuration gets the environment variable for the provided key,
