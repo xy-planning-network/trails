@@ -153,3 +153,16 @@ func WithServer(s *http.Server) RangerOption {
 		return nil, nil
 	}
 }
+
+// A ShutdownFn stops running a service or closes a client connection
+// that an application is in control of.
+type ShutdownFn func(context.Context) error
+
+// WithShutdowns allows custom ShutdownFns to be called within Ranger.Shutdown.
+func WithShutdowns(shutdownFns ...ShutdownFn) RangerOption {
+	return func(rng *Ranger) (OptFollowup, error) {
+		rng.shutdowns = shutdownFns
+
+		return nil, nil
+	}
+}
