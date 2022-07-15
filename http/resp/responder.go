@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -168,18 +169,17 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 		return fmt.Errorf("cannot parse: %w", err)
 	}
 
-	// TODO(dlk): necessary to throw error, redirect instead?
-	s, err := doer.Session(r.Context())
-	if err != nil {
-		return fmt.Errorf("can't retrieve session: %w", err)
-	}
-
 	rd := struct {
 		Data    any
 		Flashes []session.Flash
-	}{
-		Data:    rr.data,
-		Flashes: s.Flashes(w, r),
+	}{Data: rr.data}
+
+	s, err := doer.Session(r.Context())
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("can't retrieve session: %w", err)
+	}
+	if s != nil {
+		rd.Flashes = s.Flashes(w, r)
 	}
 
 	b := doer.pool.Get().(*bytes.Buffer)
@@ -187,7 +187,6 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	defer doer.pool.Put(b)
 
 	if err := tmpl.ExecuteTemplate(b, path.Base(rr.tmpls[0]), rd); err != nil {
-		doer.Err(w, r, err)
 		return err
 	}
 
@@ -295,7 +294,6 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 		return err
 	}
 
-	// TODO(dlk): call Error() instead of silently closing Body?
 	if rr.closeBody {
 		defer r.Body.Close()
 	}
@@ -308,8 +306,9 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 
 	switch {
 	case rr.code >= http.StatusMultipleChoices && rr.code <= http.StatusPermanentRedirect:
-		// NOTE(dlk): all good, do nothing
+		// NOTE(dlk): code is already a 3xx, so do nothing
 	case rr.code >= http.StatusBadRequest && rr.code < http.StatusInternalServerError:
+		// TODO(dlk): use 303?
 		rr.code = http.StatusSeeOther
 	case rr.code >= http.StatusInternalServerError:
 		rr.code = http.StatusTemporaryRedirect
@@ -329,14 +328,20 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 // If WithSessionKey was not called setting up the Responder or the context.Context has no
 // value for that key, ErrNotFound returns.
 func (doer Responder) Session(ctx context.Context) (session.FlashSessionable, error) {
+	if doer.sessionKey == nil {
+		return nil, nil
+	}
+
 	val := ctx.Value(doer.sessionKey)
 	if val == nil {
 		return nil, fmt.Errorf("%w: no session found with sessionKey", ErrNotFound)
 	}
+
 	s, ok := val.(session.FlashSessionable)
 	if !ok {
 		return nil, fmt.Errorf("%w: does not implement session.FlashSessionable", ErrInvalid)
 	}
+
 	return s, nil
 }
 

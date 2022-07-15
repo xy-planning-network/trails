@@ -1,0 +1,15 @@
+{{ define "last" }}
+  <div class="template-name">-- last.tmpl --</div>
+  <h2>Hello, from the last template!</h2>
+  <div>
+    I use a template function provided as an option when constructing the
+    <code style="font-family:monospace;">template.Parser</code>
+  </div>
+  <br />
+  <code>
+    p := ranger.DefaultParser(files, template.WithFn("hammer", itsHammerTime))
+  </code>
+  <br />
+  <br />
+  What time is it: {{ hammer }}
+{{ end }}

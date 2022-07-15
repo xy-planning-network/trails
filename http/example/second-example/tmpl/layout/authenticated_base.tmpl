@@ -3,9 +3,11 @@
   <head>
     <meta charset="utf-8">
     <title>Test</title>
+    <link rel="stylesheet" type="text/css" href="/client/dist/index.css"></link>
   </head>
   <body>
-    {{ template "main" . }}
+    <div class="template-name">-- authenticated_base.tmpl --</div>
+    {{ template "first" . }}
     <br>
     We are coming at you from: {{ rootUrl }}
     <br>

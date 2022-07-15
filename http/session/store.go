@@ -25,6 +25,8 @@ type SessionStorer interface {
 type Service struct {
 	ak     []byte
 	ek     []byte
+	sk     string
+	uk     string
 	env    string
 	maxAge int
 	store  gorilla.Store
@@ -34,10 +36,10 @@ type Service struct {
 // with the provided hex-encoded authentication key and encryption keys.
 // If no backing storage is provided through a functional option -
 // like WithRedis - NewService stores sessions in cookies.
-func NewStoreService(env, authKey, encryptKey string, opts ...ServiceOpt) (Service, error) {
+func NewStoreService(env, authKey, encryptKey, sessionKey, userKey string, opts ...ServiceOpt) (Service, error) {
 	gob.Register(Flash{})
 	var err error
-	s := Service{env: env, maxAge: defaultMaxAge}
+	s := Service{env: env, maxAge: defaultMaxAge, sk: sessionKey, uk: userKey}
 
 	s.ak, err = hex.DecodeString(authKey)
 	if err != nil {
@@ -65,8 +67,8 @@ func NewStoreService(env, authKey, encryptKey string, opts ...ServiceOpt) (Servi
 
 // GetSession wraps gorilla.Get, creating a brand new Session or one from the session retrieved.
 func (s Service) GetSession(r *http.Request) (Sessionable, error) {
-	session, err := s.store.Get(r, sessionKey)
-	return Session{session}, err
+	session, err := s.store.Get(r, s.sk)
+	return Session{s: session, uk: s.uk}, err
 }
 
 // A ServiceOpt configures the provided *Service,
@@ -74,7 +76,7 @@ func (s Service) GetSession(r *http.Request) (Sessionable, error) {
 type ServiceOpt func(*Service) error
 
 // WithCookie configures the Service to back session storage with cookies.
-func WithCookie() func(*Service) error {
+func WithCookie() ServiceOpt {
 	var c *gorilla.CookieStore
 	return func(s *Service) error {
 		if !strings.EqualFold(s.env, "testing") {
@@ -95,7 +97,7 @@ func WithCookie() func(*Service) error {
 // Call before other options so this value is available.
 //
 // Otherwise, the Service uses defaultMaxAge.
-func WithMaxAge(secs int) func(*Service) error {
+func WithMaxAge(secs int) ServiceOpt {
 	return func(s *Service) error {
 		s.maxAge = secs
 		return nil
@@ -105,7 +107,7 @@ func WithMaxAge(secs int) func(*Service) error {
 // WithRedis configures the Service to back session storage with Redis.
 //
 // To authenticate to the Redis server, provide pass, otherwise its zero-value is acceptable.
-func WithRedis(uri, pass string) func(*Service) error {
+func WithRedis(uri, pass string) ServiceOpt {
 	var r *redistore.RediStore
 	var err error
 	return func(s *Service) error {

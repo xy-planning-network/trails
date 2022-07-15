@@ -30,7 +30,7 @@ func (k Key) String() string {
 	return "http context key: " + string(k)
 }
 
-const _ Key = ""
+var _ Keyable = Key("")
 
 // Something Keyringable because it stores arbitrary keys, accessible by a string name,
 // and makes it convenient to grab a CurrentUserKey or SessionKey.

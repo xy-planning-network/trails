@@ -347,7 +347,7 @@ func TestResponderHtml(t *testing.T) {
 			d:    resp.NewResponder(resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", nil)))),
 			fns:  []resp.Fn{resp.Tmpls("test.tmpl")},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
-				require.Contains(t, err.Error(), "can't retrieve session")
+				require.Equal(t, http.StatusOK, w.Code)
 			},
 		},
 		{
@@ -401,7 +401,7 @@ func TestResponderSession(t *testing.T) {
 		ctx := context.WithValue(context.Background(), key, struct{}{})
 		d := resp.NewResponder()
 		actual, err := d.Session(ctx)
-		require.ErrorIs(t, err, resp.ErrNotFound)
+		require.Nil(t, err)
 		require.Nil(t, actual)
 	})
 }

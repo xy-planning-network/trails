@@ -4,6 +4,7 @@ import (
 	"fmt"
 	html "html/template"
 	"io/fs"
+	"os"
 	"path"
 )
 
@@ -20,8 +21,8 @@ type Parse struct {
 }
 
 // NewParser constructs a Parse with the provided fs.FS and functional options.
-func NewParser(fs fs.FS, opts ...ParserOptFn) Parser {
-	p := &Parse{fs: fs, fns: make(html.FuncMap)}
+func NewParser(opts ...ParserOptFn) Parser {
+	p := &Parse{fs: os.DirFS("."), fns: make(html.FuncMap)}
 	for _, opt := range opts {
 		opt(p)
 	}

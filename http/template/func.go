@@ -4,7 +4,7 @@ import (
 	html "html/template"
 	"net/url"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 // AddFn includes the named function in the Parse function map.
@@ -32,7 +32,7 @@ func Env(e string) (string, func() string) {
 // Nonce returns "nonce" as the name of the function for convenient passing to a template.FuncMap
 // and returns a function generating a uuid.
 func Nonce() (string, func() string) {
-	return "nonce", func() string { return uuid.NewV4().String() }
+	return "nonce", func() string { return uuid.NewString() }
 }
 
 // RootUrl encloses the *url.URL representing the base URL of the web app.
