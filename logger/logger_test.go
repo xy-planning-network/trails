@@ -14,7 +14,7 @@ import (
 var (
 	logLevelRegexp = regexp.MustCompile(`^\[[A-Z]+\]`)
 	fpRegexp       = regexp.MustCompile(`trails.*\.go`)
-	msgRegexp      = regexp.MustCompile(`'(.*)'\n$`)
+	msgRegexp      = regexp.MustCompile(`"(.*)"\n$`)
 )
 
 func TestTrailsLoggerDebug(t *testing.T) {
