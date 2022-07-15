@@ -20,7 +20,7 @@ const (
 
 var (
 	emptyJSON       = []byte(`"{}"`)
-	trailsPathRegex = regexp.MustCompile("trails.*$")
+	trailsPathRegex = regexp.MustCompile("/trails/.*$")
 )
 
 // The Logger interface defines the levels a logging can occur at.
@@ -221,7 +221,7 @@ func getEnvOrString(key, def string) string {
 // /path/to/trails/http/resp/responder.go => trails/http/resp/responder.go
 func immediateFilepath(file string) string {
 	if match := trailsPathRegex.Find([]byte(file)); match != nil {
-		return string(match)
+		return string(match[1:])
 	}
 
 	fullPath, file := path.Split(file)
