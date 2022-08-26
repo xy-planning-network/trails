@@ -83,7 +83,7 @@ func main() {
 	// Notably, this Ranger does not utilize sessions.
 	// Starting the web server will warn us of this fact,
 	// but start up anyways and being accepted requests.
-	rng, err := ranger.New(ranger.WithContext(ctx), ranger.WithLogger(l), p)
+	rng, err := ranger.New(ranger.WithCancelableContext(ctx, cancel), ranger.WithLogger(l), p)
 	if err != nil {
 		fmt.Println(err)
 		return

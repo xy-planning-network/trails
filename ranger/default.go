@@ -102,7 +102,8 @@ func defaultOpts() []RangerOption {
 // for the trails app.
 func DefaultContext() RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
-		return WithContext(context.Background())(rng)
+		ctx, cancel := context.WithCancel(context.Background())
+		return WithCancelableContext(ctx, cancel)(rng)
 	}
 }
 

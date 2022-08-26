@@ -29,9 +29,10 @@ type RangerOption func(rng *Ranger) (OptFollowup, error)
 type OptFollowup func() error
 
 // WithContext exposes the provided context.Context to the trails app.
-func WithContext(ctx context.Context) RangerOption {
+func WithCancelableContext(ctx context.Context, cancel context.CancelFunc) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		rng.ctx = ctx
+		rng.cancel = cancel
 		setupLog.Debug(fmt.Sprintf("using context %T", ctx), nil)
 
 		return nil, nil

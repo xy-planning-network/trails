@@ -30,6 +30,7 @@ type Ranger struct {
 	*resp.Responder
 	router.Router
 
+	cancel    context.CancelFunc
 	ctx       context.Context
 	db        postgres.DatabaseService
 	env       Environment
@@ -39,7 +40,7 @@ type Ranger struct {
 	shutdowns []ShutdownFn
 	srv       *http.Server
 	url       *url.URL
-	users    middleware.UserStorer
+	users     middleware.UserStorer
 }
 
 // New constructs a Ranger from the provided options.
@@ -92,11 +93,8 @@ func (r *Ranger) EmitSessionStore() session.SessionStorer { return r.sessions }
 // - syscall.SIGQUIT
 // - syscall.SIGTERM
 func (r *Ranger) Guide() error {
-	var cancel context.CancelFunc
 	if r.ctx == nil {
-		r.ctx, cancel = context.WithCancel(context.Background())
-	} else {
-		r.ctx, cancel = context.WithCancel(r.ctx)
+		r.ctx, r.cancel = context.WithCancel(context.Background())
 	}
 
 	ch := make(chan os.Signal, 1)
@@ -114,7 +112,7 @@ func (r *Ranger) Guide() error {
 	go func() {
 		s := <-ch
 		r.Logger.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: cc})
-		cancel()
+		r.cancel()
 	}()
 
 	go func() {
