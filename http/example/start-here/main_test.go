@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"os"
 	"testing"
+
+	"github.com/xy-planning-network/trails/ranger"
 )
 
 func Test(t *testing.T) {
@@ -26,7 +28,7 @@ func Test(t *testing.T) {
 		{"authed-200", "/authed", http.StatusOK},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := http.Get("http://localhost:8080" + tc.input)
+			actual, err := http.Get("http://" + ranger.DefaultHost + ranger.DefaultPort + tc.input)
 			if err != nil {
 				t.Fatal(err)
 			}
