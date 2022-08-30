@@ -116,9 +116,8 @@ func WithResponder(r *resp.Responder) RangerOption {
 func WithRouter(r router.Router) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
-			// TODO(dlk): best approach? need to track 2 fields?
 			if rng.srv == nil {
-				rng.srv = defaultServer(rng.ctx, rng.url.Port())
+				rng.srv = defaultServer(rng.ctx)
 			}
 
 			rng.Router = r

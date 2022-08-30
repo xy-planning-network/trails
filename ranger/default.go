@@ -61,7 +61,10 @@ const (
 	defaultVueTmpl      = defaultLayoutDir + "/vue.tmpl"
 
 	// Web server defaults
+	DefaultHost               = "localhost"
+	hostEnvVar                = "HOST"
 	DefaultPort               = ":3000"
+	portEnvVar                = "PORT"
 	serverReadTimeoutEnvVar   = "SERVER_READ_TIMEOUT"
 	DefaultServerReadTimeout  = 5 * time.Second
 	serverIdleTimeoutEnvVar   = "SERVER_IDLE_TIMEOUT"
@@ -81,7 +84,7 @@ const (
 )
 
 var (
-	defaultBaseURL, _ = url.ParseRequestURI("http://localhost:3000")
+	defaultBaseURL, _ = url.ParseRequestURI("http://" + DefaultHost + DefaultPort)
 )
 
 // defaultOpts returns the default RangerOptions used in every call to NewRanger.
@@ -430,10 +433,9 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 }
 
 // defaultServer constructs a default *http.Server.
-func defaultServer(ctx context.Context, port string) *http.Server {
-	if port == "" {
-		port = DefaultPort
-	} else if port[0] != ':' {
+func defaultServer(ctx context.Context) *http.Server {
+	port := envVarOrString(portEnvVar, DefaultPort)
+	if port[0] != ':' {
 		port = ":" + port
 	}
 
