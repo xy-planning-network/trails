@@ -97,7 +97,7 @@ type TrailsLogger struct {
 func New(opts ...LoggerOptFn) Logger {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 	l := &TrailsLogger{
-		env: getEnvOrString("ENVIRONEMNT", "DEVELOPMENT"),
+		env: getEnvOrString("ENVIRONMENT", "DEVELOPMENT"),
 		l:   logger,
 		ll:  LogLevelInfo,
 	}
