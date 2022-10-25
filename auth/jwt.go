@@ -7,28 +7,23 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-// AuthenticateJWT decodes an AppToken from the provided query params.
+// AuthenticateJWT decodes jwt claims from the provided query params.
 // If no token is set in the params, AuthenticateJWT returns ErrUnexpected.
-// If the header can be decoded in an AppToken, but AppToken.Valid returns an error,
-// AuthenticateJWT returns false but no error.
-func (s *Service) AuthenticateJWT(v url.Values) (*AppToken, bool, error) {
+// Please note that the consuming party needs to pass appToken as a pointer
+// so that it can be hyrdrayed by ParseWithClaims.
+func (s *Service) AuthenticateJWT(v url.Values, appToken jwt.Claims) (jwt.Claims, error) {
 	reqToken := v.Get("jwt")
 	if reqToken == "" {
-		return nil, false, fmt.Errorf("no jwt param set: %w", ErrNotValid)
+		return nil, fmt.Errorf("no jwt param set: %w", ErrNotValid)
 	}
 
-	at := &AppToken{}
-	token, err := s.parser.ParseWithClaims(reqToken, at, func(token *jwt.Token) (interface{}, error) {
+	token, err := s.parser.ParseWithClaims(reqToken, appToken, func(token *jwt.Token) (interface{}, error) {
 		return s.key, nil
 	})
 
 	if err != nil {
-		return nil, false, fmt.Errorf("%w: %s", ErrUnexpected, err)
+		return nil, fmt.Errorf("%w: %s", ErrUnexpected, err)
 	}
 
-	if claims, ok := token.Claims.(*AppToken); ok {
-		return claims, true, nil
-	}
-
-	return nil, false, nil
+	return token.Claims, nil
 }
