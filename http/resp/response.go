@@ -35,7 +35,7 @@ type Response struct {
 // If WithAuthTemplate was not called setting up the Responder, ErrBadConfig returns.
 func Authed() Fn {
 	return func(d Responder, r *Response) error {
-		if d.authed == "" {
+		if d.templates.authed == "" {
 			return fmt.Errorf("%w: no authed tmpl", ErrBadConfig)
 		}
 
@@ -44,17 +44,17 @@ func Authed() Fn {
 		}
 
 		if len(r.tmpls) > 0 {
-			if r.tmpls[0] == d.authed {
+			if r.tmpls[0] == d.templates.authed {
 				return nil
 			}
 
-			if r.tmpls[0] == d.unauthed {
-				r.tmpls[0] = d.authed
+			if r.tmpls[0] == d.templates.unauthed {
+				r.tmpls[0] = d.templates.authed
 				return nil
 			}
 		}
 
-		r.tmpls = append([]string{d.authed}, r.tmpls...)
+		r.tmpls = append([]string{d.templates.authed}, r.tmpls...)
 		return nil
 	}
 }
@@ -212,22 +212,22 @@ func ToRoot() Fn {
 // If WithUnauthTemplate was not called setting up the Responder, ErrBadConfig returns.
 func Unauthed() Fn {
 	return func(d Responder, r *Response) error {
-		if d.unauthed == "" {
+		if d.templates.unauthed == "" {
 			return fmt.Errorf("%w: no unauthed tmpl", ErrBadConfig)
 		}
 
 		if len(r.tmpls) > 0 {
-			if r.tmpls[0] == d.unauthed {
+			if r.tmpls[0] == d.templates.unauthed {
 				return nil
 			}
 
-			if r.tmpls[0] == d.authed {
-				r.tmpls[0] = d.unauthed
+			if r.tmpls[0] == d.templates.authed {
+				r.tmpls[0] = d.templates.unauthed
 				return nil
 			}
 		}
 
-		r.tmpls = append([]string{d.unauthed}, r.tmpls...)
+		r.tmpls = append([]string{d.templates.unauthed}, r.tmpls...)
 		return nil
 	}
 }
@@ -331,10 +331,10 @@ func Url(u string) Fn {
 // Use WithCtxKeys to do so when applicable.
 func Vue(entry string) Fn {
 	return func(d Responder, r *Response) error {
-		if d.vue == "" || entry == "" {
+		if d.templates.vue == "" || entry == "" {
 			return nil
 		}
-		if err := Tmpls(d.vue)(d, r); err != nil {
+		if err := Tmpls(d.templates.vue)(d, r); err != nil {
 			return err
 		}
 		// NOTE(dlk): ignore error since Vue does not require a User
