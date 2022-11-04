@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{{ metadata "title" }}</title>
+    <meta name="description" content="{{ metadata "description" }}"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="stylesheet" href="client/dist/index.css">
+    <link href="https://rsms.me/inter/inter.css" rel="stylesheet" />
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="#E2E8F0">
+<style>
+  :root {
+    font-family: 'Inter', sans-serif;
+  }
+  footer {
+    bottom: 0px;
+    margin: 1rem 0;
+    text-align: center;
+  }
+  main {
+    background: #E2E8F0;
+    border-radius: 0.375rem;
+    height: 100%;
+    min-height: 50vh;
+    max-width: 1280px;
+    margin: auto;
+    padding: 2rem;
+  }
+  section {
+    background: #F8FAFC;
+    border-radius: 0.375rem;
+    margin: 1rem 0;
+    padding: .25rem .5rem;
+  }
+  #errorMsg {
+    margin-left: 2rem;
+  }
+</style>
+  </head>
+  <body>
+    <main>
+      <h2>Oops, we didn't expect to arrive here...</h2>
+      {{ if not isProduction }}
+        <section id="trace">
+          <p><i>This is the error message encountered</i>:</p>
+          <p id="errorMsg">{{ .Error }}</p>
+        </section>
+        <section id="help">
+          <p>Having trouble with <code>trails</code>?</p>
+          <p>
+            <a href="https://pkg.go.dev/github.com/xy-planning-network/trails" target="_blank">
+              Check out official documentation
+            </a>
+            .
+          </p>
+        </section>
+      {{ end }}
+    </main>
+    <footer>
+      {{ if not isProduction }}
+        <code>
+            <a
+              href="https://pkg.go.dev/github.com/xy-planning-network/trails"
+              target="_blank"
+            >trails</a></code>, developed in Bozeman, Montana
+      {{ end }}
+    </footer>
+  </body>
+</html>

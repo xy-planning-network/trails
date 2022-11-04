@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/xy-planning-network/trails"
@@ -27,6 +28,12 @@ import (
 const (
 	// Base URL defaults
 	baseURLEnvVar = "BASE_URL"
+
+	// App metadata
+	appDescEnvVar   = "APP_DESCRIPTION"
+	defaultAppDesc  = "A trails app"
+	appTitleEnvVar  = "APP_TITLE"
+	defaultAppTitle = "trails"
 
 	// Environment defaults
 	environmentEnvVar = "ENVIRONMENT"
@@ -55,7 +62,9 @@ const (
 	dbTestUserEnvVar  = "DATABASE_TEST_USER"
 
 	// Default template files
-	defaultLayoutDir    = "tmpl/layout"
+	defaultTmplDir      = "tmpl"
+	defaultErrTmpl      = defaultTmplDir + "/error.tmpl"
+	defaultLayoutDir    = defaultTmplDir + "/layout"
 	defaultAuthedTmpl   = defaultLayoutDir + "/authenticated_base.tmpl"
 	defaultUnauthedTmpl = defaultLayoutDir + "/unauthenticated_base.tmpl"
 	defaultVueTmpl      = defaultLayoutDir + "/vue.tmpl"
@@ -195,6 +204,7 @@ func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 // DefaultParser makes available these functions in an HTML template:
 //
 // - "env"
+// - "metadata"
 // - "nonce"
 // - "rootUrl"
 // - "packTag"
@@ -211,15 +221,24 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 			rng.url = trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
 		}
 
+		title := envVarOrString(appTitleEnvVar, defaultAppTitle)
+		desc := envVarOrString(appDescEnvVar, defaultAppDesc)
+
 		args := []template.ParserOptFn{
 			template.WithFS(files),
 			template.WithFn(template.Env(rng.env)),
 			template.WithFn(template.Nonce()),
 			template.WithFn(template.RootUrl(rng.url)),
-			template.WithFn("packTag", template.TagPacker(rng.env, files)),
 			template.WithFn("isDevelopment", func() bool { return rng.env.IsDevelopment() }),
 			template.WithFn("isStaging", func() bool { return rng.env.IsStaging() }),
 			template.WithFn("isProduction", func() bool { return rng.env.IsProduction() }),
+			template.WithFn("packTag", template.TagPacker(rng.env, files)),
+			template.WithFn("metadata", func(key string) string {
+				return map[string]string{
+					"description": desc,
+					"title":       title,
+				}[key]
+			}),
 		}
 
 		args = append(args, opts...)
@@ -246,7 +265,13 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 			}
 
 			if rng.p == nil {
-				if _, err := DefaultParser(os.DirFS("."))(rng); err != nil {
+				vfs := &virtualFS{
+					cache:  make(map[string]func(string) (fs.File, error)),
+					osDir:  os.DirFS("."),
+					pkgDir: pkgFS,
+					Mutex:  sync.Mutex{},
+				}
+				if _, err := DefaultParser(vfs)(rng); err != nil {
 					return err
 				}
 			}
@@ -256,6 +281,7 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 				resp.WithLogger(rng.Logger),
 				resp.WithParser(rng.p),
 				resp.WithAuthTemplate(defaultAuthedTmpl),
+				resp.WithErrTemplate(defaultErrTmpl),
 				resp.WithUnauthTemplate(defaultUnauthedTmpl),
 				resp.WithVueTemplate(defaultVueTmpl),
 			}
