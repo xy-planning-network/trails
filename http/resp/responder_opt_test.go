@@ -17,7 +17,7 @@ import (
 func TestResponderWithAuthTemplate(t *testing.T) {
 	expected := "test.tmpl"
 	d := NewResponder(WithAuthTemplate(expected))
-	require.Equal(t, expected, d.authed)
+	require.Equal(t, expected, d.templates.authed)
 }
 
 func TestResponderWithContactErrMsg(t *testing.T) {
@@ -47,6 +47,12 @@ func TestResponderWithCtxKeys(t *testing.T) {
 			require.Equal(t, tc.expected, d.ctxKeys)
 		})
 	}
+}
+
+func TestResponderWithErrTemplate(t *testing.T) {
+	expected := "test.tmpl"
+	d := NewResponder(WithErrTemplate(expected))
+	require.Equal(t, expected, d.templates.err)
 }
 
 func TestResponderWithLogger(t *testing.T) {
@@ -98,7 +104,7 @@ func TestResponderWithSessionKey(t *testing.T) {
 func TestResponderWithUnauthTemplate(t *testing.T) {
 	expected := "test.tmpl"
 	d := NewResponder(WithUnauthTemplate(expected))
-	require.Equal(t, expected, d.unauthed)
+	require.Equal(t, expected, d.templates.unauthed)
 }
 
 func TestResponderWithUserSessionKey(t *testing.T) {
@@ -110,7 +116,7 @@ func TestResponderWithUserSessionKey(t *testing.T) {
 func TestResponderWithVueTemplate(t *testing.T) {
 	expected := "vue"
 	d := NewResponder(WithVueTemplate(expected))
-	require.Equal(t, expected, d.vue)
+	require.Equal(t, expected, d.templates.vue)
 }
 
 type ctxKey string

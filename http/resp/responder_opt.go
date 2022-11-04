@@ -1,6 +1,7 @@
 package resp
 
 import (
+	_ "embed"
 	"net/url"
 	"sort"
 
@@ -23,7 +24,7 @@ func NoopResponderOptFn(_ *Responder) {}
 // Authed requires this option.
 func WithAuthTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
-		d.authed = fp
+		d.templates.authed = fp
 	}
 }
 
@@ -71,6 +72,14 @@ func WithCtxKeys(keys ...keyring.Keyable) func(*Responder) {
 			return
 		}
 		d.ctxKeys = d.ctxKeys[:j+1]
+	}
+}
+
+// WithErrTemplate sets the template identified by the filepath to use for rendering
+// when an unexpected, unhandled error occurs while
+func WithErrTemplate(fp string) func(*Responder) {
+	return func(d *Responder) {
+		d.templates.err = fp
 	}
 }
 
@@ -123,7 +132,7 @@ func WithSessionKey(key keyring.Keyable) func(*Responder) {
 // Unauthed requires this option.
 func WithUnauthTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
-		d.unauthed = fp
+		d.templates.unauthed = fp
 	}
 }
 
@@ -143,6 +152,6 @@ func WithUserSessionKey(key keyring.Keyable) func(*Responder) {
 // Vue requires this option.
 func WithVueTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
-		d.vue = fp
+		d.templates.vue = fp
 	}
 }

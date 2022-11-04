@@ -319,7 +319,9 @@ func TestResponderRedirect(t *testing.T) {
 }
 
 func TestResponderHtml(t *testing.T) {
+	brokenTmpl := []byte("{{ define }}")
 	sessionKey := ctxKey("test")
+	userKey := ctxKey("user")
 	tcs := []struct {
 		name   string
 		d      *resp.Responder
@@ -335,11 +337,19 @@ func TestResponderHtml(t *testing.T) {
 			},
 		},
 		{
-			name: "With-Parser",
+			name: "With-Authed-Bad-Config",
+			d:    resp.NewResponder(),
+			fns:  []resp.Fn{resp.Authed()},
+			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
+				require.ErrorIs(t, err, resp.ErrBadConfig)
+			},
+		},
+		{
+			name: "With-Parser-Bad-Config",
 			d:    resp.NewResponder(resp.WithParser(tt.NewParser())),
 			fns:  []resp.Fn{},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
-				require.ErrorIs(t, err, resp.ErrMissingData)
+				require.ErrorIs(t, err, resp.ErrBadConfig)
 			},
 		},
 		{
@@ -362,11 +372,81 @@ func TestResponderHtml(t *testing.T) {
 				require.Equal(t, http.StatusOK, w.Code)
 			},
 		},
+		{
+			name: "Bad-Template-Syntax",
+			d: resp.NewResponder(
+				resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", brokenTmpl))),
+			),
+			fns: []resp.Fn{resp.Tmpls("test.tmpl")},
+			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
+				require.ErrorIs(t, err, resp.ErrBadConfig)
+
+			},
+		},
+		{
+			name: "With-Err-Tmpl-Bad-Syntax",
+			d: resp.NewResponder(
+				resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", brokenTmpl))),
+				resp.WithErrTemplate("test.tmpl"),
+			),
+			fns: make([]resp.Fn, 0),
+			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
+				require.NotNil(t, err)
+				require.Equal(t, http.StatusInternalServerError, w.Code)
+			},
+		},
+		{
+			name: "With-Err-Tmpl",
+			d: resp.NewResponder(
+				resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", nil))),
+				resp.WithErrTemplate("test.tmpl"),
+			),
+			fns: make([]resp.Fn, 0),
+			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
+				require.Nil(t, err)
+				require.Equal(t, http.StatusInternalServerError, w.Code)
+			},
+		},
+		// NOTE(dlk): some sleight-of-hand here -
+		// resp.Authed() is not used since it will error first before
+		// reaching the checks in *Responder.Html;
+		// this test verifies someone setting the Authed template
+		// via another path is gracefully handled.
+		{
+			name: "With-Authed-No-User",
+			d: resp.NewResponder(
+				resp.WithParser(tt.NewParser(tt.NewMockFile("err.tmpl", nil))),
+				resp.WithAuthTemplate("auth.tmpl"),
+				resp.WithErrTemplate("err.tmpl"),
+			),
+			fns: []resp.Fn{resp.Tmpls("auth.tmpl")},
+			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
+				require.Nil(t, err)
+				require.Equal(t, http.StatusInternalServerError, w.Code)
+			},
+		},
+		{
+			name: "With-Authed",
+			d: resp.NewResponder(
+				resp.WithParser(tt.NewParser(
+					tt.NewMockFile("auth.tmpl", nil),
+					tt.NewMockFile("test.tmpl", nil),
+				)),
+				resp.WithAuthTemplate("auth.tmpl"),
+				resp.WithUserSessionKey(userKey),
+			),
+			fns: []resp.Fn{resp.Authed(), resp.Tmpls("test.tmpl")},
+			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
+				require.Nil(t, err)
+				require.Equal(t, http.StatusOK, w.Code)
+			},
+		},
 	}
 
 	for _, tc := range tcs {
 		r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 		ctx := context.WithValue(r.Context(), sessionKey, session.Stub{})
+		ctx = context.WithValue(ctx, userKey, "I am definitely a user")
 		r = r.WithContext(ctx)
 		w := httptest.NewRecorder()
 		t.Run(tc.name, func(t *testing.T) {
