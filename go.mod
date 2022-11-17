@@ -1,6 +1,6 @@
 module github.com/xy-planning-network/trails
 
-go 1.18
+go 1.19
 
 require (
 	github.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff
