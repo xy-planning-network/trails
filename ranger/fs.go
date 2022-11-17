@@ -8,7 +8,14 @@ import (
 	"sync"
 )
 
-// virtualFS implements fs.FS
+// pkgFS is the filesystem embedding package ranger's templates.
+//go:embed tmpl/*
+var pkgFS embed.FS
+
+// virtualFS provides files with templates from both the OS and the ranger package itself.
+// See [*virtualFS.Open] for more detail.
+//
+// virtualFS implements [fs.FS].
 type virtualFS struct {
 	// A cache for minimizing ascertaining which directory holds the template.
 	cache map[string]func(string) (fs.File, error)
@@ -23,16 +30,16 @@ type virtualFS struct {
 }
 
 // Open opens the file matching the name using the following strategy:
-// - check the cache
-// - check the OS filesystem
-// - check the package-level virtual filesystem
+// 	- check the cache
+// 	- check the OS filesystem
+// 	- check the package-level virtual filesystem
 //
 // Whenever a file is found and is not present in the cache, it is added.
 // Nothing removes references from the cache.
 //
 // The cache cannot become invalid at runtime since pkgDir is embedded.
 // If a file is removed from the OS during runtime,
-// then a reference to it from the cache returns the same error (fs.ErrNotExist)
+// then a reference to it from the cache returns the same error ([fs.ErrNotExist])
 // as if the cache did not have that reference.
 func (vfs *virtualFS) Open(name string) (fs.File, error) {
 	// NOTE(dlk): while a concurrent routine could add a reference
@@ -68,6 +75,3 @@ func (vfs *virtualFS) Open(name string) (fs.File, error) {
 
 	return nil, fmt.Errorf("unable to open template: %w", err)
 }
-
-//go:embed tmpl/*
-var pkgFS embed.FS

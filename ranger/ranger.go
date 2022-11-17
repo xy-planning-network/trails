@@ -43,9 +43,9 @@ type Ranger struct {
 	users     middleware.UserStorer
 }
 
-// New constructs a Ranger from the provided options.
-// Default options are applied first followed by the options passed into New.
-// Options supplied to New overwrite default configurations.
+// New constructs a [*Ranger] from opts, which can be nil.
+// Default options are applied first followed by the options provided by opts.
+// Options supplied to New may overwrite default configurations.
 func New(opts ...RangerOption) (*Ranger, error) {
 	r := new(Ranger)
 	followups := make([]OptFollowup, 0)
@@ -84,14 +84,14 @@ func (r *Ranger) EmitSessionStore() session.SessionStorer { return r.sessions }
 
 // Guide begins the web server.
 //
-// These, and (*Ranger).Shutdown, stop Guide:
+// These signals, and [*Ranger.Shutdown], stop Guide:
 //
-// - os.Interrupt
-// - os.Kill
-// - syscall.SIGHUP
-// - syscall.SIGINT
-// - syscall.SIGQUIT
-// - syscall.SIGTERM
+// 	- [os.Interrupt]
+// 	- [os.Kill]
+// 	- [syscall.SIGHUP]
+// 	- [syscall.SIGINT]
+// 	- [syscall.SIGQUIT]
+// 	- [syscall.SIGTERM]
 func (r *Ranger) Guide() error {
 	if r.ctx == nil {
 		r.ctx, r.cancel = context.WithCancel(context.Background())
@@ -132,16 +132,19 @@ func (r *Ranger) Guide() error {
 
 // Shutdown shutdowns the web server.
 //
-// If you pass custom ShutdownFns using WithShutdowns,
+// If you pass custom [ShutdownFn] using [WithShutdowns],
 // Shutdown calls these before closing the web server.
 //
-// You may want to provide custom ShutdownFns if other services
+// You may want to provide custom [ShutdownFn] if other services
 // ought to be stopped before the web server stops accepts requests.
 //
-// In such a case, Ranger continues to accept HTTP requests
-// until these custom ShutdownFns finish.
+// In such a case, [*Ranger] continues to accept HTTP requests
+// until these custom [ShutdownFn] finish.
 // This state of affairs ought to be gracefully handled in your web handlers.
 func (r *Ranger) Shutdown() error {
+	// TODO(dlk): does it make sense to have user-supplied functions
+	// eat at the time allocated for the HTTP server to shutdown, i.e.,
+	// close open cxns, respond to requests?
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

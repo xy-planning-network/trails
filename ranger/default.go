@@ -110,7 +110,7 @@ func defaultOpts() []RangerOption {
 	}
 }
 
-// DefaultContext constructs a RangerOption initiates a new, base context.Context
+// DefaultContext constructs a [RangerOption] which initiates a new, base [context.Context]
 // for the trails app.
 func DefaultContext() RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
@@ -119,9 +119,9 @@ func DefaultContext() RangerOption {
 	}
 }
 
-// DefaultDB constructs a RangerOption that connects to a database
+// DefaultDB constructs a [RangerOption] that connects to a database
 // using default configuration environment variables
-// and runs the list of postgres.Migrations passed in.
+// and runs the list of [postgres.Migration] passed in.
 func DefaultDB(list []postgres.Migration) RangerOption {
 	var cfg *postgres.CxnConfig
 	return func(rng *Ranger) (OptFollowup, error) {
@@ -167,8 +167,8 @@ func DefaultDB(list []postgres.Migration) RangerOption {
 	}
 }
 
-// DefaultKeyring constructs a RangerOption that applies the default context keys
-// and those keys passed in to the Ranger.
+// DefaultKeyring constructs a [RangerOption] that applies the default context keys
+// and those keys passed in to the [*Ranger].
 func DefaultKeyring(keys ...keyring.Keyable) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		kr := keyring.NewKeyring(
@@ -181,8 +181,8 @@ func DefaultKeyring(keys ...keyring.Keyable) RangerOption {
 	}
 }
 
-// DefaultLogger constructs a RangerOption that applies the default logger (logger.DefaultLogger)
-// to the Ranger.
+// DefaultLogger constructs a [RangerOption] that applies the default logger ([logger.DefaultLogger])
+// to the [*Ranger].
 func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 	logLvl := envVarOrLogLevel(logLevelEnvVar, logger.LogLevelInfo)
 	args := []logger.LoggerOptFn{
@@ -197,23 +197,23 @@ func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 	}
 }
 
-// DefaultParser constructs a RangerOption that configures a default HTML template parser to be used
-// when responding to HTTP requests with *resp.Responder.Html.
+// DefaultParser constructs a [RangerOption] that configures a default HTML template parser to be used
+// when responding to HTTP requests with [*resp.Responder.Html].
 //
-// files can be nil, resulting in the parser using the local directory to find templates.
+// The [fs.FS] passed in can be nil, resulting in the parser using the local directory to find templates.
 //
 // BASE_URL ought to be set when the default http://localhost:3000 is not wanted.
 //
 // DefaultParser makes available these functions in an HTML template:
 //
-// - "env"
-// - "metadata"
-// - "nonce"
-// - "rootUrl"
-// - "packTag"
-// - "isDevelopment"
-// - "isStaging"
-// - "isProduction"
+// 	- env
+// 	- metadata
+// 	- nonce
+// 	- rootUrl
+// 	- packTag
+// 	- isDevelopment
+// 	- isStaging
+// 	- isProduction
 func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 	if files == nil {
 		files = os.DirFS(".")
@@ -254,13 +254,13 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 	}
 }
 
-// DefaultResponder constructs a RangerOption that returns a followup option
-// configuring the *Ranger.Responder to be used by http.Handlers.
+// DefaultResponder constructs a [RangerOption] that returns a followup option
+// configuring the *Ranger.Responder to be used by an [http.Handler].
 //
 // BASE_URL ought to be set when the default http://localhost:3000 is not wanted.
 //
-// DefaultResponder delays directly configuring the *Ranger under construction
-// in order to avail itself of data - such as template.Parser -
+// DefaultResponder delays directly configuring the [*Ranger] under construction
+// in order to avail itself of data - such as [template.Parser] -
 // that other RangerOptions configure.
 func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
@@ -314,7 +314,7 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 	}
 }
 
-// DefaultRouter constructs a RangerOption that returns a followup option
+// DefaultRouter constructs a [RangerOption] that returns a followup option
 // configuring the *Ranger.Router to be used by the web server.
 func DefaultRouter() RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
@@ -403,17 +403,14 @@ func DefaultRouter() RangerOption {
 	}
 }
 
-// DefaultSessionStore constructs a RangerOption that configures the SessionStore
+// DefaultSessionStore constructs a [RangerOption] that configures the [session.SessionStore]
 // to be used for storing session data.
 //
-// DefaultSessionStore relies on two env vars:
-// - "SESSION_AUTH_KEY"
-// - "SESSION_ENCRYPTION_KEY"
+// DefaultSessionStore relies on two env vars, both ought to be hex encoded values:
+// 	- SESSION_AUTH_KEY
+// 	- SESSION_ENCRYPTION_KEY
 //
-// These must be valid hex encoded values.
-//
-// If these values do not exist, DefaultSessionStore will generate new, random keys
-// and save those to the env var file for later use.
+// If these values do not exist, DefaultSessionStore will log a warning.
 func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		args := []session.ServiceOpt{
@@ -458,7 +455,7 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 	}
 }
 
-// defaultServer constructs a default *http.Server.
+// defaultServer constructs a default [*http.Server].
 func defaultServer(ctx context.Context) *http.Server {
 	port := envVarOrString(portEnvVar, DefaultPort)
 	if port[0] != ':' {
