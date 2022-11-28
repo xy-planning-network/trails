@@ -176,7 +176,7 @@ func WithResponder(r *resp.Responder) RangerOption {
 func WithRouter(r router.Router) RangerOption {
 	if r == nil {
 		return func(_ *Ranger) (OptFollowup, error) {
-			return nil, fmt.Error("%w: WithRouter: r cannot be nil", ErrorBadConfig)
+			return nil, fmt.Errorf("%w: WithRouter: r cannot be nil", ErrBadConfig)
 		}
 	}
 
