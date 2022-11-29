@@ -101,7 +101,6 @@ func (r *Ranger) Guide() error {
 	signal.Notify(
 		ch,
 		os.Interrupt,
-		os.Kill,
 		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGQUIT,
