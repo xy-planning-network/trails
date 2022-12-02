@@ -179,9 +179,7 @@ func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
 	args := []logger.LoggerOptFn{
 		logger.WithLevel(logLvl),
 	}
-	for _, opt := range opts {
-		args = append(args, opt)
-	}
+	args = append(args, opts...)
 
 	return func(rng *Ranger) (OptFollowup, error) {
 		return WithLogger(logger.New(args...))(rng)
@@ -225,9 +223,7 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 			template.WithFn("isProduction", func() bool { return rng.env == Production }),
 		}
 
-		for _, opt := range opts {
-			args = append(args, opt)
-		}
+		args = append(args, opts...)
 
 		rng.p = template.NewParser(args...)
 
@@ -272,9 +268,7 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 				)
 			}
 
-			for _, opt := range opts {
-				args = append(args, opt)
-			}
+			args = append(args, opts...)
 
 			r := resp.NewResponder(args...)
 
@@ -306,7 +300,6 @@ func DefaultRouter() RangerOption {
 			if rng.env == Production {
 				mws = append(
 					mws,
-					middleware.RateLimit(middleware.NewVisitors()),
 					middleware.ForceHTTPS(rng.env.String()),
 				)
 			}
@@ -359,7 +352,7 @@ func DefaultRouter() RangerOption {
 			r := router.NewRouter(rng.env.String())
 			r.OnEveryRequest(mws...)
 			r.HandleNotFound(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
-				if strings.Index(rx.Header.Get("Accept"), "text/html") >= 0 && rx.URL.Path != rng.url.Path {
+				if strings.Contains(rx.Header.Get("Accept"), "text/html") && rx.URL.Path != rng.url.Path {
 					rng.Redirect(wx, rx, resp.ToRoot())
 					return
 				}
@@ -395,9 +388,7 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 			session.WithMaxAge(3600 * 24 * 7),
 		}
 
-		for _, opt := range opts {
-			args = append(args, opt)
-		}
+		args = append(args, opts...)
 
 		ll := setupLog
 		if sl, ok := ll.(logger.SkipLogger); ok {
