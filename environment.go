@@ -32,6 +32,17 @@ func (e Environment) Valid() error {
 	}
 }
 
+// CanUseStub asserts whether the Environment allows for setting up with stubbed out services,
+// for those services that support stubbing.
+func (e Environment) CanUseStub() bool {
+	switch e {
+	case Demo, Development, Testing:
+		return true
+	default:
+		return false
+	}
+}
+
 func (e Environment) IsDevelopment() bool {
 	return e == Development
 }
@@ -54,6 +65,16 @@ func (e Environment) IsStaging() bool {
 
 func (e Environment) IsTesting() bool {
 	return e == Testing
+}
+
+// ToolboxEnabled asserts whether the Environment enables the client-side toolbox.
+func (e Environment) ToolboxEnabled() bool {
+	switch e {
+	case Demo, Development, Staging, Testing:
+		return true
+	default:
+		return false
+	}
 }
 
 // EnvVarOrBool gets the environment variable for the provided key and
