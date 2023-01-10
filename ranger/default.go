@@ -407,7 +407,7 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 		}
 
 		store, err := session.NewStoreService(
-			rng.env.String(),
+			rng.env,
 			auth,
 			encrypt,
 			string(defaultSessionCtxKey),
