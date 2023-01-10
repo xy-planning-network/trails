@@ -6,15 +6,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/template"
 	tt "github.com/xy-planning-network/trails/http/template/templatetest"
 )
 
 const (
 	cssAsset = "http://localhost:8080/css/%s.css"
-	jsAsset  = "http://localhost:8080/js/%s.js"
+	jsAsset  = "http://localhost:8080/src/pages/%s.ts"
 	cssTag   = `<link rel="stylesheet" href="%s">`
-	jsTag    = `<script src="%s" type="text/javascript"></script>`
+	jsTag    = `<script src="%s" type="module"></script>`
 	cssGlob  = "client/dist/css/%s.*.css"
 	jsGlob   = "client/dist/js/%s.*.js"
 )
@@ -28,34 +29,33 @@ func TestTagPacker(t *testing.T) {
 		fn       func(string, bool) html.HTML
 		expected html.HTML
 	}{
-		{"env-testing", "", false, template.TagPacker("testing", nil), html.HTML("")},
-		{"env-case-matching", "", false, template.TagPacker("TeStiNG", nil), html.HTML("")},
+		{"env-testing", "", false, template.TagPacker(trails.Testing, nil), html.HTML("")},
 		{
 			"env-dev-zero-name-js",
 			"",
 			false,
-			template.TagPacker("development", nil),
+			template.TagPacker(trails.Development, nil),
 			html.HTML(fmt.Sprintf(jsTag, fmt.Sprintf(jsAsset, ""))),
 		},
 		{
 			"env-dev-js",
 			"test",
 			false,
-			template.TagPacker("development", nil),
+			template.TagPacker(trails.Development, nil),
 			html.HTML(fmt.Sprintf(jsTag, fmt.Sprintf(jsAsset, "test"))),
 		},
 		{
 			"env-dev-css",
 			"test",
 			true,
-			template.TagPacker("development", nil),
+			template.TagPacker(trails.Development, nil),
 			html.HTML(fmt.Sprintf(cssTag, fmt.Sprintf(cssAsset, "test"))),
 		},
 		{
 			"env-prod-glob-not-found",
 			"test",
 			false,
-			template.TagPacker("production", tt.NewMockFS(tt.NewMockFile("some/other/js/test.js", nil))),
+			template.TagPacker(trails.Production, tt.NewMockFS(tt.NewMockFile("some/other/js/test.js", nil))),
 			html.HTML(fmt.Sprintf(jsTag, "error-not-found")),
 		},
 		{
@@ -63,7 +63,7 @@ func TestTagPacker(t *testing.T) {
 			"test",
 			false,
 			template.TagPacker(
-				"production",
+				trails.Production,
 				tt.NewMockFS(tt.NewMockFile("client/dist/js/test.file.js", nil)),
 			),
 			html.HTML(fmt.Sprintf(jsTag, "/client/dist/js/test.file.js")),
@@ -73,7 +73,7 @@ func TestTagPacker(t *testing.T) {
 			"test",
 			true,
 			template.TagPacker(
-				"production",
+				trails.Production,
 				tt.NewMockFS(tt.NewMockFile("client/dist/css/test.file.css", nil)),
 			),
 			html.HTML(fmt.Sprintf(cssTag, "/client/dist/css/test.file.css")),

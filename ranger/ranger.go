@@ -12,6 +12,7 @@ import (
 
 	// TODO(dlk): configurable env files
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
@@ -33,7 +34,7 @@ type Ranger struct {
 	cancel    context.CancelFunc
 	ctx       context.Context
 	db        postgres.DatabaseService
-	env       Environment
+	env       trails.Environment
 	kr        keyring.Keyringable
 	p         template.Parser
 	sessions  session.SessionStorer
@@ -46,7 +47,7 @@ type Ranger struct {
 // Config holds the data that is requried to init a new ranger. This also allow us to
 // guarantee that certain attributes have been hyrdrated when running the options.
 type Config struct {
-	Env Environment
+	Env trails.Environment
 }
 
 // New constructs a Ranger from the provided options and configuration.
@@ -68,7 +69,7 @@ func New(config *Config, opts ...RangerOption) (*Ranger, error) {
 	for _, opt := range append(defaultOpts(), opts...) {
 		fn, err := opt(r)
 		if err != nil {
-			return r, fmt.Errorf("%w: %s", ErrBadConfig, err)
+			return r, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
 		}
 
 		if fn != nil {
@@ -78,7 +79,7 @@ func New(config *Config, opts ...RangerOption) (*Ranger, error) {
 
 	for _, fn := range followups {
 		if err := fn(); err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrBadConfig, err)
+			return nil, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
 		}
 	}
 

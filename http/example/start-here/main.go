@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/xy-planning-network/trails"
 	. "github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
 	"github.com/xy-planning-network/trails/ranger"
@@ -83,7 +84,7 @@ func (h *RangerHandler) broken(w http.ResponseWriter, r *http.Request) {
 func main() {
 	//func run() {
 	// construct a Ranger using all defaults.
-	config := &ranger.Config{Env: ranger.Demo}
+	config := &ranger.Config{Env: trails.Demo}
 	rng, err := ranger.New(config)
 	if err != nil {
 		fmt.Println(err)

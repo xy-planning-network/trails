@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 )
 
 func TestAddFn(t *testing.T) {
@@ -65,10 +66,10 @@ func TestEnv(t *testing.T) {
 	// Arrange
 	tcs := []struct {
 		name     string
-		expected string
+		expected trails.Environment
 	}{
-		{"zero-value", ""},
-		{"env", "testing"},
+		{"zero-value", trails.Environment("")},
+		{"env", trails.Testing},
 	}
 
 	for _, tc := range tcs {
@@ -78,7 +79,7 @@ func TestEnv(t *testing.T) {
 
 			// Assert
 			require.Equal(t, "env", name)
-			require.Equal(t, tc.expected, fn())
+			require.Equal(t, tc.expected.String(), fn())
 		})
 	}
 }
