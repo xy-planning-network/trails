@@ -130,9 +130,9 @@ func root(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	config := &ranger.Config{Env: trails.Demo}
+	c := &ranger.Config{Env: trails.Demo}
 	rng, err := ranger.New(
-		config,
+		c,
 		ranger.WithUserSessions(mockUserStorer{}),
 		ranger.DefaultResponder(
 			WithAuthTemplate("auth.tmpl"),

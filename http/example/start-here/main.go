@@ -84,8 +84,8 @@ func (h *RangerHandler) broken(w http.ResponseWriter, r *http.Request) {
 func main() {
 	//func run() {
 	// construct a Ranger using all defaults.
-	config := &ranger.Config{Env: trails.Demo}
-	rng, err := ranger.New(config)
+	c := &ranger.Config{Env: trails.Demo}
+	rng, err := ranger.New(c)
 	if err != nil {
 		fmt.Println(err)
 		return
