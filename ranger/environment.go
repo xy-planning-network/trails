@@ -13,6 +13,7 @@ import (
 type Environment string
 
 const (
+	Demo        Environment = "DEMO"
 	Development Environment = "DEVELOPMENT"
 	Production  Environment = "PRODUCTION"
 	Review      Environment = "REVIEW"
@@ -24,17 +25,41 @@ func (e Environment) String() string { return string(e) }
 
 func (e Environment) Valid() error {
 	switch e {
-	case Development, Production, Review, Staging, Testing:
+	case Demo, Development, Production, Review, Staging, Testing:
 		return nil
 	default:
 		return ErrNotValid
 	}
 }
 
-// envVarOrBool gets the environment variable for the provided key and
+func (e Environment) IsDevelopment() bool {
+	return e == Development
+}
+
+func (e Environment) IsDemo() bool {
+	return e == Demo
+}
+
+func (e Environment) IsProduction() bool {
+	return e == Production
+}
+
+func (e Environment) IsReview() bool {
+	return e == Review
+}
+
+func (e Environment) IsStaging() bool {
+	return e == Staging
+}
+
+func (e Environment) IsTesting() bool {
+	return e == Testing
+}
+
+// EnvVarOrBool gets the environment variable for the provided key and
 // returns whether it matches "true" or "false" (after lower casing it)
 // or the default value.
-func envVarOrBool(key string, def bool) bool {
+func EnvVarOrBool(key string, def bool) bool {
 	val := os.Getenv(key)
 	if strings.ToLower(val) == "true" {
 		return true
@@ -47,10 +72,10 @@ func envVarOrBool(key string, def bool) bool {
 	return def
 }
 
-// envVarOrDuration gets the environment variable for the provided key,
+// EnvVarOrDuration gets the environment variable for the provided key,
 // parses it into a time.Duration, or, returns
 // the default time.Duration.
-func envVarOrDuration(key string, def time.Duration) time.Duration {
+func EnvVarOrDuration(key string, def time.Duration) time.Duration {
 	val := os.Getenv(key)
 	d, err := time.ParseDuration(val)
 	if err != nil {
@@ -59,16 +84,16 @@ func envVarOrDuration(key string, def time.Duration) time.Duration {
 	return d
 }
 
-// envVarOrEnv gets the environment variable for the provided key,
+// EnvVarOrEnv gets the environment variable for the provided key,
 // casts it into an Environment,
 // or returns the provided default Environment if key is not a valid Environment.
-func envVarOrEnv(key string, def Environment) Environment {
+func EnvVarOrEnv(key string, def Environment) Environment {
 	val := os.Getenv(key)
 	if val == "" {
 		return def
 	}
 
-	env := Environment(val)
+	env := Environment(strings.ToUpper(val))
 	if err := env.Valid(); err != nil {
 		return def
 	}
@@ -76,11 +101,11 @@ func envVarOrEnv(key string, def Environment) Environment {
 	return env
 }
 
-// envVarOrLogLevel gets the environment variable for the provided key,
+// EnvVarOrLogLevel gets the environment variable for the provided key,
 // creates a logger.LogLevel from the retrieved value,
 // or returns the provided default logger.LogLevel
 // if the value is an unknown logger.LogLevel.
-func envVarOrLogLevel(key string, def logger.LogLevel) logger.LogLevel {
+func EnvVarOrLogLevel(key string, def logger.LogLevel) logger.LogLevel {
 	val := os.Getenv(key)
 	if val == "" {
 		return def
@@ -94,8 +119,8 @@ func envVarOrLogLevel(key string, def logger.LogLevel) logger.LogLevel {
 	return ll
 }
 
-// envVarOrString gets the environment variable for the provided key or the provided default string.
-func envVarOrString(key string, def string) string {
+// EnvVarOrString gets the environment variable for the provided key or the provided default string.
+func EnvVarOrString(key string, def string) string {
 	val := os.Getenv(key)
 	if val == "" {
 		return def
@@ -104,8 +129,8 @@ func envVarOrString(key string, def string) string {
 	return val
 }
 
-// envVarOrURL gets the environment variable for the provided or the provided default *url.URL.
-func envVarOrURL(key string, def *url.URL) *url.URL {
+// EnvVarOrURL gets the environment variable for the provided or the provided default *url.URL.
+func EnvVarOrURL(key string, def *url.URL) *url.URL {
 	if def.Path != "/" {
 		def.Path = "/"
 	}

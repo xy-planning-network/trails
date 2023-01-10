@@ -29,7 +29,7 @@ const (
 	baseURLEnvVar = "BASE_URL"
 
 	// Environment defaults
-	environmentEnvVar = "ENVIRONMENT"
+	// environmentEnvVar = "ENVIRONMENT"
 
 	// Log defaults
 	logLevelEnvVar = "LOG_LEVEL"
@@ -95,7 +95,6 @@ func defaultOpts() []RangerOption {
 	return []RangerOption{
 		DefaultLogger(),
 		DefaultContext(),
-		WithEnv(environmentEnvVar),
 		DefaultKeyring(),
 		DefaultRouter(),
 	}
@@ -120,11 +119,11 @@ func DefaultDB(list []postgres.Migration) RangerOption {
 			switch rng.env {
 			case Testing: // NOTE(dlk): this is an unexpected case since go test does not reach this
 				cfg = &postgres.CxnConfig{
-					Host:     envVarOrString(dbTestHostEnvVar, defaultDBTestHost),
+					Host:     EnvVarOrString(dbTestHostEnvVar, defaultDBTestHost),
 					IsTestDB: true,
 					Name:     os.Getenv(dbTestNameEnvVar),
 					Password: os.Getenv(dbTestPassEnvVar),
-					Port:     envVarOrString(dbTestPortEnvVar, defaultDBTestPort),
+					Port:     EnvVarOrString(dbTestPortEnvVar, defaultDBTestPort),
 					User:     os.Getenv(dbTestUserEnvVar),
 				}
 
@@ -133,11 +132,11 @@ func DefaultDB(list []postgres.Migration) RangerOption {
 					cfg = &postgres.CxnConfig{IsTestDB: false, URL: url}
 				} else {
 					cfg = &postgres.CxnConfig{
-						Host:     envVarOrString(dbHostEnvVar, defaultDBHost),
+						Host:     EnvVarOrString(dbHostEnvVar, defaultDBHost),
 						IsTestDB: false,
 						Name:     os.Getenv(dbNameEnvVar),
 						Password: os.Getenv(dbPassEnvVar),
-						Port:     envVarOrString(dbPortEnvVar, defaultDBPort),
+						Port:     EnvVarOrString(dbPortEnvVar, defaultDBPort),
 						User:     os.Getenv(dbUserEnvVar),
 					}
 				}
@@ -175,7 +174,7 @@ func DefaultKeyring(keys ...keyring.Keyable) RangerOption {
 // DefaultLogger constructs a RangerOption that applies the default logger (logger.DefaultLogger)
 // to the Ranger.
 func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
-	logLvl := envVarOrLogLevel(logLevelEnvVar, logger.LogLevelInfo)
+	logLvl := EnvVarOrLogLevel(logLevelEnvVar, logger.LogLevelInfo)
 	args := []logger.LoggerOptFn{
 		logger.WithLevel(logLvl),
 	}
@@ -209,7 +208,7 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 
 	return func(rng *Ranger) (OptFollowup, error) {
 		if rng.url == nil {
-			rng.url = envVarOrURL(baseURLEnvVar, defaultBaseURL)
+			rng.url = EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
 		}
 
 		args := []template.ParserOptFn{
@@ -243,7 +242,7 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
 			if rng.url == nil {
-				rng.url = envVarOrURL(baseURLEnvVar, defaultBaseURL)
+				rng.url = EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
 			}
 
 			if rng.p == nil {
@@ -343,7 +342,7 @@ func DefaultRouter() RangerOption {
 						rng.kr.CurrentUserKey(),
 					),
 				)
-			} else if envVarOrBool(useUserSessionsEnvVar, true) {
+			} else if EnvVarOrBool(useUserSessionsEnvVar, true) {
 				msg := "misconfigured user sessions: you may be missing a database connection " +
 					"or a custom middleware.UserStorer; review ranger.WithUserSessions for correct usage"
 				setupLog.Debug(msg, nil)
@@ -425,16 +424,16 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 
 // defaultServer constructs a default *http.Server.
 func defaultServer(ctx context.Context) *http.Server {
-	port := envVarOrString(portEnvVar, DefaultPort)
+	port := EnvVarOrString(portEnvVar, DefaultPort)
 	if port[0] != ':' {
 		port = ":" + port
 	}
 
 	srv := &http.Server{
 		Addr:         port,
-		ReadTimeout:  envVarOrDuration(serverReadTimeoutEnvVar, DefaultServerReadTimeout),
-		IdleTimeout:  envVarOrDuration(serverIdleTimeoutEnvVar, DefaultServerIdleTimeout),
-		WriteTimeout: envVarOrDuration(serverWriteTimeoutEnvVar, DefaultServerWriteTimeout),
+		ReadTimeout:  EnvVarOrDuration(serverReadTimeoutEnvVar, DefaultServerReadTimeout),
+		IdleTimeout:  EnvVarOrDuration(serverIdleTimeoutEnvVar, DefaultServerIdleTimeout),
+		WriteTimeout: EnvVarOrDuration(serverWriteTimeoutEnvVar, DefaultServerWriteTimeout),
 	}
 	if ctx != nil {
 		srv.BaseContext = func(_ net.Listener) context.Context { return ctx }
