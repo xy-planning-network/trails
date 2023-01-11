@@ -84,7 +84,7 @@ func WithCookie() ServiceOpt {
 		} else {
 			c = gorilla.NewCookieStore(s.ak)
 		}
-		c.Options.Secure = !s.env.IsDevelopment()
+		c.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
 		c.Options.HttpOnly = true
 		c.MaxAge(s.maxAge)
 		s.store = c
@@ -119,7 +119,7 @@ func WithRedis(uri, pass string) ServiceOpt {
 		if err != nil {
 			return fmt.Errorf("%w: failed initializing Redis: %s", ErrFailedConfig, err)
 		}
-		r.Options.Secure = !s.env.IsDevelopment()
+		r.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
 		r.Options.HttpOnly = true
 		r.SetMaxAge(s.maxAge)
 		s.store = r

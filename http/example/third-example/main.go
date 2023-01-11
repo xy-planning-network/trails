@@ -18,7 +18,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	. "github.com/xy-planning-network/trails/http/resp"
@@ -130,9 +129,7 @@ func root(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	c := &ranger.Config{Env: trails.Demo}
 	rng, err := ranger.New(
-		c,
 		ranger.WithUserSessions(mockUserStorer{}),
 		ranger.DefaultResponder(
 			WithAuthTemplate("auth.tmpl"),

@@ -41,7 +41,6 @@ func TagPacker(env trails.Environment, filesys fs.FS) func(string, bool) html.HT
 			glob = fmt.Sprintf(cssGlob, name)
 		}
 
-		// TODO(dlk): use domain.Environment
 		switch {
 		case env.IsTesting():
 			return ""

@@ -29,7 +29,7 @@ const (
 	baseURLEnvVar = "BASE_URL"
 
 	// Environment defaults
-	// environmentEnvVar = "ENVIRONMENT"
+	environmentEnvVar = "ENVIRONMENT"
 
 	// Log defaults
 	logLevelEnvVar = "LOG_LEVEL"
@@ -296,7 +296,7 @@ func DefaultRouter() RangerOption {
 			}
 
 			mws := make([]middleware.Adapter, 0)
-			if rng.env == trails.Production {
+			if rng.env.IsProduction() {
 				mws = append(
 					mws,
 					middleware.ForceHTTPS(rng.env.String()),

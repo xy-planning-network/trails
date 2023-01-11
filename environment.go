@@ -32,9 +32,9 @@ func (e Environment) Valid() error {
 	}
 }
 
-// CanUseStub asserts whether the Environment allows for setting up with stubbed out services,
+// CanUseServiceStub asserts whether the Environment allows for setting up with stubbed out services,
 // for those services that support stubbing.
-func (e Environment) CanUseStub() bool {
+func (e Environment) CanUseServiceStub() bool {
 	switch e {
 	case Demo, Development, Testing:
 		return true

@@ -44,21 +44,15 @@ type Ranger struct {
 	users     middleware.UserStorer
 }
 
-// Config holds the data that is requried to init a new ranger. This also allow us to
-// guarantee that certain attributes have been hyrdrated when running the options.
-type Config struct {
-	Env trails.Environment
-}
-
-// New constructs a Ranger from the provided options and configuration.
+// New constructs a Ranger from the provided options.
 // Default options are applied first followed by the options passed into New.
 // Options supplied to New overwrite default configurations.
-func New(config *Config, opts ...RangerOption) (*Ranger, error) {
+func New(opts ...RangerOption) (*Ranger, error) {
 	r := new(Ranger)
 	followups := make([]OptFollowup, 0)
 
 	// Setup initial configuration
-	r.env = config.Env
+	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
 
 	// NOTE(dlk): calling an option configures the *Ranger under construction.
 	// Some options require data from other options.
