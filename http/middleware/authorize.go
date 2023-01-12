@@ -89,11 +89,9 @@ func (aa AuthorizeApplicator[T]) Apply(fn func(user T) (string, bool)) Adapter {
 
 // acceptsTextHtml asserts whether the requests accepts rendered HTML or not.
 func acceptsTextHtml(header http.Header) bool {
-	vs := header.Values("Accept")
-	for _, v := range vs {
-		if strings.Compare(v, "text/html") == 0 {
-			return true
-		}
+	v := header.Get("Accept")
+	if strings.Index(v, "text/html") == 0 {
+		return true
 	}
 
 	return false

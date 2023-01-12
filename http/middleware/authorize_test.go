@@ -62,7 +62,8 @@ func TestAuthorizeApplicator(t *testing.T) {
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 	r = r.WithContext(context.WithValue(r.Context(), uk, testUser(false)))
 
-	for _, v := range []string{"text/html",
+	for _, v := range []string{
+		"text/html",
 		"application/xhtml+xml",
 		"application/xml;q=0.9",
 		"image/avif",
@@ -81,11 +82,14 @@ func TestAuthorizeApplicator(t *testing.T) {
 	// Arrange
 	var ss session.Stub
 
+	v := "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*"
+
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 	r = r.WithContext(context.WithValue(r.Context(), sk, ss))
 	r = r.WithContext(context.WithValue(r.Context(), uk, testUser(false)))
-	r.Header.Set("Accept", "text/html")
+
+	r.Header.Set("Accept", v)
 
 	// Act
 	adpt(teapotHandler()).ServeHTTP(w, r)
