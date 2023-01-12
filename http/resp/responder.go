@@ -443,7 +443,7 @@ func (doer *Responder) handleHtmlError(w http.ResponseWriter, r *http.Request, e
 		return err
 	}
 
-	nested = tmpl.Execute(b, map[string]any{"Error": err})
+	nested = tmpl.Execute(b, map[string]any{"Contact": doer.contactErrMsg, "Error": err})
 	if nested != nil {
 		err = fmt.Errorf("%w: %s", nested, err)
 		doer.logger.Error(err.Error(), nil)
