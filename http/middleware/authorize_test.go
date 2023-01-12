@@ -62,7 +62,8 @@ func TestAuthorizeApplicator(t *testing.T) {
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 	r = r.WithContext(context.WithValue(r.Context(), uk, testUser(false)))
 
-	for _, v := range []string{"text/html",
+	for _, v := range []string{
+		"text/html",
 		"application/xhtml+xml",
 		"application/xml;q=0.9",
 		"image/avif",
