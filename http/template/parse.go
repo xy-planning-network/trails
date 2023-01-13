@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"sync"
 )
 
 // Parser is the interface for parsing HTML templates with the functions provided.
@@ -20,12 +21,25 @@ type Parse struct {
 	fns html.FuncMap
 }
 
-// NewParser constructs a Parse with the provided fs.FS and functional options.
+// NewParser constructs a Parse with the provided functional options.
 func NewParser(opts ...ParserOptFn) Parser {
-	p := &Parse{fs: os.DirFS("."), fns: make(html.FuncMap)}
+	p := &Parse{fns: make(html.FuncMap)}
 	for _, opt := range opts {
 		opt(p)
 	}
+
+	userFS := p.fs
+	if userFS == nil {
+		userFS = os.DirFS(".")
+	}
+
+	p.fs = &mergeFS{
+		cache:   make(map[string]func(string) (fs.File, error)),
+		userDir: userFS,
+		pkgDir:  pkgFS,
+		Mutex:   sync.Mutex{},
+	}
+
 	return p
 }
 

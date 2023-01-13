@@ -1,4 +1,4 @@
-package ranger
+package template
 
 import (
 	"embed"
@@ -8,15 +8,15 @@ import (
 	"sync"
 )
 
-// virtualFS implements fs.FS
-type virtualFS struct {
+// mergeFS implements fs.FS
+type mergeFS struct {
 	// A cache for minimizing ascertaining which directory holds the template.
 	cache map[string]func(string) (fs.File, error)
 
-	// The current working directory
-	osDir fs.FS
+	// Current working directory, or, embedded filesystem
+	userDir fs.FS
 
-	// Trails package-level directory
+	// Package-level directory embedding tmpl/
 	pkgDir fs.FS
 
 	sync.Mutex
@@ -34,35 +34,35 @@ type virtualFS struct {
 // If a file is removed from the OS during runtime,
 // then a reference to it from the cache returns the same error (fs.ErrNotExist)
 // as if the cache did not have that reference.
-func (vfs *virtualFS) Open(name string) (fs.File, error) {
+func (mfs *mergeFS) Open(name string) (fs.File, error) {
 	// NOTE(dlk): while a concurrent routine could add a reference
 	// to the cache before this returns,
 	// let's err on the side of performance and not have this function
 	// blocking while waiting to read and only block when needing to write.
-	fn, ok := vfs.cache[name]
+	fn, ok := mfs.cache[name]
 	if ok {
 		return fn(name)
 	}
 
-	file, err := vfs.osDir.Open(name)
+	file, err := mfs.userDir.Open(name)
 	if err == nil {
-		vfs.Lock()
-		vfs.cache[name] = vfs.osDir.Open
-		vfs.Unlock()
+		mfs.Lock()
+		mfs.cache[name] = mfs.userDir.Open
+		mfs.Unlock()
 
 		return file, nil
 	}
 
 	var pe *fs.PathError
 	if errors.As(err, &pe) && (errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid)) {
-		file, err = vfs.pkgDir.Open(name)
+		file, err = mfs.pkgDir.Open(name)
 		if err != nil {
-			return nil, fmt.Errorf("%w: could not open template from trails: %s", ErrUnexpected, err)
+			return nil, fmt.Errorf("could not open template %s: %s", name, err)
 		}
 
-		vfs.Lock()
-		vfs.cache[name] = vfs.pkgDir.Open
-		vfs.Unlock()
+		mfs.Lock()
+		mfs.cache[name] = mfs.pkgDir.Open
+		mfs.Unlock()
 		return file, nil
 	}
 

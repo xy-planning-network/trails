@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/xy-planning-network/trails"
@@ -265,13 +264,7 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 			}
 
 			if rng.p == nil {
-				vfs := &virtualFS{
-					cache:  make(map[string]func(string) (fs.File, error)),
-					osDir:  os.DirFS("."),
-					pkgDir: pkgFS,
-					Mutex:  sync.Mutex{},
-				}
-				if _, err := DefaultParser(vfs)(rng); err != nil {
+				if _, err := DefaultParser(os.DirFS("."))(rng); err != nil {
 					return err
 				}
 			}

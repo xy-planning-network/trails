@@ -5,11 +5,8 @@
     <title>{{ metadata "title" }}</title>
     <meta name="description" content="{{ metadata "description" }}"> 
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="icon.png">
-    <link rel="stylesheet" href="client/dist/index.css">
     <link href="https://rsms.me/inter/inter.css" rel="stylesheet" />
+    <link rel="icon" href="https://www.xyplanningnetwork.com/wp-content/uploads/2019/09/Favicon.png" type="image/png">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#E2E8F0">
 <style>
@@ -20,15 +17,17 @@
     bottom: 0px;
     margin: 1rem 0;
     text-align: center;
+    color: #1F6DF4;
   }
   main {
-    background: #E2E8F0;
+    background: #F5F5F5;
     border-radius: 0.2rem;
     height: 100%;
     min-height: 50vh;
     max-width: 1280px;
     margin: auto;
     padding: 1.5rem;
+    position: static;
   }
   section {
     background: #F8FAFC;
@@ -36,9 +35,29 @@
     margin: 1rem 0;
     padding: .25rem .5rem;
   }
+  #logo {
+    margin: 0 0 2rem 100px; 
+  }
+  #sash {
+    background: #1F6DF4;
+    height: 100%;
+    left: 0px;
+    position: absolute;
+    top: 0px;
+    width: 100px;
+    z-index: -1;
+  }
 </style>
   </head>
   <body>
+    <div id="sash"></div>
+    <img
+      id="logo"
+      src="https://www.xyplanningnetwork.com/wp-content/uploads/2019/08/XYPN-banner-2019_1000x200-300x60.png"
+      alt="XY Planning Network"
+      width="200"
+      height="40"
+    >
     <main>
       {{ if isProduction }}
         <h3>Oops, we didn't expect to arrive here...</h3>
