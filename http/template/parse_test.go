@@ -3,6 +3,7 @@ package template_test
 import (
 	"bytes"
 	html "html/template"
+	"io/fs"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,8 +22,17 @@ func TestParse(t *testing.T) {
 		assert testFn
 	}{
 		{
+			name:   "Nil",
+			parser: template.NewParser(nil),
+			fps:    []string{},
+			assert: func(t *testing.T, tmpl *html.Template, err error) {
+				require.ErrorIs(t, err, template.ErrNoFiles)
+				require.Nil(t, tmpl)
+			},
+		},
+		{
 			name:   "Zero-Value",
-			parser: template.NewParser(template.WithFS(tt.NewMockFS())),
+			parser: template.NewParser([]fs.FS{tt.NewMockFS()}),
 			fps:    []string{},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.ErrorIs(t, err, template.ErrNoFiles)
@@ -31,7 +41,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "Empty-String",
-			parser: template.NewParser(template.WithFS(tt.NewMockFS(tt.NewMockFile("", nil)))),
+			parser: template.NewParser([]fs.FS{tt.NewMockFS(tt.NewMockFile("", nil))}),
 			fps:    []string{""},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.ErrorIs(t, err, template.ErrNoFiles)
@@ -40,7 +50,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "No-File",
-			parser: template.NewParser(template.WithFS(tt.NewMockFS(tt.NewMockFile("", nil)))),
+			parser: template.NewParser([]fs.FS{tt.NewMockFS(tt.NewMockFile("", nil))}),
 			fps:    []string{"example.tmpl"},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.NotNil(t, err)
@@ -49,7 +59,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "Empty-File",
-			parser: template.NewParser(template.WithFS(tt.NewMockFS(tt.NewMockFile("example.tmpl", nil)))),
+			parser: template.NewParser([]fs.FS{tt.NewMockFS(tt.NewMockFile("example.tmpl", nil))}),
 			fps:    []string{"example.tmpl"},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.Nil(t, err)
@@ -62,7 +72,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "Not-Empty-File",
-			parser: template.NewParser(template.WithFS(tt.NewMockFS(tt.NewMockFile("example.tmpl", stub)))),
+			parser: template.NewParser([]fs.FS{tt.NewMockFS(tt.NewMockFile("example.tmpl", stub))}),
 			fps:    []string{"example.tmpl"},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.Nil(t, err)
@@ -76,7 +86,7 @@ func TestParse(t *testing.T) {
 		{
 			name: "Many-Files",
 			parser: template.NewParser(
-				template.WithFS(
+				[]fs.FS{
 					tt.NewMockFS(
 						tt.NewMockFile(
 							"example.tmpl",
@@ -87,7 +97,7 @@ func TestParse(t *testing.T) {
 							[]byte(`{{ define "test" }}<p>sup</p>{{ end }}`),
 						),
 					),
-				),
+				},
 			),
 			fps: []string{"example.tmpl", "test.tmpl"},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
@@ -102,14 +112,14 @@ func TestParse(t *testing.T) {
 		{
 			name: "With-Fns",
 			parser: template.NewParser(
-				template.WithFS(
+				[]fs.FS{
 					tt.NewMockFS(
 						tt.NewMockFile(
 							"example.tmpl",
 							[]byte("<!DOCTYPE html><html>{{ test }}</html>"),
 						),
 					),
-				),
+				},
 				template.WithFn("test", func() string { return "test" }),
 			),
 			fps: []string{"example.tmpl"},

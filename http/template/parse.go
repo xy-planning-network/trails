@@ -4,9 +4,7 @@ import (
 	"fmt"
 	html "html/template"
 	"io/fs"
-	"os"
 	"path"
-	"sync"
 )
 
 // Parser is the interface for parsing HTML templates with the functions provided.
@@ -17,28 +15,22 @@ type Parser interface {
 
 // Parse implements Parser with a focus on utilizing embedded HTML templates through fs.FS.
 type Parse struct {
-	fs  fs.FS
-	fns html.FuncMap
+	cache mergeFS
+	fns   html.FuncMap
 }
 
-// NewParser constructs a Parse with the provided functional options.
-func NewParser(opts ...ParserOptFn) Parser {
+// NewParser constructs a Parse with the fses and opts.
+// Overwrite the embedded html templates this package provides
+// by creating a filesystem (whether embedded or present in the OS)
+// whose structure matches the exact filepaths (starting with tmpl/)
+// for the templates you wish to overwrite.
+func NewParser(fses []fs.FS, opts ...ParserOptFn) Parser {
 	p := &Parse{fns: make(html.FuncMap)}
 	for _, opt := range opts {
 		opt(p)
 	}
 
-	userFS := p.fs
-	if userFS == nil {
-		userFS = os.DirFS(".")
-	}
-
-	p.fs = &mergeFS{
-		cache:   make(map[string]func(string) (fs.File, error)),
-		userDir: userFS,
-		pkgDir:  pkgFS,
-		Mutex:   sync.Mutex{},
-	}
+	p.cache = merge(append(fses, pkgFS))
 
 	return p
 }
@@ -55,5 +47,5 @@ func (p *Parse) Parse(fps ...string) (*html.Template, error) {
 		return nil, fmt.Errorf("%w", ErrNoFiles)
 	}
 
-	return html.New(path.Base(fps[0])).Funcs(p.fns).ParseFS(p.fs, fps...)
+	return html.New(path.Base(fps[0])).Funcs(p.fns).ParseFS(p.cache, fps...)
 }

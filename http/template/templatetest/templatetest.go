@@ -20,17 +20,18 @@ import (
 
 // NewParser constructs a template.Parser with the mocked files.
 func NewParser(tmpls ...FileMocker) template.Parser {
-	return template.NewParser(template.WithFS(NewMockFS(tmpls...)))
+	return template.NewParser([]fs.FS{NewMockFS(tmpls...)})
 }
 
 type FileMocker interface {
+	fs.DirEntry
 	fs.File
 	fs.FileInfo
 }
 
 type MockFS []FileMocker
 
-func NewMockFS(tmpls ...FileMocker) fs.FS { return append(MockFS{}, tmpls...) }
+func NewMockFS(tmpls ...FileMocker) MockFS { return append(MockFS{}, tmpls...) }
 
 // Glob checks whether the pattern matches the file after removing all directory paths from
 // the respective parts.
@@ -63,6 +64,10 @@ func (mfs MockFS) Glob(pattern string) ([]string, error) {
 }
 
 func (mfs MockFS) Open(name string) (fs.File, error) {
+	if name == "." {
+		return &MockFile{FS: mfs, isDir: true, name: name}, nil
+	}
+
 	for _, f := range mfs {
 		if f.Name() == name {
 			return f, nil
@@ -70,6 +75,15 @@ func (mfs MockFS) Open(name string) (fs.File, error) {
 	}
 
 	return nil, &fs.PathError{Op: "read", Path: name, Err: os.ErrNotExist}
+}
+
+func (mfs MockFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	d := make([]fs.DirEntry, len(mfs))
+	for i := range mfs {
+		d[i] = mfs[i]
+	}
+
+	return d, nil
 }
 
 type MockFile struct {
@@ -83,7 +97,7 @@ type MockFile struct {
 	sys     any
 }
 
-func NewMockFile(name string, data []byte) FileMocker {
+func NewMockFile(name string, data []byte) *MockFile {
 	return &MockFile{data: data, name: name, size: int64(len(data))}
 }
 

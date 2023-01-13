@@ -2,71 +2,52 @@ package template
 
 import (
 	"embed"
-	"errors"
 	"fmt"
 	"io/fs"
-	"sync"
 )
 
+// A mergeFS maps filepaths to fs.Open functions,
+// caching which html template to open during runtime.
+// A mergeFS is read-only at runtime,
+// disallowing adding or replacing fs.Open functions at runtime.
+//
+// mergeFS will not fallback to files in another fs.FS
+// if a cached entry becomes invalid.
+// e.g., removing a file in an OS-level filesystem will not fallback
+// to this package's embedded filesystem during runtime.
+//
 // mergeFS implements fs.FS
-type mergeFS struct {
-	// A cache for minimizing ascertaining which directory holds the template.
-	cache map[string]func(string) (fs.File, error)
+type mergeFS map[string]func(string) (fs.File, error)
 
-	// Current working directory, or, embedded filesystem
-	userDir fs.FS
+// Open opens the file by name from the merged FS.
+func (mfs mergeFS) Open(name string) (fs.File, error) {
+	fn, ok := mfs[name]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, name)
+	}
 
-	// Package-level directory embedding tmpl/
-	pkgDir fs.FS
-
-	sync.Mutex
+	return fn(name)
 }
 
-// Open opens the file matching the name using the following strategy:
-// - check the cache
-// - check the OS filesystem
-// - check the package-level virtual filesystem
-//
-// Whenever a file is found and is not present in the cache, it is added.
-// Nothing removes references from the cache.
-//
-// The cache cannot become invalid at runtime since pkgDir is embedded.
-// If a file is removed from the OS during runtime,
-// then a reference to it from the cache returns the same error (fs.ErrNotExist)
-// as if the cache did not have that reference.
-func (mfs *mergeFS) Open(name string) (fs.File, error) {
-	// NOTE(dlk): while a concurrent routine could add a reference
-	// to the cache before this returns,
-	// let's err on the side of performance and not have this function
-	// blocking while waiting to read and only block when needing to write.
-	fn, ok := mfs.cache[name]
-	if ok {
-		return fn(name)
+// merge combines the fses into a single cache,
+// constructing a mergeFS.
+// merge adds entries in reverse order,
+// meaning if more than one fs.FS references the same filepath,
+// the first reference is cached.
+func merge(fses []fs.FS) mergeFS {
+	mfs := make(map[string]func(string) (fs.File, error))
+	for i := len(fses) - 1; i >= 0; i-- {
+		fs.WalkDir(fses[i], ".", func(path string, d fs.DirEntry, err error) error {
+			if err != nil || (d != nil && d.IsDir()) {
+				return nil
+			}
+
+			mfs[path] = fses[i].Open
+			return nil
+		})
 	}
 
-	file, err := mfs.userDir.Open(name)
-	if err == nil {
-		mfs.Lock()
-		mfs.cache[name] = mfs.userDir.Open
-		mfs.Unlock()
-
-		return file, nil
-	}
-
-	var pe *fs.PathError
-	if errors.As(err, &pe) && (errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid)) {
-		file, err = mfs.pkgDir.Open(name)
-		if err != nil {
-			return nil, fmt.Errorf("could not open template %s: %s", name, err)
-		}
-
-		mfs.Lock()
-		mfs.cache[name] = mfs.pkgDir.Open
-		mfs.Unlock()
-		return file, nil
-	}
-
-	return nil, fmt.Errorf("unable to open template: %w", err)
+	return mfs
 }
 
 //go:embed tmpl/*
