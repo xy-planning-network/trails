@@ -30,7 +30,7 @@ func NewParser(fses []fs.FS, opts ...ParserOptFn) Parser {
 		opt(p)
 	}
 
-	p.cache = merge(append(fses, pkgFS))
+	p.cache = merge(fses)
 
 	return p
 }

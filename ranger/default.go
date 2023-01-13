@@ -2,6 +2,7 @@ package ranger
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -93,6 +94,9 @@ const (
 
 var (
 	defaultBaseURL, _ = url.ParseRequestURI("http://" + DefaultHost + DefaultPort)
+
+	//go:embed tmpl/*
+	tmpls embed.FS
 )
 
 // defaultOpts returns the default RangerOptions used in every call to NewRanger.
@@ -242,7 +246,7 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 
 		args = append(args, opts...)
 
-		rng.p = template.NewParser([]fs.FS{files}, args...)
+		rng.p = template.NewParser([]fs.FS{files, tmpls}, args...)
 
 		return nil, nil
 	}

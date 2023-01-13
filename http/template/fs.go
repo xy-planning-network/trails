@@ -1,7 +1,6 @@
 package template
 
 import (
-	"embed"
 	"fmt"
 	"io/fs"
 )
@@ -14,7 +13,7 @@ import (
 // mergeFS will not fallback to files in another fs.FS
 // if a cached entry becomes invalid.
 // e.g., removing a file in an OS-level filesystem will not fallback
-// to this package's embedded filesystem during runtime.
+// to another filesystem during runtime.
 //
 // mergeFS implements fs.FS
 type mergeFS map[string]func(string) (fs.File, error)
@@ -49,6 +48,3 @@ func merge(fses []fs.FS) mergeFS {
 
 	return mfs
 }
-
-//go:embed tmpl/*
-var pkgFS embed.FS
