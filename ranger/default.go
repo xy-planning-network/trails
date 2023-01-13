@@ -95,7 +95,6 @@ func defaultOpts() []RangerOption {
 	return []RangerOption{
 		DefaultLogger(),
 		DefaultContext(),
-		WithEnv(environmentEnvVar),
 		DefaultKeyring(),
 		DefaultRouter(),
 	}
@@ -118,13 +117,13 @@ func DefaultDB(list []postgres.Migration) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
 			switch rng.env {
-			case Testing: // NOTE(dlk): this is an unexpected case since go test does not reach this
+			case trails.Testing: // NOTE(dlk): this is an unexpected case since go test does not reach this
 				cfg = &postgres.CxnConfig{
-					Host:     envVarOrString(dbTestHostEnvVar, defaultDBTestHost),
+					Host:     trails.EnvVarOrString(dbTestHostEnvVar, defaultDBTestHost),
 					IsTestDB: true,
 					Name:     os.Getenv(dbTestNameEnvVar),
 					Password: os.Getenv(dbTestPassEnvVar),
-					Port:     envVarOrString(dbTestPortEnvVar, defaultDBTestPort),
+					Port:     trails.EnvVarOrString(dbTestPortEnvVar, defaultDBTestPort),
 					User:     os.Getenv(dbTestUserEnvVar),
 				}
 
@@ -133,11 +132,11 @@ func DefaultDB(list []postgres.Migration) RangerOption {
 					cfg = &postgres.CxnConfig{IsTestDB: false, URL: url}
 				} else {
 					cfg = &postgres.CxnConfig{
-						Host:     envVarOrString(dbHostEnvVar, defaultDBHost),
+						Host:     trails.EnvVarOrString(dbHostEnvVar, defaultDBHost),
 						IsTestDB: false,
 						Name:     os.Getenv(dbNameEnvVar),
 						Password: os.Getenv(dbPassEnvVar),
-						Port:     envVarOrString(dbPortEnvVar, defaultDBPort),
+						Port:     trails.EnvVarOrString(dbPortEnvVar, defaultDBPort),
 						User:     os.Getenv(dbUserEnvVar),
 					}
 				}
@@ -175,7 +174,7 @@ func DefaultKeyring(keys ...keyring.Keyable) RangerOption {
 // DefaultLogger constructs a RangerOption that applies the default logger (logger.DefaultLogger)
 // to the Ranger.
 func DefaultLogger(opts ...logger.LoggerOptFn) RangerOption {
-	logLvl := envVarOrLogLevel(logLevelEnvVar, logger.LogLevelInfo)
+	logLvl := trails.EnvVarOrLogLevel(logLevelEnvVar, logger.LogLevelInfo)
 	args := []logger.LoggerOptFn{
 		logger.WithLevel(logLvl),
 	}
@@ -209,18 +208,18 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 
 	return func(rng *Ranger) (OptFollowup, error) {
 		if rng.url == nil {
-			rng.url = envVarOrURL(baseURLEnvVar, defaultBaseURL)
+			rng.url = trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
 		}
 
 		args := []template.ParserOptFn{
 			template.WithFS(files),
-			template.WithFn(template.Env(rng.env.String())),
+			template.WithFn(template.Env(rng.env)),
 			template.WithFn(template.Nonce()),
 			template.WithFn(template.RootUrl(rng.url)),
-			template.WithFn("packTag", template.TagPackerModern(rng.env.String(), files)),
-			template.WithFn("isDevelopment", func() bool { return rng.env == Development }),
-			template.WithFn("isStaging", func() bool { return rng.env == Staging }),
-			template.WithFn("isProduction", func() bool { return rng.env == Production }),
+			template.WithFn("packTag", template.TagPacker(rng.env, files)),
+			template.WithFn("isDevelopment", func() bool { return rng.env.IsDevelopment() }),
+			template.WithFn("isStaging", func() bool { return rng.env.IsStaging() }),
+			template.WithFn("isProduction", func() bool { return rng.env.IsProduction() }),
 		}
 
 		args = append(args, opts...)
@@ -243,7 +242,7 @@ func DefaultResponder(opts ...resp.ResponderOptFn) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		return func() error {
 			if rng.url == nil {
-				rng.url = envVarOrURL(baseURLEnvVar, defaultBaseURL)
+				rng.url = trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
 			}
 
 			if rng.p == nil {
@@ -297,7 +296,7 @@ func DefaultRouter() RangerOption {
 			}
 
 			mws := make([]middleware.Adapter, 0)
-			if rng.env == Production {
+			if rng.env.IsProduction() {
 				mws = append(
 					mws,
 					middleware.ForceHTTPS(rng.env.String()),
@@ -343,7 +342,7 @@ func DefaultRouter() RangerOption {
 						rng.kr.CurrentUserKey(),
 					),
 				)
-			} else if envVarOrBool(useUserSessionsEnvVar, true) {
+			} else if trails.EnvVarOrBool(useUserSessionsEnvVar, true) {
 				msg := "misconfigured user sessions: you may be missing a database connection " +
 					"or a custom middleware.UserStorer; review ranger.WithUserSessions for correct usage"
 				setupLog.Debug(msg, nil)
@@ -408,7 +407,7 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 		}
 
 		store, err := session.NewStoreService(
-			rng.env.String(),
+			rng.env,
 			auth,
 			encrypt,
 			string(defaultSessionCtxKey),
@@ -425,16 +424,16 @@ func DefaultSessionStore(opts ...session.ServiceOpt) RangerOption {
 
 // defaultServer constructs a default *http.Server.
 func defaultServer(ctx context.Context) *http.Server {
-	port := envVarOrString(portEnvVar, DefaultPort)
+	port := trails.EnvVarOrString(portEnvVar, DefaultPort)
 	if port[0] != ':' {
 		port = ":" + port
 	}
 
 	srv := &http.Server{
 		Addr:         port,
-		ReadTimeout:  envVarOrDuration(serverReadTimeoutEnvVar, DefaultServerReadTimeout),
-		IdleTimeout:  envVarOrDuration(serverIdleTimeoutEnvVar, DefaultServerIdleTimeout),
-		WriteTimeout: envVarOrDuration(serverWriteTimeoutEnvVar, DefaultServerWriteTimeout),
+		ReadTimeout:  trails.EnvVarOrDuration(serverReadTimeoutEnvVar, DefaultServerReadTimeout),
+		IdleTimeout:  trails.EnvVarOrDuration(serverIdleTimeoutEnvVar, DefaultServerIdleTimeout),
+		WriteTimeout: trails.EnvVarOrDuration(serverWriteTimeoutEnvVar, DefaultServerWriteTimeout),
 	}
 	if ctx != nil {
 		srv.BaseContext = func(_ net.Listener) context.Context { return ctx }
@@ -452,7 +451,7 @@ func (store defaultUserStorer) GetByID(id uint) (middleware.User, error) {
 	user := new(trails.User)
 	err := store.FindByID(user, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		err = fmt.Errorf("%w: User %d", ErrNotExist, id)
+		err = fmt.Errorf("%w: User %d", trails.ErrNotExist, id)
 	}
 
 	if err != nil {

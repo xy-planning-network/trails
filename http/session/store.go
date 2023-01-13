@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/boj/redistore"
 	gorilla "github.com/gorilla/sessions"
+	"github.com/xy-planning-network/trails"
 )
 
 const defaultMaxAge = 86400 // 1 day
@@ -27,7 +27,7 @@ type Service struct {
 	ek     []byte
 	sk     string
 	uk     string
-	env    string
+	env    trails.Environment
 	maxAge int
 	store  gorilla.Store
 }
@@ -36,7 +36,7 @@ type Service struct {
 // with the provided hex-encoded authentication key and encryption keys.
 // If no backing storage is provided through a functional option -
 // like WithRedis - NewService stores sessions in cookies.
-func NewStoreService(env, authKey, encryptKey, sessionKey, userKey string, opts ...ServiceOpt) (Service, error) {
+func NewStoreService(env trails.Environment, authKey, encryptKey, sessionKey, userKey string, opts ...ServiceOpt) (Service, error) {
 	gob.Register(Flash{})
 	var err error
 	s := Service{env: env, maxAge: defaultMaxAge, sk: sessionKey, uk: userKey}
@@ -79,12 +79,12 @@ type ServiceOpt func(*Service) error
 func WithCookie() ServiceOpt {
 	var c *gorilla.CookieStore
 	return func(s *Service) error {
-		if !strings.EqualFold(s.env, "testing") {
+		if !s.env.IsTesting() {
 			c = gorilla.NewCookieStore(s.ak, s.ek)
 		} else {
 			c = gorilla.NewCookieStore(s.ak)
 		}
-		c.Options.Secure = !strings.EqualFold(s.env, "development")
+		c.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
 		c.Options.HttpOnly = true
 		c.MaxAge(s.maxAge)
 		s.store = c
@@ -119,7 +119,7 @@ func WithRedis(uri, pass string) ServiceOpt {
 		if err != nil {
 			return fmt.Errorf("%w: failed initializing Redis: %s", ErrFailedConfig, err)
 		}
-		r.Options.Secure = !strings.EqualFold(s.env, "development")
+		r.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
 		r.Options.HttpOnly = true
 		r.SetMaxAge(s.maxAge)
 		s.store = r

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/session"
 )
 
@@ -14,7 +15,7 @@ func TestNewService(t *testing.T) {
 	notHex := "😅"
 
 	// Act
-	svc, err := session.NewStoreService("testing", notHex, "", "", "")
+	svc, err := session.NewStoreService(trails.Testing, notHex, "", "", "")
 
 	// Assert
 	require.NotNil(t, err)
@@ -24,7 +25,7 @@ func TestNewService(t *testing.T) {
 	hex := "ABCD"
 
 	// Act
-	svc, err = session.NewStoreService("testing", hex, notHex, "", "")
+	svc, err = session.NewStoreService(trails.Testing, hex, notHex, "", "")
 
 	// Assert
 	require.NotNil(t, err)
@@ -34,7 +35,7 @@ func TestNewService(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
 	//Act
-	svc, err = session.NewStoreService("testing", hex, hex, "", "")
+	svc, err = session.NewStoreService(trails.Testing, hex, hex, "", "")
 
 	// Assert
 	require.Nil(t, err)

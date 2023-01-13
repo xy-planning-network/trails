@@ -51,32 +51,6 @@ func WithDB(db postgres.DatabaseService) RangerOption {
 	}
 }
 
-// WithEnv casts the provided string into a valid Environment,
-// or, reads from the ENVIRONMENT environment variable a valid Environment.
-// WithEnv then exposes that Environment in the the Ranger.Env field.
-//
-// If both fail, the default Environment is set to Development.
-func WithEnv(envVar string) RangerOption {
-	e := Environment(envVar)
-	err := e.Valid()
-	if err == nil {
-		return func(rng *Ranger) (OptFollowup, error) {
-			rng.env = e
-			setupLog.Debug(fmt.Sprintf("using env %s", e), nil)
-
-			return nil, nil
-
-		}
-	}
-
-	return func(rng *Ranger) (OptFollowup, error) {
-		rng.env = envVarOrEnv(envVar, Development)
-		setupLog.Debug(fmt.Sprintf("using env %s", rng.env), nil)
-
-		return nil, nil
-	}
-}
-
 // WithKeyring exposes the provided keyring.Keyringable to the trails app.
 func WithKeyring(k keyring.Keyringable) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {

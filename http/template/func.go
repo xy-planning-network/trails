@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/google/uuid"
+	"github.com/xy-planning-network/trails"
 )
 
 // AddFn includes the named function in the Parse function map.
@@ -25,8 +26,8 @@ func CurrentUser(u any) (string, func() any) {
 // Env encloses some string representing an environment.
 // It returns "env" as the name of the function for convenient passing to a template.FuncMap
 // and returns a function returning the enclosed value when called.
-func Env(e string) (string, func() string) {
-	return "env", func() string { return e }
+func Env(e trails.Environment) (string, func() string) {
+	return "env", func() string { return e.String() }
 }
 
 // Nonce returns "nonce" as the name of the function for convenient passing to a template.FuncMap

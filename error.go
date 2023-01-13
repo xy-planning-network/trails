@@ -1,4 +1,4 @@
-package ranger
+package trails
 
 import "errors"
 
