@@ -242,7 +242,7 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 
 		args = append(args, opts...)
 
-		rng.p = template.NewParser(args...)
+		rng.p = template.NewParser([]fs.FS{files}, args...)
 
 		return nil, nil
 	}
