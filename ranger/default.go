@@ -234,13 +234,13 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 			template.WithFn("isDevelopment", func() bool { return rng.env.IsDevelopment() }),
 			template.WithFn("isStaging", func() bool { return rng.env.IsStaging() }),
 			template.WithFn("isProduction", func() bool { return rng.env.IsProduction() }),
-			template.WithFn("packTag", template.TagPacker(rng.env, files)),
 			template.WithFn("metadata", func(key string) string {
 				return map[string]string{
 					"description": desc,
 					"title":       title,
 				}[key]
 			}),
+			template.WithFn("packTag", template.TagPacker(rng.env, files)),
 		}
 
 		args = append(args, opts...)
