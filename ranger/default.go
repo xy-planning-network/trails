@@ -224,11 +224,10 @@ func DefaultParser(files fs.FS, opts ...template.ParserOptFn) RangerOption {
 			rng.url = trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
 		}
 
-		title := envVarOrString(appTitleEnvVar, defaultAppTitle)
-		desc := envVarOrString(appDescEnvVar, defaultAppDesc)
+		title := trails.EnvVarOrString(appTitleEnvVar, defaultAppTitle)
+		desc := trails.EnvVarOrString(appDescEnvVar, defaultAppDesc)
 
 		args := []template.ParserOptFn{
-			template.WithFS(files),
 			template.WithFn(template.Env(rng.env)),
 			template.WithFn(template.Nonce()),
 			template.WithFn(template.RootUrl(rng.url)),
