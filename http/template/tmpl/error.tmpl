@@ -62,8 +62,8 @@
       {{ if isProduction }}
         <h3>Oops, we didn't expect to arrive here...</h3>
         <section>
-          <p>{{ .Contact }}</p>
           <p>Our developers have been notified and will work to resolve the issue as expeditiously as possible.</p>
+          <p>{{ .Contact }}</p>
         </section>
       {{ end }}
       {{ if not isProduction }}
