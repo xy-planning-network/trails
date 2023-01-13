@@ -41,6 +41,10 @@ func (h handler) root(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h handler) broken(w http.ResponseWriter, r *http.Request) {
+	h.Html(w, r, Authed())
+}
+
 // initShutdown uses a closure to inject dependencies to our http.Handler,
 // showing an alternative pattern to using a struct to accomplish this requirement.
 //
@@ -92,6 +96,7 @@ func main() {
 	h := handler{rng}
 	rng.HandleRoutes([]router.Route{
 		{Path: "/", Method: http.MethodGet, Handler: h.root},
+		{Path: "/broken", Method: http.MethodGet, Handler: h.broken},
 		{Path: "/shutdown", Method: http.MethodGet, Handler: initShutdown(h, cancel)},
 	})
 

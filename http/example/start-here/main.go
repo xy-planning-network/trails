@@ -81,7 +81,6 @@ func (h *RangerHandler) broken(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	//func run() {
 	// construct a Ranger using all defaults.
 	rng, err := ranger.New()
 	if err != nil {

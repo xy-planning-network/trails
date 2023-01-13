@@ -47,12 +47,6 @@ type Responder struct {
 	// i.e., those set in a session.Flash
 	contactErrMsg string
 
-	// Root template to render when user is authenticated
-	authed string
-
-	// Root template to render when user is not authenticated
-	unauthed string
-
 	// Root URL the responder is listening on, also used when in an error state
 	rootUrl *url.URL
 
@@ -65,8 +59,20 @@ type Responder struct {
 	// Key for pulling the user set in the *http.Request.Context session
 	userSessionKey keyring.Keyable
 
-	// Vue template to render when rendering a Vue app
-	vue string
+	templates struct {
+		// Root template to render when user is authenticated
+		authed string
+
+		// Root template to render when an error occurs
+		// and no other response can be formed
+		err string
+
+		// Root template to render when user is not authenticated
+		unauthed string
+
+		// Vue template to render when rendering a Vue app
+		vue string
+	}
 }
 
 // NewResponder constructs a *Responder using the ResponderOptFns passed in.
@@ -140,7 +146,7 @@ func (doer *Responder) Err(w http.ResponseWriter, r *http.Request, err error, op
 func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
 	rr, err := doer.do(w, r, opts...)
 	if err != nil {
-		return err
+		return doer.handleHtmlError(w, r, err)
 	}
 
 	// TODO(dlk): call Error() instead of silently closing Body?
@@ -149,24 +155,27 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	}
 
 	if doer.parser == nil {
-		return fmt.Errorf("%w: no parser configured", ErrBadConfig)
+		return doer.handleHtmlError(w, r, fmt.Errorf("%w: no parser configured", ErrBadConfig))
 	}
 
 	if len(rr.tmpls) == 0 {
-		return fmt.Errorf("%w: no templates to render", ErrMissingData)
+		return doer.handleHtmlError(w, r, fmt.Errorf("%w: no templates to render", ErrMissingData))
 	}
 
-	if rr.tmpls[0] == doer.authed {
-		// NOTE(dlk): a user is required for an authenticated context
+	if rr.tmpls[0] == doer.templates.authed {
+		// NOTE(dlk): a user is required for an authenticated context.
+		// while Authed() also populates the user,
+		// this guards against misuse like Html(Tmpls(authedTmpl, otherTmpl)).
 		if err := populateUser(*doer, rr); err != nil {
-			return err
+			return doer.handleHtmlError(w, r, err)
 		}
+
 		doer.parser.AddFn(template.CurrentUser(rr.user))
 	}
 
 	tmpl, err := doer.parser.Parse(rr.tmpls...)
 	if err != nil {
-		return fmt.Errorf("cannot parse: %w", err)
+		return doer.handleHtmlError(w, r, fmt.Errorf("cannot parse: %w", err))
 	}
 
 	rd := struct {
@@ -176,7 +185,7 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 
 	s, err := doer.Session(r.Context())
 	if err != nil && !errors.Is(err, ErrNotFound) {
-		return fmt.Errorf("can't retrieve session: %w", err)
+		return doer.handleHtmlError(w, r, fmt.Errorf("can't retrieve session: %w", err))
 	}
 	if s != nil {
 		rd.Flashes = s.Flashes(w, r)
@@ -187,11 +196,11 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	defer doer.pool.Put(b)
 
 	if err := tmpl.ExecuteTemplate(b, path.Base(rr.tmpls[0]), rd); err != nil {
-		return err
+		return doer.handleHtmlError(w, r, err)
 	}
 
 	if _, err := b.WriteTo(w); err != nil {
-		return err
+		return doer.handleHtmlError(w, r, err)
 	}
 
 	return nil
@@ -254,7 +263,7 @@ func (doer *Responder) Json(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	return nil
 }
 
-/* TODO(dlk): keep?
+/*
 func (doer *Responder) Raw(w http.ResponseWriter, r *http.Request, opts ...Fn) error {
 	rr, err := doer.do(w, r, opts...)
 	if err != nil {
@@ -407,6 +416,49 @@ func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*
 	}
 
 	return resp, nil
+}
+
+// handleHtmlError specially renders the error template set on the Responder
+// and reports errors.
+func (doer *Responder) handleHtmlError(w http.ResponseWriter, r *http.Request, err error) error {
+	w.WriteHeader(http.StatusInternalServerError)
+
+	if doer.templates.err == "" {
+		err = fmt.Errorf(
+			"%w: no error template provided, encountered while handling: %s",
+			ErrBadConfig,
+			err,
+		)
+		return err
+	}
+	b := doer.pool.Get().(*bytes.Buffer)
+	b.Reset()
+	defer doer.pool.Put(b)
+
+	tmpl, nested := doer.parser.Parse(doer.templates.err)
+	if nested != nil {
+		err = fmt.Errorf("%w: %s", nested, err)
+		doer.logger.Error(err.Error(), nil)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return err
+	}
+
+	nested = tmpl.Execute(b, map[string]any{"Contact": doer.contactErrMsg, "Error": err})
+	if nested != nil {
+		err = fmt.Errorf("%w: %s", nested, err)
+		doer.logger.Error(err.Error(), nil)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return err
+	}
+
+	if _, nested = b.WriteTo(w); nested != nil {
+		err = fmt.Errorf("%w: %s", nested, err)
+		doer.logger.Error(err.Error(), nil)
+		http.Error(w, fmt.Errorf("%w: %s", nested, err).Error(), http.StatusInternalServerError)
+		return err
+	}
+
+	return nil
 }
 
 // redo applies as many may Options as it can, returning those Options that continue to throw an error.

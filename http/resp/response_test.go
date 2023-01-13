@@ -16,6 +16,13 @@ import (
 	"github.com/xy-planning-network/trails/logger"
 )
 
+type templatesTest struct {
+	authed   string
+	err      string
+	unauthed string
+	vue      string
+}
+
 func TestAuthed(t *testing.T) {
 	key := ctxKey("test")
 	expected := "authed.tmpl"
@@ -38,7 +45,7 @@ func TestAuthed(t *testing.T) {
 		},
 		{
 			name: "With-Auth",
-			d:    Responder{authed: expected},
+			d:    Responder{templates: templatesTest{authed: expected}},
 			r:    &Response{},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.ErrorIs(t, err, ErrNoUser)
@@ -47,7 +54,7 @@ func TestAuthed(t *testing.T) {
 		},
 		{
 			name: "With-User-With-Auth",
-			d:    Responder{authed: expected, userSessionKey: key},
+			d:    Responder{templates: templatesTest{authed: expected}, userSessionKey: key},
 			r:    &Response{},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
@@ -57,7 +64,7 @@ func TestAuthed(t *testing.T) {
 		},
 		{
 			name: "Tmpl-Authed",
-			d:    Responder{authed: expected, userSessionKey: key},
+			d:    Responder{templates: templatesTest{authed: expected}, userSessionKey: key},
 			r:    &Response{tmpls: []string{expected}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
@@ -67,7 +74,7 @@ func TestAuthed(t *testing.T) {
 		},
 		{
 			name: "Tmpl-Unauthed",
-			d:    Responder{authed: expected, userSessionKey: key, unauthed: unauthed},
+			d:    Responder{templates: templatesTest{authed: expected, unauthed: unauthed}, userSessionKey: key},
 			r:    &Response{tmpls: []string{unauthed}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
@@ -77,7 +84,7 @@ func TestAuthed(t *testing.T) {
 		},
 		{
 			name: "Tmpls",
-			d:    Responder{authed: expected, userSessionKey: key},
+			d:    Responder{templates: templatesTest{authed: expected}, userSessionKey: key},
 			r:    &Response{user: struct{}{}, tmpls: []string{"test.tmpl", "example.tmpl"}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
@@ -526,7 +533,7 @@ func TestUnauthed(t *testing.T) {
 		},
 		{
 			name: "With-Unauthed",
-			d:    Responder{unauthed: expected},
+			d:    Responder{templates: templatesTest{unauthed: expected}},
 			r:    &Response{},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
@@ -535,7 +542,7 @@ func TestUnauthed(t *testing.T) {
 		},
 		{
 			name: "With-Unauthed-Repeat",
-			d:    Responder{unauthed: expected},
+			d:    Responder{templates: templatesTest{unauthed: expected}},
 			r:    &Response{tmpls: []string{expected}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
@@ -545,7 +552,7 @@ func TestUnauthed(t *testing.T) {
 		},
 		{
 			name: "With-Only-Authed",
-			d:    Responder{authed: authed},
+			d:    Responder{templates: templatesTest{authed: authed}},
 			r:    &Response{tmpls: []string{authed}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.ErrorIs(t, err, ErrBadConfig)
@@ -553,7 +560,7 @@ func TestUnauthed(t *testing.T) {
 		},
 		{
 			name: "With-Authed-With-Unauthed",
-			d:    Responder{authed: authed, unauthed: expected},
+			d:    Responder{templates: templatesTest{authed: authed, unauthed: expected}},
 			r:    &Response{tmpls: []string{authed}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
@@ -563,7 +570,7 @@ func TestUnauthed(t *testing.T) {
 		},
 		{
 			name: "With-Tmpls",
-			d:    Responder{unauthed: expected},
+			d:    Responder{templates: templatesTest{unauthed: expected}},
 			r:    &Response{tmpls: []string{"test.tmpl", "example.tmpl"}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
@@ -686,7 +693,7 @@ func TestVue(t *testing.T) {
 		},
 		{
 			"With-Vue-No-Entry",
-			Responder{vue: "vue.tmpl"},
+			Responder{templates: templatesTest{vue: "vue.tmpl"}},
 			&Response{},
 			"",
 			func(t *testing.T, tmpls []string, data any, err error) {
@@ -697,7 +704,7 @@ func TestVue(t *testing.T) {
 		},
 		{
 			"With-Vue",
-			Responder{vue: "vue.tmpl"},
+			Responder{templates: templatesTest{vue: "vue.tmpl"}},
 			&Response{},
 			"test",
 			func(t *testing.T, tmpls []string, data any, err error) {
@@ -711,7 +718,7 @@ func TestVue(t *testing.T) {
 		},
 		{
 			"With-Vue-With-Tmpls",
-			Responder{vue: "vue.tmpl"},
+			Responder{templates: templatesTest{vue: "vue.tmpl"}},
 			&Response{tmpls: []string{"test.tmpl"}},
 			"test",
 			func(t *testing.T, tmpls []string, data any, err error) {
@@ -725,7 +732,7 @@ func TestVue(t *testing.T) {
 		},
 		{
 			"With-CtxKeys",
-			Responder{vue: "vue.tmpl", ctxKeys: []keyring.Keyable{aKey}},
+			Responder{templates: templatesTest{vue: "vue.tmpl"}, ctxKeys: []keyring.Keyable{aKey}},
 			&Response{user: "test"},
 			"test",
 			func(t *testing.T, tmpls []string, data any, err error) {
@@ -743,7 +750,7 @@ func TestVue(t *testing.T) {
 		},
 		{
 			"With-All",
-			Responder{vue: "vue.tmpl", rootUrl: good, ctxKeys: []keyring.Keyable{aKey}},
+			Responder{templates: templatesTest{vue: "vue.tmpl"}, rootUrl: good, ctxKeys: []keyring.Keyable{aKey}},
 			&Response{user: 1, tmpls: []string{"test.tmpl"}, data: map[string]any{"entry": "not-test", "other": 1}},
 			"test",
 			func(t *testing.T, tmpls []string, data any, err error) {

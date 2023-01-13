@@ -1,7 +1,5 @@
 package template
 
-import "io/fs"
-
 // The ParserOptFn applies functional options to a *Parse when constructing it.
 type ParserOptFn func(*Parse)
 
@@ -9,11 +7,5 @@ type ParserOptFn func(*Parse)
 func WithFn(name string, fn any) ParserOptFn {
 	return func(p *Parse) {
 		p.AddFn(name, fn)
-	}
-}
-
-func WithFS(filesys fs.FS) ParserOptFn {
-	return func(p *Parse) {
-		p.fs = filesys
 	}
 }

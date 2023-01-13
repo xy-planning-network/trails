@@ -4,7 +4,6 @@ import (
 	"fmt"
 	html "html/template"
 	"io/fs"
-	"os"
 	"path"
 )
 
@@ -16,16 +15,22 @@ type Parser interface {
 
 // Parse implements Parser with a focus on utilizing embedded HTML templates through fs.FS.
 type Parse struct {
-	fs  fs.FS
-	fns html.FuncMap
+	cache mergeFS
+	fns   html.FuncMap
 }
 
-// NewParser constructs a Parse with the provided fs.FS and functional options.
-func NewParser(opts ...ParserOptFn) Parser {
-	p := &Parse{fs: os.DirFS("."), fns: make(html.FuncMap)}
+// NewParser constructs a Parse with the fses and opts.
+// The order of fs.FS in fses matters.
+// The first reference to a filepath,
+// starting at the beginning of fses, is cached.
+func NewParser(fses []fs.FS, opts ...ParserOptFn) Parser {
+	p := &Parse{fns: make(html.FuncMap)}
 	for _, opt := range opts {
 		opt(p)
 	}
+
+	p.cache = merge(fses)
+
 	return p
 }
 
@@ -41,5 +46,5 @@ func (p *Parse) Parse(fps ...string) (*html.Template, error) {
 		return nil, fmt.Errorf("%w", ErrNoFiles)
 	}
 
-	return html.New(path.Base(fps[0])).Funcs(p.fns).ParseFS(p.fs, fps...)
+	return html.New(path.Base(fps[0])).Funcs(p.fns).ParseFS(p.cache, fps...)
 }
