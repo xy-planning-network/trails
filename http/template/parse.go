@@ -20,10 +20,9 @@ type Parse struct {
 }
 
 // NewParser constructs a Parse with the fses and opts.
-// Overwrite the embedded html templates this package provides
-// by creating a filesystem (whether embedded or present in the OS)
-// whose structure matches the exact filepaths (starting with tmpl/)
-// for the templates you wish to overwrite.
+// The order of fs.FS in fses matters.
+// The first reference to a filepath,
+// starting at the beginning of fses, is cached.
 func NewParser(fses []fs.FS, opts ...ParserOptFn) Parser {
 	p := &Parse{fns: make(html.FuncMap)}
 	for _, opt := range opts {
