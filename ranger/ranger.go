@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	// TODO(dlk): configurable env files
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/keyring"
@@ -23,7 +22,14 @@ import (
 	"github.com/xy-planning-network/trails/postgres"
 )
 
-var setupLog logger.Logger
+// A RangerUser is the kind of functionality an application's User must fulfill
+// in order to take advantage of trails.
+//
+// NOTE(dlk): refer to this example as to why we have all the theatrics around generics:
+// https://go.dev/play/p/IfXLlgaJUM_N
+type RangerUser interface {
+	middleware.User
+}
 
 // A Ranger manages and exposes all components of a trails app to one another.
 type Ranger struct {
@@ -41,13 +47,13 @@ type Ranger struct {
 	shutdowns []ShutdownFn
 	srv       *http.Server
 	url       *url.URL
-	users     middleware.UserStorer
+	userstore middleware.UserStorer
 }
 
 // New constructs a Ranger from the provided options.
 // Default options are applied first followed by the options passed into New.
 // Options supplied to New overwrite default configurations.
-func New(opts ...RangerOption) (*Ranger, error) {
+func New[User RangerUser](c Config[User], opts ...RangerOption) (*Ranger, error) {
 	r := new(Ranger)
 	followups := make([]OptFollowup, 0)
 
@@ -70,6 +76,8 @@ func New(opts ...RangerOption) (*Ranger, error) {
 			followups = append(followups, fn)
 		}
 	}
+
+	r.userstore = c.defaultUserStore(r.db)
 
 	for _, fn := range followups {
 		if err := fn(); err != nil {

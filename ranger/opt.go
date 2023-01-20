@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/xy-planning-network/trails/http/keyring"
-	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
 	"github.com/xy-planning-network/trails/http/session"
@@ -124,21 +123,6 @@ func WithSessionStore(store session.SessionStorer) RangerOption {
 	return func(rng *Ranger) (OptFollowup, error) {
 		rng.sessions = store
 		setupLog.Debug(fmt.Sprintf("using session store %T", store), nil)
-
-		return nil, nil
-	}
-}
-
-// WithUserSessions exposes the middleware.UserStorer
-// that will be used to injectg the current session and user into http.Request.Contexts.
-//
-// When WithUserSessions is called, it overrides the default middleware.UserStorer.
-// The default middleware.UserStorer gets or creates a postgres.DatabaseService connection.
-func WithUserSessions(users middleware.UserStorer) RangerOption {
-	return func(rng *Ranger) (OptFollowup, error) {
-		rng.users = users
-
-		setupLog.Debug(fmt.Sprintf("using user store %T", users), nil)
 
 		return nil, nil
 	}

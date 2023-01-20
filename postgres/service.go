@@ -30,38 +30,38 @@ type PagedData struct {
 
 // DatabaseServiceImpl satisfies the above DatabaseService interface.
 type DatabaseServiceImpl struct {
-	db *gorm.DB
+	DB *gorm.DB
 }
 
 // NewService hydrates the gorm database for the implementation struct methods.
 func NewService(DB *gorm.DB) *DatabaseServiceImpl {
-	return &DatabaseServiceImpl{db: DB}
+	return &DatabaseServiceImpl{DB: DB}
 }
 
 // CountByQuery recives a database model and query and fetches a count for the given params.
 func (service *DatabaseServiceImpl) CountByQuery(model any, query map[string]any) (int64, error) {
 	count := int64(0)
-	return count, service.db.Model(model).Where(query).Count(&count).Error
+	return count, service.DB.Model(model).Where(query).Count(&count).Error
 }
 
 // FetchByQuery receives a slice of database models as a pointer and fetches all records matching the query.
 func (service *DatabaseServiceImpl) FetchByQuery(models any, query string, params []any) error {
-	return service.db.Where(query, params...).Find(models).Error
+	return service.DB.Where(query, params...).Find(models).Error
 }
 
 // FindByID receives a database model as a pointer and fetches it using the primary ID.
 func (service *DatabaseServiceImpl) FindByID(model any, ID any) error {
-	return service.db.First(model, ID).Error
+	return service.DB.First(model, ID).Error
 }
 
 // FindByQuery receives a database model as a pointer and fetches it using the given query.
 func (service *DatabaseServiceImpl) FindByQuery(model any, query map[string]any) error {
-	return service.db.Where(query).First(model).Error
+	return service.DB.Where(query).First(model).Error
 }
 
 // Insert receives a database model and inserts it into the database.
 func (service *DatabaseServiceImpl) Insert(model any) error {
-	return service.db.Create(model).Error
+	return service.DB.Create(model).Error
 }
 
 // PagedByQuery receives a slice of database models and paging information to build a paged database query.
@@ -78,13 +78,13 @@ func (service *DatabaseServiceImpl) PagedByQuery(models any, query string, param
 
 	// Conduct unlimited count query to calculate totals
 	var totalRecords int64
-	if err := service.db.Where(query, params...).Model(models).Count(&totalRecords).Error; err != nil {
+	if err := service.DB.Where(query, params...).Model(models).Count(&totalRecords).Error; err != nil {
 		return pd, err
 	}
 
 	// Calculate offset and conduct limited query
 	offset := (page - 1) * perPage
-	session := service.db
+	session := service.DB
 	for _, preload := range preloads {
 		session = session.Preload(preload)
 	}
