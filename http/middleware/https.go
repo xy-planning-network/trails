@@ -3,7 +3,8 @@ package middleware
 import (
 	"net/http"
 	"net/url"
-	"strings"
+
+	"github.com/xy-planning-network/trails"
 )
 
 // ForceHTTPS redirects HTTP requests to HTTPS if the environment is not "development".
@@ -12,20 +13,20 @@ import (
 // running behind a proxy.
 //
 // TODO(dlk): configurable headers to check.
-func ForceHTTPS(env string) Adapter {
+func ForceHTTPS(env trails.Environment) Adapter {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !strings.EqualFold(env, "development") && r.Header.Get("X-Forwarded-Proto") != "https" {
-				u := new(url.URL)
-				*u = *r.URL
-				u.Scheme = "https"
-				u.Host = r.Host
-
-				http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
+			if r.Header.Get("X-Forwarded-Proto") == "https" || env.IsDevelopment() {
+				handler.ServeHTTP(w, r)
 				return
 			}
 
-			handler.ServeHTTP(w, r)
+			u := new(url.URL)
+			*u = *r.URL
+			u.Scheme = "https"
+			u.Host = r.Host
+
+			http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
 			return
 		})
 	}

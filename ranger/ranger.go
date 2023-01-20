@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,8 +15,6 @@ import (
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
-	"github.com/xy-planning-network/trails/http/session"
-	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
 )
@@ -33,7 +30,6 @@ type RangerUser interface {
 
 // A Ranger manages and exposes all components of a trails app to one another.
 type Ranger struct {
-	logger.Logger
 	*resp.Responder
 	router.Router
 
@@ -42,57 +38,68 @@ type Ranger struct {
 	db        postgres.DatabaseService
 	env       trails.Environment
 	kr        keyring.Keyringable
-	p         template.Parser
-	sessions  session.SessionStorer
+	l         logger.Logger
 	shutdowns []ShutdownFn
 	srv       *http.Server
-	url       *url.URL
-	userstore middleware.UserStorer
 }
 
 // New constructs a Ranger from the provided options.
 // Default options are applied first followed by the options passed into New.
 // Options supplied to New overwrite default configurations.
-func New[User RangerUser](cfg Config[U], opts ...RangerOption) (*Ranger, error) {
+func New[User RangerUser](cfg Config[U]) (*Ranger, error) {
+	err := cfg.Valid()
+	if err != nil {
+		return nil, err
+	}
+
 	r := new(Ranger)
-	followups := make([]OptFollowup, 0)
 
 	// Setup initial configuration
 	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
+	r.l = defaultLogger()
+	r.ctx, r.cancel = context.WithCancel(context.Background())
 
-	// NOTE(dlk): calling an option configures the *Ranger under construction.
-	// Some options require data from other options.
-	// These options, therefore, must delay configuring the *Ranger
-	// until either (1) user supplied RangerOptions or (2) default RangerOptions
-	// configure the *Ranger first.
-	// They return an optFollowup to be called after the initial set of options are run.
-	for _, opt := range append(defaultOpts(), opts...) {
-		fn, err := opt(r)
-		if err != nil {
-			return r, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
-		}
+	r.db, err = defaultDB(r.env, c.Migrations)
+	if err != nil {
+		return nil, err
+	}
 
-		if fn != nil {
-			followups = append(followups, fn)
-		}
+	url := trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
+	r.Responder = defaultResponder(r.l, url, defaultParser(r.env, url, cfg.FS), cfg.Keyring)
+
+	sess, err := defaultSessionStore(r.env, r.kr)
+	if err != nil {
+		return nil, err
 	}
 
 	r.userstore = cfg.defaultUserStore(r.db)
-
-	for _, fn := range followups {
-		if err := fn(); err != nil {
-			return nil, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
-		}
+	mws := make([]middleware.Adapter, 0)
+	// NOTE(dlk): PRODUCTION only middlewares
+	if r.env.IsProduction() {
+		mws = append(
+			mws,
+			middleware.ForceHTTPS(r.env),
+		)
 	}
 
-	r.p = nil
+	mws = append(
+		mws,
+		middleware.RequestID(r.kr.Key("RequestID")),
+		middleware.InjectIPAddress(),
+		middleware.LogRequest(r.l),
+		middleware.InjectSession(sess, r.kr.SessionKey()),
+		middleware.CurrentUser(r.Responder, userstore, r.kr.SessionKey(), r.kr.CurrentUserKey()),
+	)
+	r.Router = defaultRouter(r.env, url, r.Responder, mws)
+	r.srv = defaultServer(r.ctx)
 
 	return r, nil
 }
 
-func (r *Ranger) EmitDB() postgres.DatabaseService        { return r.db }
-func (r *Ranger) EmitKeyring() keyring.Keyringable        { return r.kr }
-func (r *Ranger) EmitSessionStore() session.SessionStorer { return r.sessions }
+func (r *Ranger) CancelContext()               { r.cancel() }
+func (r *Ranger) DB() postgres.DatabaseService { return r.db }
+func (r *Ranger) Env() trails.Environment      { return r.env }
+func (r *Ranger) Logger() logger.Logger        { return r.l }
 
 // Guide begins the web server.
 //
@@ -122,16 +129,16 @@ func (r *Ranger) Guide() error {
 	cc := logger.CurrentCaller()
 	go func() {
 		s := <-ch
-		r.Logger.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: cc})
+		r.l.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: cc})
 		r.cancel()
 	}()
 
 	go func() {
-		r.Logger.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: cc})
+		r.l.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: cc})
 		r.srv.Handler = r.Router
 		if err := r.srv.ListenAndServe(); err != http.ErrServerClosed {
 			err = fmt.Errorf("could not listen: %w", err)
-			r.Logger.Error(err.Error(), &logger.LogContext{Caller: cc})
+			r.l.Error(err.Error(), &logger.LogContext{Caller: cc})
 		}
 	}()
 
@@ -156,7 +163,7 @@ func (r *Ranger) Shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ll := r.Logger
+	ll := r.l
 	if sl, ok := ll.(logger.SkipLogger); ok {
 		ll = sl.AddSkip(sl.Skip() + 2)
 	}
@@ -185,3 +192,5 @@ func (r *Ranger) Shutdown() error {
 	ll.Info("web server shutdown successfully", nil)
 	return nil
 }
+
+type ShutdownFn func(context.Context) error

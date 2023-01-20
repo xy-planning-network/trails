@@ -3,8 +3,10 @@ package ranger
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 
 	"github.com/xy-planning-network/trails"
+	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/postgres"
 	"gorm.io/gorm"
@@ -16,6 +18,25 @@ type Config[U RangerUser] struct {
 	// Config was chosen to minimize proliferating generic type parameters
 	// in all Ranger methods or references to Ranger.
 	// Config ought to be restricted to New.
+
+	FS         fs.FS
+	Keyring    keyring.Keyringable
+	Migrations []postgres.Migration
+	Shutdowns  []ShutdownFn
+}
+
+// Valid asserts the Config has all required data,
+// returning trails.ErrBadConfig if not.
+func (c Config[User]) Valid() error {
+	if c.FS == nil {
+		return fmt.Errorf("%w: c.FS cannot be nil", trails.ErrBadConfig)
+	}
+
+	if c.Keyring == nil {
+		return fmt.Errorf("%w: c.Keyring cannot be nil", trails.ErrBadConfig)
+	}
+
+	return nil
 }
 
 // defaultUserStore constructs a function matching the signature of middleware.UserStorer.
