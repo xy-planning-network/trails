@@ -7,13 +7,13 @@ import (
 )
 
 // A SentryLogger logs messages and reports sufficiently important
-// ones to error tracking software Sentry (sentry.io).
+// ones to error tracking software Sentry (https://sentry.io).
 type SentryLogger struct {
 	l    SkipLogger
 	skip int
 }
 
-// NewSentryLogger constructs a SentryLogger based off the provided TrailsLogger,
+// NewSentryLogger constructs a [SentryLogger] based off the provided [*TrailsLogger],
 // routing messages to the DSN provided.
 func NewSentryLogger(tl *TrailsLogger, dsn string) Logger {
 	err := sentry.Init(sentry.ClientOptions{
@@ -34,7 +34,7 @@ func NewSentryLogger(tl *TrailsLogger, dsn string) Logger {
 // AddSkip replaces the current number of frames to scroll back
 // when logging a message.
 //
-// Use Skip to get the current skip amount
+// Use [*SentryLogger.Skip] to get the current skip amount
 // when needing to add to it with AddSkip.
 func (sl *SentryLogger) AddSkip(i int) SkipLogger { return sl.l.AddSkip(i) }
 
@@ -79,14 +79,16 @@ func (sl *SentryLogger) Warn(msg string, ctx *LogContext) {
 }
 
 // LogLevel returns the LogLevel set for the SentryLogger.
+//
+// Use [WithLevel] to set the log level on app startup.
 func (sl *SentryLogger) LogLevel() LogLevel { return sl.l.LogLevel() }
 
 // Skip returns the current amount of frames to scroll back
 // when logging a message.
 func (sl *SentryLogger) Skip() int { return sl.l.Skip() }
 
-// send ships the LogContext.Error to Sentry,
-// including any additional data from LogContext.
+// send ships the *LogContext.Error to Sentry,
+// including any additional data from *LogContext.
 func (sl *SentryLogger) send(level sentry.Level, ctx *LogContext) {
 	if ctx == nil || ctx.Error == nil {
 		return

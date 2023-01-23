@@ -14,13 +14,18 @@ var (
 	_ encoding.TextMarshaler = LogContext{}
 )
 
+// LogUser is the interface exposing attributes of a user to a LogContext.
 type LogUser interface {
+	// GetID retrieves the application's identifier for a user.
 	GetID() uint
+
+	// GetEmail retrieves the email address of the user.
+	// If not available, an ID should be returned.
 	GetEmail() string
 }
 
 // A LogContext provides additional information and configuration
-// for a logger.Logger method that cannot be tersely captured in the message itself.
+// for a [*logger.Logger] method that cannot be tersely captured in the message itself.
 type LogContext struct {
 	// Caller overrides the caller file and line number with the provided value.
 	//
@@ -47,7 +52,7 @@ type LogContext struct {
 //
 // Values in LogContext.Data that cannot be represented in JSON will cause an error to be thrown.
 //
-// MarshalText implements encoding.TextMarshaler.
+// MarshalText implements [encoding.TextMarshaler].
 func (lc LogContext) MarshalText() ([]byte, error) {
 	m := make(map[string]any)
 	if lc.Data != nil {

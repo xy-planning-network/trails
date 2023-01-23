@@ -23,7 +23,7 @@ var (
 	trailsPathRegex = regexp.MustCompile("/trails/.*$")
 )
 
-// The Logger interface defines the levels a logging can occur at.
+// The Logger interface defines the ways of logging messages at certain levels of importance.
 type Logger interface {
 	Debug(msg string, ctx *LogContext)
 	Error(msg string, ctx *LogContext)
@@ -53,6 +53,9 @@ const (
 	LogLevelFatal
 )
 
+// NewLogLevel translates val into a LogLevel.
+// The string representation ought to be all uppercase;
+// e.g., DEBUG, WARN.
 func NewLogLevel(val string) LogLevel {
 	switch val {
 	case "DEBUG":
@@ -81,7 +84,7 @@ func (ll LogLevel) String() string {
 	}[ll]
 }
 
-// TrailsLogger implements Logger using log.
+// TrailsLogger implements [Logger] using [*log.Logger].
 type TrailsLogger struct {
 	skip int
 	env  string
@@ -91,7 +94,7 @@ type TrailsLogger struct {
 
 // New constructs a TrailsLogger.
 //
-// Logs are printed to os.Stdout by default, using the std lib log pkg.
+// Logs are printed to [os.Stdout] by default, using the std lib log pkg.
 // The default environment is DEVELOPMENT.
 // The default log level is DEBUG.
 func New(opts ...LoggerOptFn) Logger {
