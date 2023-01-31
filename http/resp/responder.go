@@ -11,7 +11,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/xy-planning-network/trails/http/keyring"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
@@ -22,8 +22,9 @@ const responderFrames = 0
 // Responder maintains reusable pieces for responding to HTTP requests.
 // It exposes many common methods for writing structured data as an HTTP response.
 // These are the forms of response Responder can execute:
+//
 //	Html
-// 	Json
+//	Json
 //	Redirect
 //
 // Most oftentimes, setting up a single instance of a Responder suffices for an application.
@@ -51,13 +52,7 @@ type Responder struct {
 	rootUrl *url.URL
 
 	// Keys for pulling specific values out of the *http.Request.Context
-	ctxKeys []keyring.Keyable
-
-	// Key for pulling the entire session out of the *http.Request.Context
-	sessionKey keyring.Keyable
-
-	// Key for pulling the user set in the *http.Request.Context session
-	userSessionKey keyring.Keyable
+	ctxKeys []trails.Key
 
 	templates struct {
 		// Root template to render when user is authenticated
@@ -112,7 +107,7 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 // If WithUserSessionKey was not called setting up the Responder or the context.Context has no
 // value for that key, ErrNotFound returns.
 func (doer Responder) CurrentUser(ctx context.Context) (any, error) {
-	val := ctx.Value(doer.userSessionKey)
+	val := ctx.Value(trails.CurrentUserKey)
 	if val == nil {
 		return nil, fmt.Errorf("%w: no user found with userSessionKey", ErrNotFound)
 	}
@@ -187,9 +182,8 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		return doer.handleHtmlError(w, r, fmt.Errorf("can't retrieve session: %w", err))
 	}
-	if s != nil {
-		rd.Flashes = s.Flashes(w, r)
-	}
+
+	rd.Flashes = s.Flashes(w, r)
 
 	b := doer.pool.Get().(*bytes.Buffer)
 	b.Reset()
@@ -214,10 +208,11 @@ type jsonSchema struct {
 // Json responds with data in JSON format, collating it from User(), Data() and setting appropriate headers.
 //
 // When standard 2xx codes are supplied, the JSON schema will look like this:
-// {
-//	"currentUser": {},
-//	"data": {}
-// }
+//
+//	{
+//		"currentUser": {},
+//		"data": {}
+//	}
 //
 // Otherwise, "currentUser" is elided.
 //
@@ -329,26 +324,19 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 	return nil
 }
 
-// Session retrieves the session set in the context as a session.FlashSessionable.
-//
-// session.FlashSessionable identifies the minimal functionality required for resp
-// but could be swap out for a more expansive interface such as session.TrailsSessionable.
+// Session retrieves the session set in the context as a session.Session.
 //
 // If WithSessionKey was not called setting up the Responder or the context.Context has no
 // value for that key, ErrNotFound returns.
-func (doer Responder) Session(ctx context.Context) (session.FlashSessionable, error) {
-	if doer.sessionKey == nil {
-		return nil, nil
-	}
-
-	val := ctx.Value(doer.sessionKey)
+func (doer Responder) Session(ctx context.Context) (session.Session, error) {
+	val := ctx.Value(trails.SessionKey)
 	if val == nil {
-		return nil, fmt.Errorf("%w: no session found with sessionKey", ErrNotFound)
+		return session.Session{}, fmt.Errorf("%w: no session found with %q", ErrNotFound, trails.SessionKey)
 	}
 
-	s, ok := val.(session.FlashSessionable)
+	s, ok := val.(session.Session)
 	if !ok {
-		return nil, fmt.Errorf("%w: does not implement session.FlashSessionable", ErrInvalid)
+		return session.Session{}, fmt.Errorf("%w: is not session.Session, is %T", ErrInvalid, val)
 	}
 
 	return s, nil

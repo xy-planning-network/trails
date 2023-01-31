@@ -118,10 +118,6 @@ func Flash(flash session.Flash) Fn {
 			return err
 		}
 
-		if s == nil {
-			return nil
-		}
-
 		s.SetFlash(r.w, r.r, flash)
 		return nil
 	}
@@ -253,48 +249,49 @@ func Url(u string) Fn {
 // Vue structures the provided data alongside default values according to a default schema.
 //
 // Here's the schema:
-// {
-//	"entry": entry,
-//	"props": {
-//		"initialProps": {
-//			"baseURL": d.rootUrl,
-//			"currentUser": r.user,
+//
+//	{
+//		"entry": entry,
+//		"props": {
+//			"initialProps": {
+//				"baseURL": d.rootUrl,
+//				"currentUser": r.user,
+//			},
+//			...key-value pairs set by Data
+//			...key-value pairs set by d.ctxKeys
 //		},
 //		...key-value pairs set by Data
-//		...key-value pairs set by d.ctxKeys
-//	},
-//	...key-value pairs set by Data
-// }
+//	}
 //
 // Calls to Data are merged into the required schema in the following way.
 //
 // At it's simplest, for example, Data(map[string]any{"myProp": "Hello, World"}),
 // will produce:
 //
-// {
-//	"entry": entry,
-//	"props": {
-//		"myProp": "Hello, World",
-//		"initialProps": {
-//			"baseURL": d.rootUrl,
-//			"currentUser": r.user,
+//	{
+//		"entry": entry,
+//		"props": {
+//			"myProp": "Hello, World",
+//			"initialProps": {
+//				"baseURL": d.rootUrl,
+//				"currentUser": r.user,
+//			}
 //		}
 //	}
-// }
 //
 // If the type passed into Data is not map[string]any, Data(myStruct{}),
 // the value is placed under another "props" key, producing:
 //
-// {
-//	"entry": entry,
-//	"props": {
-//		"props": myStruct{},
-//		"initialProps": {
-//			"baseURL": d.rootUrl,
-//			"currentUser": r.user,
-//		},
+//	{
+//		"entry": entry,
+//		"props": {
+//			"props": myStruct{},
+//			"initialProps": {
+//				"baseURL": d.rootUrl,
+//				"currentUser": r.user,
+//			},
+//		}
 //	}
-// }
 //
 // Finally, if values need to be present to template rendering under a specific key,
 // and properties need to be passed in as well,
@@ -303,28 +300,28 @@ func Url(u string) Fn {
 //
 // Here's how that's done:
 //
-// data := map[string]any{
-//	"keyForMyTmpl": true,
-//	"props": map[string]any{
-//		"myProp": "Hello, World"
-//	},
-// }
+//	data := map[string]any{
+//		"keyForMyTmpl": true,
+//		"props": map[string]any{
+//			"myProp": "Hello, World"
+//		},
+//	}
+//
 // Html(Data(data), Vue(entry))
 //
 // will produce:
 //
-// {
-//	"entry": entry,
-//	"keyForMyTmpl": true
-//	"props: {
-//		"myProp": "Hello, World",
-//		"initialProps": {
-//			"baseURL": d.rootUrl,
-//			"currentUser": r.user,
+//	{
+//		"entry": entry,
+//		"keyForMyTmpl": true
+//		"props: {
+//			"myProp": "Hello, World",
+//			"initialProps": {
+//				"baseURL": d.rootUrl,
+//				"currentUser": r.user,
+//			},
 //		},
-//	},
-// }
-//
+//	}
 //
 // It is not required to set any keys for pulling additional values
 // out of the *http.Request.Context.
@@ -350,7 +347,7 @@ func Vue(entry string) Fn {
 		props := map[string]any{"initialProps": init}
 		for _, k := range d.ctxKeys {
 			if val := r.r.Context().Value(k); val != nil {
-				props[k.Key()] = val
+				props[string(k)] = val
 			}
 		}
 

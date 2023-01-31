@@ -13,9 +13,15 @@ import (
 func TestNewService(t *testing.T) {
 	// Arrange
 	notHex := "😅"
+	cfg := session.Config{
+		Env:         trails.Testing,
+		SessionName: "Test",
+		AuthKey:     notHex,
+		EncryptKey:  "",
+	}
 
 	// Act
-	svc, err := session.NewStoreService(trails.Testing, notHex, "", "", "")
+	svc, err := session.NewStoreService(cfg)
 
 	// Assert
 	require.NotNil(t, err)
@@ -23,19 +29,22 @@ func TestNewService(t *testing.T) {
 
 	// Arrange
 	hex := "ABCD"
+	cfg.AuthKey = hex
+	cfg.EncryptKey = notHex
 
 	// Act
-	svc, err = session.NewStoreService(trails.Testing, hex, notHex, "", "")
+	svc, err = session.NewStoreService(cfg)
 
 	// Assert
 	require.NotNil(t, err)
 	require.Zero(t, svc)
 
 	// Arrange
+	cfg.EncryptKey = hex
 	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
 	//Act
-	svc, err = session.NewStoreService(trails.Testing, hex, hex, "", "")
+	svc, err = session.NewStoreService(cfg)
 
 	// Assert
 	require.Nil(t, err)

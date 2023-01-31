@@ -1,5 +1,4 @@
 /*
-
 Package resp provides a high-level API for responding to HTTP requests.
 
 The core of the package revolves around the interplay between a Responder,
@@ -26,6 +25,5 @@ Notably, a Responder contains data on default templates, keys used for an *http.
 the web app's root URL and so forth.
 ResponderOptFns carry out configuring a Responder and are unlikely to be used within a handler.
 Instead, it is expected these feature in a web app's router setup steps.
-
 */
 package resp

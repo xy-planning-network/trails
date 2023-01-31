@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/session"
@@ -15,7 +16,7 @@ import (
 
 func TestAuthorizeApplicator(t *testing.T) {
 	// Arrange
-	app := middleware.NewAuthorizeApplicator[testUser](nil, nil)
+	app := middleware.NewAuthorizeApplicator[testUser](nil)
 
 	// Act
 	adpt := app.Apply(nil)
@@ -24,11 +25,9 @@ func TestAuthorizeApplicator(t *testing.T) {
 	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", adpt))
 
 	// Arrange
-	sk := ctxKey("session")
-	uk := ctxKey("user")
-	d := resp.NewResponder(resp.WithSessionKey(sk), resp.WithUserSessionKey(uk))
+	d := resp.NewResponder()
 
-	app = middleware.NewAuthorizeApplicator[testUser](d, uk)
+	app = middleware.NewAuthorizeApplicator[testUser](d)
 	adpt = app.Apply(func(u testUser) (string, bool) {
 		if u {
 			return "", true
@@ -49,7 +48,7 @@ func TestAuthorizeApplicator(t *testing.T) {
 	// Arrange
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
-	r = r.WithContext(context.WithValue(r.Context(), uk, testUser(false)))
+	r = r.Clone(context.WithValue(r.Context(), trails.CurrentUserKey, testUser(false)))
 
 	// Act
 	adpt(teapotHandler()).ServeHTTP(w, r)
@@ -60,7 +59,7 @@ func TestAuthorizeApplicator(t *testing.T) {
 	// Arrange
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
-	r = r.WithContext(context.WithValue(r.Context(), uk, testUser(false)))
+	r = r.Clone(context.WithValue(r.Context(), trails.CurrentUserKey, testUser(false)))
 
 	for _, v := range []string{
 		"text/html",
@@ -80,14 +79,16 @@ func TestAuthorizeApplicator(t *testing.T) {
 	require.Equal(t, http.StatusInternalServerError, w.Code)
 
 	// Arrange
-	var ss session.Stub
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+
+	ss, err := session.NewStub(false).GetSession(r)
+	require.Nil(t, err)
 
 	v := "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*"
 
-	w = httptest.NewRecorder()
-	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
-	r = r.WithContext(context.WithValue(r.Context(), sk, ss))
-	r = r.WithContext(context.WithValue(r.Context(), uk, testUser(false)))
+	r = r.Clone(context.WithValue(r.Context(), trails.SessionKey, ss))
+	r = r.Clone(context.WithValue(r.Context(), trails.CurrentUserKey, testUser(false)))
 
 	r.Header.Set("Accept", v)
 
@@ -101,7 +102,7 @@ func TestAuthorizeApplicator(t *testing.T) {
 	// Arrange
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
-	r = r.WithContext(context.WithValue(r.Context(), uk, testUser(true)))
+	r = r.Clone(context.WithValue(r.Context(), trails.CurrentUserKey, testUser(true)))
 
 	// Act
 	adpt(teapotHandler()).ServeHTTP(w, r)

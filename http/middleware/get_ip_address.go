@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
+
+	"github.com/xy-planning-network/trails"
 )
 
 const IpAddrCtxKey = "trails/middleware/ip-address" // TODO(dlk): change to key provided by app?
@@ -35,12 +37,12 @@ var privateRanges = []ipRange{
 }
 
 // InjectIPAddress grabs the IP address in the *http.Request.Header
-// and promotes it to *http.Request.Context under IpAddrCtxKey.
+// and promotes it to *http.Request.Context under trails.IpAddrKey.
 func InjectIPAddress() Adapter {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := GetIPAddress(r.Header)
-			r = r.Clone(context.WithValue(r.Context(), IpAddrCtxKey, ip))
+			r = r.Clone(context.WithValue(r.Context(), trails.IpAddrKey, ip))
 			h.ServeHTTP(w, r)
 		})
 	}

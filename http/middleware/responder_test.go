@@ -7,14 +7,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xy-planning-network/trails/http/keyring"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 )
 
 func TestInjectResponder(t *testing.T) {
 	// Arrange + Act
-	actual := middleware.InjectResponder(nil, nil)
+	actual := middleware.InjectResponder(nil, trails.Key(""))
 
 	// Assert
 	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", actual))
@@ -22,14 +22,7 @@ func TestInjectResponder(t *testing.T) {
 	// Arrange
 	rp := resp.NewResponder()
 
-	// Act
-	actual = middleware.InjectResponder(rp, nil)
-
-	// Assert
-	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", actual))
-
-	// Arrange
-	k := keyring.Key("testing-inject-responder")
+	k := trails.Key("testing-inject-responder")
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)

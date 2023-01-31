@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/xy-planning-network/trails"
-	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
@@ -21,6 +21,8 @@ import (
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -75,6 +77,7 @@ const (
 	// Session defaults
 	sessionAuthKeyEnvVar    = "SESSION_AUTH_KEY"
 	sessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
+	sessionNameEnvVar       = "SESSION_NAME"
 	useUserSessionsEnvVar   = "USE_USER_SESSIONS"
 
 	// Test defaults
@@ -182,7 +185,7 @@ func defaultParser(env trails.Environment, url *url.URL, files fs.FS) template.P
 }
 
 // defaultResponder configures the*&resp.Responder to be used by http.Handlers.
-func defaultResponder(l logger.Logger, url *url.URL, p template.Parser, kr keyring.Keyringable) *resp.Responder {
+func defaultResponder(l logger.Logger, url *url.URL, p template.Parser, ctxKeys []trails.Key) *resp.Responder {
 	args := []resp.ResponderOptFn{
 		resp.WithRootUrl(url.String()),
 		resp.WithLogger(l),
@@ -191,8 +194,10 @@ func defaultResponder(l logger.Logger, url *url.URL, p template.Parser, kr keyri
 		resp.WithErrTemplate(defaultErrTmpl),
 		resp.WithUnauthTemplate(defaultUnauthedTmpl),
 		resp.WithVueTemplate(defaultVueTmpl),
-		resp.WithSessionKey(kr.SessionKey()),
-		resp.WithUserSessionKey(kr.CurrentUserKey()),
+	}
+
+	if len(ctxKeys) > 0 {
+		args = append(args, resp.WithCtxKeys(ctxKeys...))
 	}
 
 	return resp.NewResponder(args...)
@@ -221,20 +226,27 @@ func defaultRouter(
 
 // defaultSessionStore constructs a SessionStorer to be used for storing session data.
 //
-// defaultSessionStore relies on two env vars:
+// defaultSessionStore relies on three env vars:
+// - "APP_TITLE"
 // - "SESSION_AUTH_KEY"
 // - "SESSION_ENCRYPTION_KEY"
 //
-// These must be valid hex encoded values.
-func defaultSessionStore(env trails.Environment, kr keyring.Keyringable) (session.SessionStorer, error) {
-	auth := os.Getenv(sessionAuthKeyEnvVar)
-	if auth == "" {
-		return nil, fmt.Errorf("%w: missing required value for %s", trails.ErrBadConfig, sessionAuthKeyEnvVar)
+// Both KEY env vars be valid hex encoded values.
+func defaultSessionStore(env trails.Environment) (session.SessionStorer, error) {
+	appName := os.Getenv(appTitleEnvVar)
+	if appName == "" {
+		return nil, fmt.Errorf("%w: APP_TITLE cannot be unset, got %q", trails.ErrBadConfig, appName)
 	}
 
-	encrypt := os.Getenv(sessionEncryptKeyEnvVar)
-	if encrypt == "" {
-		return nil, fmt.Errorf("%w: missing required value for %s", trails.ErrBadConfig, sessionEncryptKeyEnvVar)
+	appName = cases.Lower(language.English).String(appName)
+	appName = regexp.MustCompile(`[,':]`).ReplaceAllString(appName, "")
+	appName = regexp.MustCompile(`\s`).ReplaceAllString(appName, "-")
+
+	cfg := session.Config{
+		AuthKey:     os.Getenv(sessionAuthKeyEnvVar),
+		EncryptKey:  os.Getenv(sessionEncryptKeyEnvVar),
+		Env:         env,
+		SessionName: "trails-" + appName,
 	}
 
 	args := []session.ServiceOpt{
@@ -242,14 +254,7 @@ func defaultSessionStore(env trails.Environment, kr keyring.Keyringable) (sessio
 		session.WithMaxAge(3600 * 24 * 7),
 	}
 
-	return session.NewStoreService(
-		env,
-		auth,
-		encrypt,
-		kr.SessionKey().String(),
-		kr.CurrentUserKey().String(),
-		args...,
-	)
+	return session.NewStoreService(cfg, args...)
 }
 
 // defaultServer constructs a default *http.Server.
