@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/xy-planning-network/trails/http/keyring"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/session"
 )
@@ -29,14 +29,14 @@ type UserStorer func(id uint) (User, error)
 // CurrentUser checks whether the "Accept" MIME type is "application/json"
 // and write a status code if so.
 // If it isn't, CurrentUser redirects to the Responder's root URL.
-func CurrentUser(d *resp.Responder, storer UserStorer, sessionKey, userKey keyring.Keyable) Adapter {
-	if d == nil || storer == nil || sessionKey == nil || userKey == nil {
+func CurrentUser(d *resp.Responder, storer UserStorer) Adapter {
+	if d == nil || storer == nil {
 		return NoopAdapter
 	}
 
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			s, ok := r.Context().Value(sessionKey).(session.TrailsSessionable)
+			s, ok := r.Context().Value(trails.SessionKey).(session.Session)
 			if !ok {
 				handleErr(w, r, http.StatusUnauthorized, d, nil)
 				return
@@ -82,7 +82,7 @@ func CurrentUser(d *resp.Responder, storer UserStorer, sessionKey, userKey keyri
 			w.Header().Add("Cache-control", "no-store")
 			w.Header().Add("Pragma", "no-cache")
 
-			ctx := context.WithValue(r.Context(), userKey, user)
+			ctx := context.WithValue(r.Context(), trails.CurrentUserKey, user)
 			handler.ServeHTTP(w, r.Clone(ctx))
 		})
 	}
@@ -98,10 +98,10 @@ func CurrentUser(d *resp.Responder, storer UserStorer, sessionKey, userKey keyri
 // RequireUnauthed writes 400 to the client.
 // If the request does not have that value in it's header,
 // RequireUnauthed redirect to User's HomePath.
-func RequireUnauthed(key keyring.Keyable) Adapter {
+func RequireUnauthed() Adapter {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if cu, ok := r.Context().Value(key).(User); ok {
+			if cu, ok := r.Context().Value(trails.CurrentUserKey).(User); ok {
 				vs := r.Header.Values("Accept")
 				for _, v := range vs {
 					if strings.Compare(v, "application/json") == 0 {
@@ -119,7 +119,7 @@ func RequireUnauthed(key keyring.Keyable) Adapter {
 	}
 }
 
-/// RequireAuthed returns a middleware.Adapter that checks whether a User is authenticated,
+// / RequireAuthed returns a middleware.Adapter that checks whether a User is authenticated,
 // and requires they be authenticated.
 // When the User is authenticated, then RequireAuthed hands off to the next part of the middleware chain.
 //
@@ -132,10 +132,10 @@ func RequireUnauthed(key keyring.Keyable) Adapter {
 //
 // The URL originally requested is appended to as a "next" query param
 // when the request method is GET and the endpoint is not the logoff URL.
-func RequireAuthed(key keyring.Keyable, loginUrl, logoffUrl string) Adapter {
+func RequireAuthed(loginUrl, logoffUrl string) Adapter {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if _, ok := r.Context().Value(key).(User); !ok {
+			if _, ok := r.Context().Value(trails.CurrentUserKey).(User); !ok {
 				vs := r.Header.Values("Accept")
 				for _, v := range vs {
 					if strings.Compare(v, "application/json") == 0 {

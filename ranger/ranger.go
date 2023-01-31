@@ -11,7 +11,6 @@ import (
 
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/xy-planning-network/trails"
-	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
@@ -37,7 +36,6 @@ type Ranger struct {
 	ctx       context.Context
 	db        postgres.DatabaseService
 	env       trails.Environment
-	kr        keyring.Keyringable
 	l         logger.Logger
 	shutdowns []ShutdownFn
 	srv       *http.Server
@@ -46,7 +44,7 @@ type Ranger struct {
 // New constructs a Ranger from the provided options.
 // Default options are applied first followed by the options passed into New.
 // Options supplied to New overwrite default configurations.
-func New[User RangerUser](cfg Config[U]) (*Ranger, error) {
+func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	err := cfg.Valid()
 	if err != nil {
 		return nil, err
@@ -59,20 +57,20 @@ func New[User RangerUser](cfg Config[U]) (*Ranger, error) {
 	r.l = defaultLogger()
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
-	r.db, err = defaultDB(r.env, c.Migrations)
+	r.db, err = defaultDB(r.env, cfg.Migrations)
 	if err != nil {
 		return nil, err
 	}
 
 	url := trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
-	r.Responder = defaultResponder(r.l, url, defaultParser(r.env, url, cfg.FS), cfg.Keyring)
+	r.Responder = defaultResponder(r.l, url, defaultParser(r.env, url, cfg.FS), cfg.CtxKeys)
 
-	sess, err := defaultSessionStore(r.env, r.kr)
+	sess, err := defaultSessionStore(r.env)
 	if err != nil {
 		return nil, err
 	}
 
-	r.userstore = cfg.defaultUserStore(r.db)
+	userstore := cfg.defaultUserStore(r.db)
 	mws := make([]middleware.Adapter, 0)
 	// NOTE(dlk): PRODUCTION only middlewares
 	if r.env.IsProduction() {
@@ -84,11 +82,11 @@ func New[User RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	mws = append(
 		mws,
-		middleware.RequestID(r.kr.Key("RequestID")),
+		middleware.RequestID(),
 		middleware.InjectIPAddress(),
 		middleware.LogRequest(r.l),
-		middleware.InjectSession(sess, r.kr.SessionKey()),
-		middleware.CurrentUser(r.Responder, userstore, r.kr.SessionKey(), r.kr.CurrentUserKey()),
+		middleware.InjectSession(sess),
+		middleware.CurrentUser(r.Responder, userstore),
 	)
 	r.Router = defaultRouter(r.env, url, r.Responder, mws)
 	r.srv = defaultServer(r.ctx)

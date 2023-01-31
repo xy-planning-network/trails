@@ -1,9 +1,5 @@
 package session
 
-import (
-	"net/http"
-)
-
 const (
 	// Default Flash Type
 	FlashError   = "error"
@@ -21,13 +17,6 @@ const (
 )
 
 var ContactUsErr = DefaultErrMsg + " Please contact us at %s if the issue persists."
-
-// FlashSessionable defines the behavior of a session that includes flashes in it.
-type FlashSessionable interface {
-	ClearFlashes(w http.ResponseWriter, r *http.Request)
-	Flashes(w http.ResponseWriter, r *http.Request) []Flash
-	SetFlash(w http.ResponseWriter, r *http.Request, flash Flash) error
-}
 
 // A Flash is a structured message set in a session.
 type Flash struct {
