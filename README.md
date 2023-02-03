@@ -10,7 +10,7 @@ Trails provides libraries for quickly building web applications that have standa
 
 ## So, what's in here?
 ### `ranger/`
-A trails app is set managed and guided by a `\*ranger.Ranger`. A `\*ranger.Ranger` composes the different tools trails makes available and provides opinionated defaults. It is as simple as:
+A trails app is set managed and guided by a `*ranger.Ranger`. A `*ranger.Ranger` composes the different tools trails makes available and provides opinionated defaults. It is as simple as:
 ```go 
 package main
 

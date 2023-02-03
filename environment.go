@@ -94,8 +94,8 @@ func EnvVarOrBool(key string, def bool) bool {
 }
 
 // EnvVarOrDuration gets the environment variable for the provided key,
-// parses it into a time.Duration, or, returns
-// the default time.Duration.
+// parses it into a [time.Duration], or, returns
+// the default [time.Duration].
 func EnvVarOrDuration(key string, def time.Duration) time.Duration {
 	val := os.Getenv(key)
 	d, err := time.ParseDuration(val)
@@ -106,8 +106,8 @@ func EnvVarOrDuration(key string, def time.Duration) time.Duration {
 }
 
 // EnvVarOrEnv gets the environment variable for the provided key,
-// casts it into an Environment,
-// or returns the provided default Environment if key is not a valid Environment.
+// casts it into an [Environment],
+// or returns the provided default [Environment] if key is not a valid [Environment].
 func EnvVarOrEnv(key string, def Environment) Environment {
 	val := os.Getenv(key)
 	if val == "" {
@@ -123,9 +123,9 @@ func EnvVarOrEnv(key string, def Environment) Environment {
 }
 
 // EnvVarOrLogLevel gets the environment variable for the provided key,
-// creates a logger.LogLevel from the retrieved value,
-// or returns the provided default logger.LogLevel
-// if the value is an unknown logger.LogLevel.
+// creates a [logger.LogLevel] from the retrieved value,
+// or returns the provided default [logger.LogLevel]
+// if the value is an unknown [logger.LogLevel].
 func EnvVarOrLogLevel(key string, def logger.LogLevel) logger.LogLevel {
 	val := os.Getenv(key)
 	if val == "" {
