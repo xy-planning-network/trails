@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/logger"
 )
@@ -258,7 +259,7 @@ func Url(u string) Fn {
 //				"currentUser": r.user,
 //			},
 //			...key-value pairs set by Data
-//			...key-value pairs set by d.ctxKeys
+//			...key-value pairs set using trails.AppPropsKey
 //		},
 //		...key-value pairs set by Data
 //	}
@@ -325,7 +326,6 @@ func Url(u string) Fn {
 //
 // It is not required to set any keys for pulling additional values
 // out of the *http.Request.Context.
-// Use WithCtxKeys to do so when applicable.
 func Vue(entry string) Fn {
 	return func(d Responder, r *Response) error {
 		if d.templates.vue == "" || entry == "" {
@@ -345,10 +345,8 @@ func Vue(entry string) Fn {
 		}
 
 		props := map[string]any{"initialProps": init}
-		for _, k := range d.ctxKeys {
-			if val := r.r.Context().Value(k); val != nil {
-				props[string(k)] = val
-			}
+		if val := r.r.Context().Value(trails.AppPropsKey); val != nil {
+			props[string(trails.AppPropsKey)] = val
 		}
 
 		switch t := r.data.(type) {

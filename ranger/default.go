@@ -185,7 +185,7 @@ func defaultParser(env trails.Environment, url *url.URL, files fs.FS) template.P
 }
 
 // defaultResponder configures the*&resp.Responder to be used by http.Handlers.
-func defaultResponder(l logger.Logger, url *url.URL, p template.Parser, ctxKeys []trails.Key) *resp.Responder {
+func defaultResponder(l logger.Logger, url *url.URL, p template.Parser) *resp.Responder {
 	args := []resp.ResponderOptFn{
 		resp.WithRootUrl(url.String()),
 		resp.WithLogger(l),
@@ -194,10 +194,6 @@ func defaultResponder(l logger.Logger, url *url.URL, p template.Parser, ctxKeys 
 		resp.WithErrTemplate(defaultErrTmpl),
 		resp.WithUnauthTemplate(defaultUnauthedTmpl),
 		resp.WithVueTemplate(defaultVueTmpl),
-	}
-
-	if len(ctxKeys) > 0 {
-		args = append(args, resp.WithCtxKeys(ctxKeys...))
 	}
 
 	return resp.NewResponder(args...)

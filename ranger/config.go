@@ -18,7 +18,6 @@ type Config[U RangerUser] struct {
 	// in all Ranger methods or references to Ranger.
 	// Config ought to be restricted to New.
 
-	CtxKeys    []trails.Key
 	FS         fs.FS
 	Migrations []postgres.Migration
 	Shutdowns  []ShutdownFn
