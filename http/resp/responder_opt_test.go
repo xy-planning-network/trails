@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
@@ -24,33 +23,6 @@ func TestResponderWithContactErrMsg(t *testing.T) {
 	expected := fmt.Sprintf(session.ContactUsErr, "us@example.com")
 	d := NewResponder(WithContactErrMsg(expected))
 	require.Equal(t, expected, d.contactErrMsg)
-}
-
-func TestResponderWithCtxKeys(t *testing.T) {
-	// NOTE(dlk): this tests multiple calls to CtxKeys
-	// to ensure determinative output
-	tcs := []struct {
-		name     string
-		keys     []trails.Key
-		expected []trails.Key
-	}{
-		{"Nil", nil, []trails.Key(nil)},
-		{"Zero-Value", make([]trails.Key, 0), []trails.Key(nil)},
-		{"Many-Zero-Value", make([]trails.Key, 99), []trails.Key{}},
-		{"Sorted", []trails.Key{"e", "c", "a", "d"}, []trails.Key{"a", "c", "d", "e"}},
-		{"Uniqued", []trails.Key{"a", "a", "a"}, []trails.Key{"a"}},
-		{"Filtered-Zero-Value", []trails.Key{"", "b", "", "a", ""}, []trails.Key{"a", "b"}},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			d := &Responder{}
-			for _, k := range tc.keys {
-				WithCtxKeys(k)(d)
-			}
-			require.Equal(t, tc.expected, d.ctxKeys)
-		})
-	}
 }
 
 func TestResponderWithErrTemplate(t *testing.T) {

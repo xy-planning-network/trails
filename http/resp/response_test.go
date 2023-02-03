@@ -667,8 +667,6 @@ func TestVue(t *testing.T) {
 	good, err := url.ParseRequestURI("https://example.com/test")
 	require.Nil(t, err)
 
-	aKey := trails.Key("ctx")
-
 	tcs := []struct {
 		name   string
 		d      Responder
@@ -738,26 +736,8 @@ func TestVue(t *testing.T) {
 			},
 		},
 		{
-			"With-CtxKeys",
-			Responder{templates: templatesTest{vue: "vue.tmpl"}, ctxKeys: []trails.Key{aKey}},
-			&Response{user: "test"},
-			"test",
-			func(t *testing.T, tmpls []string, data any, err error) {
-				require.Nil(t, err)
-				require.Equal(t, "vue.tmpl", tmpls[0])
-
-				actualData, ok := data.(map[string]any)
-				require.True(t, ok)
-				require.Equal(t, "test", actualData["entry"])
-
-				actualProps, ok := actualData["props"].(map[string]any)
-				require.True(t, ok)
-				require.Equal(t, 1, actualProps[string(aKey)])
-			},
-		},
-		{
 			"With-All",
-			Responder{templates: templatesTest{vue: "vue.tmpl"}, rootUrl: good, ctxKeys: []trails.Key{aKey}},
+			Responder{templates: templatesTest{vue: "vue.tmpl"}, rootUrl: good},
 			&Response{user: 1, tmpls: []string{"test.tmpl"}, data: map[string]any{"entry": "not-test", "other": 1}},
 			"test",
 			func(t *testing.T, tmpls []string, data any, err error) {
@@ -785,7 +765,7 @@ func TestVue(t *testing.T) {
 			// Arrange
 			req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
 			require.Nil(t, err)
-			tc.r.r = req.Clone(context.WithValue(req.Context(), aKey, 1))
+			tc.r.r = req.Clone(context.WithValue(req.Context(), trails.AppPropsKey, 1))
 
 			// Act
 			err = Vue(tc.entry)(tc.d, tc.r)

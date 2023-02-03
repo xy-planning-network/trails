@@ -63,7 +63,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	}
 
 	url := trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
-	r.Responder = defaultResponder(r.l, url, defaultParser(r.env, url, cfg.FS), cfg.CtxKeys)
+	r.Responder = defaultResponder(r.l, url, defaultParser(r.env, url, cfg.FS))
 
 	sess, err := defaultSessionStore(r.env)
 	if err != nil {
