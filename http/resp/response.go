@@ -192,6 +192,46 @@ func Tmpls(fps ...string) Fn {
 	}
 }
 
+// Toolbox includes the toolbox in the data to be rendered.
+// Toolbox should be called after Data.
+// Toolbox only supports including the provided toolbox
+// in the data if it is map[string]any.
+//
+// Multiple calls to Toolbox results in merging the trails.Tools together.
+func Toolbox(toolbox trails.Toolbox) Fn {
+	toolbox = toolbox.Filter()
+	if len(toolbox) == 0 {
+		return func(Responder, *Response) error { return nil }
+	}
+
+	return func(d Responder, r *Response) error {
+		if r.data == nil {
+			return fmt.Errorf("%w: cannot set Toolbox() before Data()", trails.ErrMissingData)
+		}
+
+		data, ok := r.data.(map[string]any)
+		if !ok {
+			return nil
+		}
+
+		props, ok := data["props"].(map[string]any)
+		if !ok {
+			props = make(map[string]any)
+		}
+
+		prev, ok := props["toolbox"].(trails.Toolbox)
+		if !ok {
+			prev = make(trails.Toolbox, 0)
+		}
+
+		prev = append(prev, toolbox...)
+		props["toolbox"] = prev
+		data["props"] = props
+
+		return Data(data)(d, r)
+	}
+}
+
 // ToRoot calls URL with the Responder's default, root URL.
 func ToRoot() Fn {
 	return func(d Responder, r *Response) error {
