@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type Config[User RangerUser] struct {
+type Config[U RangerUser] struct {
 	// NOTE(dlk): Ranger can accept a type parameter also.
 	// Config was chosen to minimize proliferating generic type parameters
 	// in all Ranger methods or references to Ranger.
@@ -21,7 +21,7 @@ type Config[User RangerUser] struct {
 // defaultUserStore constructs a function matching the signature of middleware.UserStorer.
 // This function pulls the User from the db by ID,
 // preloading all top-level associations.
-func (Config[User]) defaultUserStore(db postgres.DatabaseService) middleware.UserStorer {
+func (Config[U]) defaultUserStore(db postgres.DatabaseService) middleware.UserStorer {
 	findByID := db.FindByID
 
 	// NOTE(dlk): if ranger.Ranger.db was a *postgres.DatabaseServiceImpl
@@ -35,7 +35,7 @@ func (Config[User]) defaultUserStore(db postgres.DatabaseService) middleware.Use
 	}
 
 	return func(id uint) (middleware.User, error) {
-		var user User
+		var user U
 		err := findByID(&user, id)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = fmt.Errorf("%w: User %d", trails.ErrNotExist, id)

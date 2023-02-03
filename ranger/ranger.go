@@ -53,7 +53,7 @@ type Ranger struct {
 // New constructs a Ranger from the provided options.
 // Default options are applied first followed by the options passed into New.
 // Options supplied to New overwrite default configurations.
-func New[User RangerUser](c Config[User], opts ...RangerOption) (*Ranger, error) {
+func New[User RangerUser](cfg Config[U], opts ...RangerOption) (*Ranger, error) {
 	r := new(Ranger)
 	followups := make([]OptFollowup, 0)
 
@@ -77,7 +77,7 @@ func New[User RangerUser](c Config[User], opts ...RangerOption) (*Ranger, error)
 		}
 	}
 
-	r.userstore = c.defaultUserStore(r.db)
+	r.userstore = cfg.defaultUserStore(r.db)
 
 	for _, fn := range followups {
 		if err := fn(); err != nil {
