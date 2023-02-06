@@ -29,7 +29,7 @@ func TestCurrentUser(t *testing.T) {
 	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", actual))
 
 	// Arrange + Act
-	actual = middleware.CurrentUser(resp.NewResponder(), testUserStore(testUser(true)), nil, nil)
+	actual = middleware.CurrentUser(resp.NewResponder(), newTestUserStore(true), nil, nil)
 
 	// Assert
 	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", actual))
@@ -44,7 +44,7 @@ func TestCurrentUser(t *testing.T) {
 	// Act
 	middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com/test")),
-		testUserStore(testUser(true)),
+		newTestUserStore(true),
 		sessKey,
 		userKey,
 	)(teapotHandler()).ServeHTTP(w, r)
@@ -61,7 +61,7 @@ func TestCurrentUser(t *testing.T) {
 	// Act
 	middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
-		testUserStore(testUser(true)),
+		newTestUserStore(true),
 		sessKey,
 		userKey,
 	)(teapotHandler()).ServeHTTP(w, r)
@@ -78,7 +78,7 @@ func TestCurrentUser(t *testing.T) {
 	// Act
 	actual = middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
-		testUserStore(testUser(true)),
+		newTestUserStore(true),
 		sessKey,
 		userKey,
 	)
@@ -99,7 +99,7 @@ func TestCurrentUser(t *testing.T) {
 	// Act
 	middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
-		failedUserStore(testUser(true)),
+		newFailedUserStore(true),
 		sessKey,
 		userKey,
 	)(teapotHandler()).ServeHTTP(w, r)
@@ -116,7 +116,7 @@ func TestCurrentUser(t *testing.T) {
 	// Act
 	middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
-		testUserStore(testUser(false)),
+		newTestUserStore(false),
 		sessKey,
 		userKey,
 	)(teapotHandler()).ServeHTTP(w, r)
@@ -133,7 +133,7 @@ func TestCurrentUser(t *testing.T) {
 	// Act
 	actual = middleware.CurrentUser(
 		resp.NewResponder(resp.WithRootUrl("https://example.com")),
-		testUserStore(testUser(true)),
+		newTestUserStore(true),
 		sessKey,
 		userKey,
 	)

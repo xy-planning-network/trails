@@ -18,9 +18,7 @@ type User interface {
 }
 
 // UserStorer defines how to retrieve a User by an ID in the context of middleware.
-type UserStorer interface {
-	GetByID(id uint) (User, error)
-}
+type UserStorer func(id uint) (User, error)
 
 // CurrentUser pulls the User out of the session.UserSessionable stored in the *http.Request.Context.
 //
@@ -31,8 +29,8 @@ type UserStorer interface {
 // CurrentUser checks whether the "Accept" MIME type is "application/json"
 // and write a status code if so.
 // If it isn't, CurrentUser redirects to the Responder's root URL.
-func CurrentUser(d *resp.Responder, store UserStorer, sessionKey, userKey keyring.Keyable) Adapter {
-	if d == nil || store == nil || sessionKey == nil || userKey == nil {
+func CurrentUser(d *resp.Responder, storer UserStorer, sessionKey, userKey keyring.Keyable) Adapter {
+	if d == nil || storer == nil || sessionKey == nil || userKey == nil {
 		return NoopAdapter
 	}
 
@@ -53,7 +51,7 @@ func CurrentUser(d *resp.Responder, store UserStorer, sessionKey, userKey keyrin
 				return
 			}
 
-			user, err := store.GetByID(uid)
+			user, err := storer(uid)
 			if err != nil {
 				if err := s.Delete(w, r); err != nil {
 					handleErr(w, r, http.StatusInternalServerError, d, err)

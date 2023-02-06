@@ -29,13 +29,17 @@ func (testUser) HomePath() string  { return "/" }
 func (testUser) GetEmail() string  { return "user@example.com" }
 func (testUser) GetID() uint       { return 1 }
 
-type testUserStore testUser
+func newTestUserStore(b bool) middleware.UserStorer {
+	return func(_ uint) (middleware.User, error) {
+		return testUser(b), nil
+	}
+}
 
-func (s testUserStore) GetByID(_ uint) (middleware.User, error) { return testUser(s), nil }
-
-type failedUserStore testUser
-
-func (s failedUserStore) GetByID(_ uint) (middleware.User, error) { return testUser(s), errors.New("") }
+func newFailedUserStore(b bool) middleware.UserStorer {
+	return func(_ uint) (middleware.User, error) {
+		return testUser(b), errors.New("")
+	}
+}
 
 func teapotHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

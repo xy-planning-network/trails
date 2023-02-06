@@ -3,8 +3,6 @@ package ranger
 import (
 	"context"
 	"embed"
-	"errors"
-	"fmt"
 	"io/fs"
 	"net"
 	"net/http"
@@ -22,7 +20,6 @@ import (
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
-	"gorm.io/gorm"
 )
 
 const (
@@ -94,6 +91,7 @@ const (
 
 var (
 	defaultBaseURL, _ = url.ParseRequestURI("http://" + DefaultHost + DefaultPort)
+	setupLog          logger.Logger
 
 	//go:embed tmpl/*
 	tmpls embed.FS
@@ -341,34 +339,13 @@ func DefaultRouter() RangerOption {
 			mws = append(
 				mws,
 				middleware.InjectSession(rng.sessions, rng.kr.SessionKey()),
+				middleware.CurrentUser(
+					rng.Responder,
+					rng.userstore,
+					rng.kr.SessionKey(),
+					rng.kr.CurrentUserKey(),
+				),
 			)
-
-			if rng.users == nil && rng.db != nil {
-				if _, err = WithUserSessions(defaultUserStorer{rng.db})(rng); err != nil {
-					return err
-				}
-
-				msg := "using default user store for sessions, " +
-					"users in http.Request.Contexts will be trails.User " +
-					"and not your application's type"
-				setupLog.Debug(msg, nil)
-			}
-
-			if rng.users != nil {
-				mws = append(
-					mws,
-					middleware.CurrentUser(
-						rng.Responder,
-						rng.users,
-						rng.kr.SessionKey(),
-						rng.kr.CurrentUserKey(),
-					),
-				)
-			} else if trails.EnvVarOrBool(useUserSessionsEnvVar, true) {
-				msg := "misconfigured user sessions: you may be missing a database connection " +
-					"or a custom middleware.UserStorer; review ranger.WithUserSessions for correct usage"
-				setupLog.Debug(msg, nil)
-			}
 
 			r := router.NewRouter(rng.env.String())
 			r.OnEveryRequest(mws...)
@@ -462,23 +439,4 @@ func defaultServer(ctx context.Context) *http.Server {
 	}
 
 	return srv
-}
-
-type defaultUserStorer struct {
-	postgres.DatabaseService
-}
-
-// GetByID retrieves the middleware.User matching the ID.
-func (store defaultUserStorer) GetByID(id uint) (middleware.User, error) {
-	user := new(trails.User)
-	err := store.FindByID(user, id)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		err = fmt.Errorf("%w: User %d", trails.ErrNotExist, id)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
 }
