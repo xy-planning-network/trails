@@ -468,6 +468,102 @@ func TestTmpls(t *testing.T) {
 	})
 }
 
+func TestToolbox(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		dataInput any
+		input     trails.Toolbox
+		assert    func(t *testing.T, data any, err error)
+	}{
+		{
+			"Zero-Value",
+			nil,
+			make(trails.Toolbox, 0),
+			func(t *testing.T, output any, err error) {
+				require.ErrorIs(t, err, trails.ErrMissingData)
+				require.Nil(t, output)
+			},
+		},
+		{
+			"No-Renderable-Tools",
+			map[string]any{"props": make(map[string]any)},
+			trails.Toolbox{{Actions: nil}},
+			func(t *testing.T, output any, err error) {
+				require.Nil(t, err)
+
+				data, ok := output.(map[string]any)
+				require.True(t, ok)
+
+				props, ok := data["props"].(map[string]any)
+				require.True(t, ok)
+
+				actual, ok := props["toolbox"]
+				require.False(t, ok)
+				require.Nil(t, actual)
+			},
+		},
+		{
+			"New-One",
+			make(map[string]any),
+			trails.Toolbox{trails.Tool{Actions: make([]trails.ToolAction, 1)}},
+			func(t *testing.T, output any, err error) {
+				require.Nil(t, err)
+
+				data, ok := output.(map[string]any)
+				require.True(t, ok)
+
+				props, ok := data["props"].(map[string]any)
+				require.True(t, ok)
+
+				actual, ok := props["toolbox"].(trails.Toolbox)
+				require.True(t, ok)
+				require.Equal(t, trails.Toolbox{trails.Tool{Actions: make([]trails.ToolAction, 1)}}, actual)
+			},
+		},
+		{
+			"Add-One",
+			map[string]any{
+				"props": map[string]any{
+					"other":   true,
+					"toolbox": trails.Toolbox{trails.Tool{Actions: []trails.ToolAction{{Name: "preexisting"}}}},
+				},
+			},
+			trails.Toolbox{trails.Tool{Actions: []trails.ToolAction{{Name: "new"}}}},
+			func(t *testing.T, output any, err error) {
+				require.Nil(t, err)
+
+				data, ok := output.(map[string]any)
+				require.True(t, ok)
+
+				props, ok := data["props"].(map[string]any)
+				require.True(t, ok)
+
+				other, ok := props["other"].(bool)
+				require.True(t, ok)
+				require.True(t, other)
+
+				actual, ok := props["toolbox"].(trails.Toolbox)
+				require.True(t, ok)
+				require.Len(t, actual, 2)
+				require.Equal(t, "preexisting", actual[0].Actions[0].Name)
+				require.Equal(t, "new", actual[1].Actions[0].Name)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			d := Responder{}
+			r := &Response{data: tc.dataInput}
+
+			// Act
+			err := Toolbox(tc.input)(d, r)
+
+			// Assert
+			tc.assert(t, r.data, err)
+		})
+	}
+}
+
 func TestToRoot(t *testing.T) {
 	good, err := url.ParseRequestURI("https://example.com/test")
 	require.Nil(t, err)
