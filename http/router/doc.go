@@ -1,5 +1,4 @@
 /*
-
 Package router defines what an HTTP server is and a default implementation of it.
 
 The package defines what a web server router does in Trails through [Router]
@@ -23,6 +22,5 @@ Thus, a [Router] provides conveniences for making a single call to register many
 A Router expects two such groups of routes:
 those pointing to resources, alternatively, outside of or behind authentication barriers.
 The UnauthedRoutes and AuthedRoutes methods ensure routes are registered in the appropriate way, consequently.
-
 */
 package router

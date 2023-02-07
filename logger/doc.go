@@ -1,5 +1,4 @@
 /*
-
 Package logger provides logging functionality to a trails app by defining the required behavior in [Logger]
 and providing an implementation of it with [TrailsLogger].
 
@@ -26,6 +25,7 @@ Log messages emitted by [TrailsLogger] are composed of a few parts:
 	- log context
 
 Here's an example:
+
 	2022/04/28 15:55:21 [DEBUG] web/dashboard_handler.go:43 'such fun!' log_context: "{"user":"{"id": 1, "email": "trails@example.com"}}"
 
 The file, line number, and parent directory of where a [TrailsLogger] comprise the call site.
@@ -39,5 +39,7 @@ but provides a fuller picture of the application state at the time of logging.
 Sometimes, especially with internal packages, the file and line number in a log needs to be configurable.
 [SkipLogger] provides additional configuration functionality by setting the number of frames to skip
 back in order to reach the desired caller.
+
+For an example use case, review http/resp.
 */
 package logger

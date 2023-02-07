@@ -1,10 +1,8 @@
 /*
-
 Package templatetest exposes a mock fs.FS that implements basic file operations.
 Used in unit tests for the purposes of avoiding the use of testdata/ directories when unit testing template rendering.
 
 Cribbed from Mark Bates: https://www.gopherguides.com/articles/golang-1.16-io-fs-improve-test-performance
-
 */
 package templatetest
 

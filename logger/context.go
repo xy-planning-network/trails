@@ -117,11 +117,11 @@ func (lc LogContext) String() string {
 // CurrentCaller retrieves the caller for the caller of CurrentCaller,
 // formatted for using as a value in LogContext.Caller.
 //
-//  myFunc() { 		<- returns this caller
-//		func() {
-//			CurrentCaller()
-//		}()
-//  }
+//	 myFunc() { 		<- returns this caller
+//			func() {
+//				CurrentCaller()
+//			}()
+//	 }
 func CurrentCaller() string {
 	_, file, line, _ := runtime.Caller(2)
 	return fmt.Sprintf(callerTmpl, immediateFilepath(file), line)
