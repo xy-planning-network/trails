@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"net/url"
 
-	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 )
@@ -29,19 +28,6 @@ func WithAuthTemplate(fp string) func(*Responder) {
 func WithContactErrMsg(msg string) func(*Responder) {
 	return func(d *Responder) {
 		d.contactErrMsg = msg
-	}
-}
-
-// WithCtxKeys appends the provided keys to be used for retrieving values from the *http.Request.Context.
-//
-// WithCtxKeys deduplicates keys and filters out zero-value strings.
-func WithCtxKeys(keys ...trails.Key) func(*Responder) {
-	return func(d *Responder) {
-		for _, k := range keys {
-			d.ctxKeys = append(d.ctxKeys, k)
-		}
-
-		d.ctxKeys = trails.ByKey(d.ctxKeys).UniqueSort()
 	}
 }
 

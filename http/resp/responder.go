@@ -51,9 +51,6 @@ type Responder struct {
 	// Root URL the responder is listening on, also used when in an error state
 	rootUrl *url.URL
 
-	// Keys for pulling specific values out of the *http.Request.Context
-	ctxKeys []trails.Key
-
 	templates struct {
 		// Root template to render when user is authenticated
 		authed string

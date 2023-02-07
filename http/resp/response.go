@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/logger"
 )
@@ -191,6 +192,46 @@ func Tmpls(fps ...string) Fn {
 	}
 }
 
+// Toolbox includes the toolbox in the data to be rendered.
+// Toolbox should be called after Data.
+// Toolbox only supports including the provided toolbox
+// in the data if it is map[string]any.
+//
+// Multiple calls to Toolbox results in merging the trails.Tools together.
+func Toolbox(toolbox trails.Toolbox) Fn {
+	toolbox = toolbox.Filter()
+	if len(toolbox) == 0 {
+		return func(Responder, *Response) error { return nil }
+	}
+
+	return func(d Responder, r *Response) error {
+		if r.data == nil {
+			return fmt.Errorf("%w: cannot set Toolbox() before Data()", trails.ErrMissingData)
+		}
+
+		data, ok := r.data.(map[string]any)
+		if !ok {
+			return nil
+		}
+
+		props, ok := data["props"].(map[string]any)
+		if !ok {
+			props = make(map[string]any)
+		}
+
+		prev, ok := props["toolbox"].(trails.Toolbox)
+		if !ok {
+			prev = make(trails.Toolbox, 0)
+		}
+
+		prev = append(prev, toolbox...)
+		props["toolbox"] = prev
+		data["props"] = props
+
+		return Data(data)(d, r)
+	}
+}
+
 // ToRoot calls URL with the Responder's default, root URL.
 func ToRoot() Fn {
 	return func(d Responder, r *Response) error {
@@ -258,7 +299,7 @@ func Url(u string) Fn {
 //				"currentUser": r.user,
 //			},
 //			...key-value pairs set by Data
-//			...key-value pairs set by d.ctxKeys
+//			...key-value pairs set using trails.AppPropsKey
 //		},
 //		...key-value pairs set by Data
 //	}
@@ -325,7 +366,6 @@ func Url(u string) Fn {
 //
 // It is not required to set any keys for pulling additional values
 // out of the *http.Request.Context.
-// Use WithCtxKeys to do so when applicable.
 func Vue(entry string) Fn {
 	return func(d Responder, r *Response) error {
 		if d.templates.vue == "" || entry == "" {
@@ -345,10 +385,8 @@ func Vue(entry string) Fn {
 		}
 
 		props := map[string]any{"initialProps": init}
-		for _, k := range d.ctxKeys {
-			if val := r.r.Context().Value(k); val != nil {
-				props[string(k)] = val
-			}
+		if val := r.r.Context().Value(trails.AppPropsKey); val != nil {
+			props[string(trails.AppPropsKey)] = val
 		}
 
 		switch t := r.data.(type) {
