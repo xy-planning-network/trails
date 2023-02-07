@@ -13,14 +13,20 @@ import (
 )
 
 type Config[U RangerUser] struct {
-	// NOTE(dlk): Ranger can accept a type parameter also.
+	// NOTE(dlk): Ranger can accept a type parameter also, like how New does.
 	// Config was chosen to minimize proliferating generic type parameters
 	// in all Ranger methods or references to Ranger.
 	// Config ought to be restricted to New.
 
-	FS         fs.FS
+	// FS is the filesystem to find templates in for rendering them.
+	FS fs.FS
+
+	// Migrations are a list of DB migrations to run upon DB successful connection.
 	Migrations []postgres.Migration
-	Shutdowns  []ShutdownFn
+
+	// Shutdowns are a series of functions that ought to be called before *Ranger
+	// stops handling HTTP requests.
+	Shutdowns []ShutdownFn
 }
 
 // Valid asserts the Config has all required data,

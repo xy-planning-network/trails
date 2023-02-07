@@ -29,6 +29,7 @@ type RangerUser interface {
 
 // A Ranger manages and exposes all components of a trails app to one another.
 type Ranger struct {
+	logger.Logger
 	*resp.Responder
 	router.Router
 
@@ -36,7 +37,7 @@ type Ranger struct {
 	ctx       context.Context
 	db        postgres.DatabaseService
 	env       trails.Environment
-	l         logger.Logger
+	metadata  Metadata
 	shutdowns []ShutdownFn
 	srv       *http.Server
 }
@@ -54,7 +55,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	// Setup initial configuration
 	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
-	r.l = defaultLogger()
+	r.Logger = defaultLogger()
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
 	r.db, err = defaultDB(r.env, cfg.Migrations)
@@ -62,10 +63,15 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		return nil, err
 	}
 
-	url := trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
-	r.Responder = defaultResponder(r.l, url, defaultParser(r.env, url, cfg.FS))
+	r.metadata, err = newMetadata()
+	if err != nil {
+		return nil, err
+	}
 
-	sess, err := defaultSessionStore(r.env)
+	url := trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
+	r.Responder = defaultResponder(r.Logger, url, defaultParser(r.env, url, cfg.FS, r.metadata), r.metadata.Contact)
+
+	sess, err := defaultSessionStore(r.env, r.metadata.Title)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +90,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		mws,
 		middleware.RequestID(),
 		middleware.InjectIPAddress(),
-		middleware.LogRequest(r.l),
+		middleware.LogRequest(r.Logger),
 		middleware.InjectSession(sess),
 		middleware.CurrentUser(r.Responder, userstore),
 	)
@@ -94,21 +100,19 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	return r, nil
 }
 
-func (r *Ranger) CancelContext()               { r.cancel() }
-func (r *Ranger) DB() postgres.DatabaseService { return r.db }
-func (r *Ranger) Env() trails.Environment      { return r.env }
-func (r *Ranger) Logger() logger.Logger        { return r.l }
+func (r *Ranger) Context() (context.Context, context.CancelFunc) { return r.ctx, r.cancel }
+func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
+func (r *Ranger) Env() trails.Environment                        { return r.env }
+func (r *Ranger) Metadata() Metadata                             { return r.metadata }
 
 // Guide begins the web server.
 //
 // These, and (*Ranger).Shutdown, stop Guide:
-//
-// - os.Interrupt
-// - os.Kill
-// - syscall.SIGHUP
-// - syscall.SIGINT
-// - syscall.SIGQUIT
-// - syscall.SIGTERM
+//   - os.Interrupt
+//   - syscall.SIGHUP
+//   - syscall.SIGINT
+//   - syscall.SIGQUIT
+//   - syscall.SIGTERM
 func (r *Ranger) Guide() error {
 	if r.ctx == nil {
 		r.ctx, r.cancel = context.WithCancel(context.Background())
@@ -127,28 +131,29 @@ func (r *Ranger) Guide() error {
 	cc := logger.CurrentCaller()
 	go func() {
 		s := <-ch
-		r.l.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: cc})
+		r.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: cc})
 		r.cancel()
 	}()
 
 	go func() {
-		r.l.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: cc})
+		r.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: cc})
 		r.srv.Handler = r.Router
 		if err := r.srv.ListenAndServe(); err != http.ErrServerClosed {
 			err = fmt.Errorf("could not listen: %w", err)
-			r.l.Error(err.Error(), &logger.LogContext{Caller: cc})
+			r.Error(err.Error(), &logger.LogContext{Caller: cc})
 		}
 	}()
 
 	<-r.ctx.Done()
 	close(ch)
 
-	return r.Shutdown()
+	return r.shutdown()
 }
 
-// Shutdown shutdowns the web server.
+// Shutdown shutdowns the web server
+// and cancels the context.Context exposed by *Ranger.Context.
 //
-// If you pass custom ShutdownFns using WithShutdowns,
+// If you pass custom ShutdownFns using Config.Shutdowns,
 // Shutdown calls these before closing the web server.
 //
 // You may want to provide custom ShutdownFns if other services
@@ -157,11 +162,18 @@ func (r *Ranger) Guide() error {
 // In such a case, Ranger continues to accept HTTP requests
 // until these custom ShutdownFns finish.
 // This state of affairs ought to be gracefully handled in your web handlers.
-func (r *Ranger) Shutdown() error {
+func (r *Ranger) Shutdown() {
+	// NOTE(dlk): this misdirection exists to ensure any dependencies on this *Ranger
+	// not using a ShutdownFn can clean themselves up,
+	// given *Ranger has been told to shutdown.
+	r.cancel()
+}
+
+func (r *Ranger) shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ll := r.l
+	ll := r.Logger
 	if sl, ok := ll.(logger.SkipLogger); ok {
 		ll = sl.AddSkip(sl.Skip() + 2)
 	}
@@ -189,6 +201,52 @@ func (r *Ranger) Shutdown() error {
 
 	ll.Info("web server shutdown successfully", nil)
 	return nil
+}
+
+// Metadata captures values set by different env vars
+// used to customize identifying the application to end users.
+//
+// Metadata provides its data through the "metadata" template function.
+type Metadata struct {
+	Contact string
+	Desc    string
+	Title   string
+}
+
+func newMetadata() (Metadata, error) {
+	m := Metadata{
+		Contact: os.Getenv(contactUsEnvVar),
+		Desc:    os.Getenv(appDescEnvVar),
+		Title:   os.Getenv(appTitleEnvVar),
+	}
+
+	if m.Contact == "" {
+		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, contactUsEnvVar)
+		return Metadata{}, err
+
+	}
+
+	if m.Desc == "" {
+		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, appDescEnvVar)
+		return Metadata{}, err
+	}
+
+	if m.Title == "" {
+		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, appTitleEnvVar)
+		return Metadata{}, err
+	}
+
+	return m, nil
+}
+
+func (m Metadata) templateFunc() (string, func(key string) string) {
+	return "metadata", func(key string) string {
+		return map[string]string{
+			"contactUs":   m.Contact,
+			"description": m.Desc,
+			"title":       m.Title,
+		}[key]
+	}
 }
 
 type ShutdownFn func(context.Context) error

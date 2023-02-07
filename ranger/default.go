@@ -31,9 +31,7 @@ const (
 
 	// App metadata
 	appDescEnvVar    = "APP_DESCRIPTION"
-	defaultAppDesc   = "A trails app"
 	appTitleEnvVar   = "APP_TITLE"
-	defaultAppTitle  = "trails"
 	contactUsEnvVar  = "CONTACT_US_EMAIL"
 	defaultContactUs = "hello@xyplanningnetwork.com"
 
@@ -77,8 +75,6 @@ const (
 	// Session defaults
 	sessionAuthKeyEnvVar    = "SESSION_AUTH_KEY"
 	sessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
-	sessionNameEnvVar       = "SESSION_NAME"
-	useUserSessionsEnvVar   = "USE_USER_SESSIONS"
 
 	// Test defaults
 	dbTestHostEnvVar  = "DATABASE_TEST_HOST"
@@ -101,7 +97,7 @@ var (
 
 // defaultDB connects to a Postgres database
 // using default configuration environment variables
-// and runs the list of postgres.Migrations passed in.
+// and runs the list of [postgres.Migration] passed in.
 func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.DatabaseService, error) {
 	var cfg *postgres.CxnConfig
 	url := os.Getenv(dbURLEnvVar)
@@ -138,7 +134,7 @@ func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.Data
 	return postgres.NewService(db), nil
 }
 
-// defaultLogger constructs a logger.Logger.
+// defaultLogger constructs a [logger.Logger].
 func defaultLogger() logger.Logger {
 	logLvl := trails.EnvVarOrLogLevel(logLevelEnvVar, defaultLogLvl)
 	args := []logger.LoggerOptFn{
@@ -149,49 +145,44 @@ func defaultLogger() logger.Logger {
 }
 
 // defaultParser constructs a template.Parser to be used
-// when responding to HTTP requests with *resp.Responder.Html.
+// when responding to HTTP requests with [*http/resp.Responder.Html].
 //
 // defaultParser makes available these functions in an HTML template:
 //
-// - "env"
-// - "metadata"
-// - "nonce"
-// - "rootUrl"
-// - "packTag"
-// - "isDevelopment"
-// - "isStaging"
-// - "isProduction"
-func defaultParser(env trails.Environment, url *url.URL, files fs.FS) template.Parser {
-	title := trails.EnvVarOrString(appTitleEnvVar, defaultAppTitle)
-	desc := trails.EnvVarOrString(appDescEnvVar, defaultAppDesc)
-
+//   - "env"
+//   - "metadata"
+//     - "description" returns the value set by the APP_DESCRIPTION env var
+//     - "title" returns the value set by the APP_TITLE env var
+//   - "nonce"
+//   - "rootUrl"
+//   - "packTag"
+//   - "isDevelopment"
+//   - "isStaging"
+//   - "isProduction"
+func defaultParser(env trails.Environment, url *url.URL, files fs.FS, m Metadata) template.Parser {
 	args := []template.ParserOptFn{
 		template.WithFn(template.Env(env)),
+		template.WithFn("isDevelopment", env.IsDevelopment),
+		template.WithFn("isStaging", env.IsStaging),
+		template.WithFn("isProduction", env.IsProduction),
+		template.WithFn(m.templateFunc()),
 		template.WithFn(template.Nonce()),
-		template.WithFn(template.RootUrl(url)),
-		template.WithFn("isDevelopment", func() bool { return env.IsDevelopment() }),
-		template.WithFn("isStaging", func() bool { return env.IsStaging() }),
-		template.WithFn("isProduction", func() bool { return env.IsProduction() }),
-		template.WithFn("metadata", func(key string) string {
-			return map[string]string{
-				"description": desc,
-				"title":       title,
-			}[key]
-		}),
 		template.WithFn("packTag", template.TagPacker(env, files)),
+		template.WithFn(template.RootUrl(url)),
 	}
 
 	return template.NewParser([]fs.FS{files, tmpls}, args...)
 }
 
-// defaultResponder configures the*&resp.Responder to be used by http.Handlers.
-func defaultResponder(l logger.Logger, url *url.URL, p template.Parser) *resp.Responder {
+// defaultResponder configures the [*resp.Responder] to be used by http.Handlers.
+func defaultResponder(l logger.Logger, url *url.URL, p template.Parser, contact string) *resp.Responder {
 	args := []resp.ResponderOptFn{
-		resp.WithRootUrl(url.String()),
+		resp.WithAuthTemplate(defaultAuthedTmpl),
+		resp.WithContactErrMsg(fmt.Sprintf(session.ContactUsErr, contact)),
+		resp.WithErrTemplate(defaultErrTmpl),
 		resp.WithLogger(l),
 		resp.WithParser(p),
-		resp.WithAuthTemplate(defaultAuthedTmpl),
-		resp.WithErrTemplate(defaultErrTmpl),
+		resp.WithRootUrl(url.String()),
 		resp.WithUnauthTemplate(defaultUnauthedTmpl),
 		resp.WithVueTemplate(defaultVueTmpl),
 	}
@@ -199,7 +190,7 @@ func defaultResponder(l logger.Logger, url *url.URL, p template.Parser) *resp.Re
 	return resp.NewResponder(args...)
 }
 
-// defaultRouter constructs a router.Router to be used by the web server.
+// defaultRouter constructs a [router.Router] to be used by the web server.
 func defaultRouter(
 	env trails.Environment,
 	baseURL *url.URL,
@@ -223,17 +214,12 @@ func defaultRouter(
 // defaultSessionStore constructs a SessionStorer to be used for storing session data.
 //
 // defaultSessionStore relies on three env vars:
-// - "APP_TITLE"
-// - "SESSION_AUTH_KEY"
-// - "SESSION_ENCRYPTION_KEY"
+//   - APP_TITLE
+//   - SESSION_AUTH_KEY
+//   - SESSION_ENCRYPTION_KEY
 //
-// Both KEY env vars be valid hex encoded values.
-func defaultSessionStore(env trails.Environment) (session.SessionStorer, error) {
-	appName := os.Getenv(appTitleEnvVar)
-	if appName == "" {
-		return nil, fmt.Errorf("%w: APP_TITLE cannot be unset, got %q", trails.ErrBadConfig, appName)
-	}
-
+// Both KEY env vars be valid hex encoded values; cf. [encoding/hex].
+func defaultSessionStore(env trails.Environment, appName string) (session.SessionStorer, error) {
 	appName = cases.Lower(language.English).String(appName)
 	appName = regexp.MustCompile(`[,':]`).ReplaceAllString(appName, "")
 	appName = regexp.MustCompile(`\s`).ReplaceAllString(appName, "-")
@@ -253,7 +239,7 @@ func defaultSessionStore(env trails.Environment) (session.SessionStorer, error) 
 	return session.NewStoreService(cfg, args...)
 }
 
-// defaultServer constructs a default *http.Server.
+// defaultServer constructs a default [*http.Server].
 func defaultServer(ctx context.Context) *http.Server {
 	port := trails.EnvVarOrString(portEnvVar, DefaultPort)
 	if port[0] != ':' {
@@ -262,8 +248,8 @@ func defaultServer(ctx context.Context) *http.Server {
 
 	srv := &http.Server{
 		Addr:         port,
-		ReadTimeout:  trails.EnvVarOrDuration(serverReadTimeoutEnvVar, DefaultServerReadTimeout),
 		IdleTimeout:  trails.EnvVarOrDuration(serverIdleTimeoutEnvVar, DefaultServerIdleTimeout),
+		ReadTimeout:  trails.EnvVarOrDuration(serverReadTimeoutEnvVar, DefaultServerReadTimeout),
 		WriteTimeout: trails.EnvVarOrDuration(serverWriteTimeoutEnvVar, DefaultServerWriteTimeout),
 	}
 	if ctx != nil {
