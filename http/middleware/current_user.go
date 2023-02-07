@@ -20,15 +20,15 @@ type User interface {
 // UserStorer defines how to retrieve a User by an ID in the context of middleware.
 type UserStorer func(id uint) (User, error)
 
-// CurrentUser pulls the User out of the session.UserSessionable stored in the *http.Request.Context.
+// CurrentUser uses storer and the session.Session stored in a *http.Request.Context
+// to check the current user has access
+// and then stashes the current user in the *http.Request.Context under the trails.CurrentUserKey.
 //
-// A *resp.Responder is needed to handle cases a CurrentUser cannot be retrieved or does not have access.
+// CurrentUser uses a *resp.Responder to handle cases
+// where a current user cannot be retrieved or does not have access.
 //
-// CurrentUser checks the MIME types of the *http.Request "Accept" header in order to handle
-// those cases.
-// CurrentUser checks whether the "Accept" MIME type is "application/json"
-// and write a status code if so.
-// If it isn't, CurrentUser redirects to the Responder's root URL.
+// In such a case, CurrentUser toggles between *resp.Responder.Redirect or *resp.Responder.Json,
+// choosing the latter if the *http.Request "Accept header MIME type is "application/json".
 func CurrentUser(d *resp.Responder, storer UserStorer) Adapter {
 	if d == nil || storer == nil {
 		return NoopAdapter
@@ -119,7 +119,7 @@ func RequireUnauthed() Adapter {
 	}
 }
 
-// / RequireAuthed returns a middleware.Adapter that checks whether a User is authenticated,
+// RequireAuthed returns a middleware.Adapter that checks whether a User is authenticated,
 // and requires they be authenticated.
 // When the User is authenticated, then RequireAuthed hands off to the next part of the middleware chain.
 //
