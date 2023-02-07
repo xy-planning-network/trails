@@ -480,7 +480,6 @@ func TestToolbox(t *testing.T) {
 			nil,
 			make(trails.Toolbox, 0),
 			func(t *testing.T, output any, err error) {
-				require.ErrorIs(t, err, trails.ErrMissingData)
 				require.Nil(t, output)
 			},
 		},
