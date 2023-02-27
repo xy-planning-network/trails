@@ -9,17 +9,19 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-const cxnStr = "host=%s port=%s user=%s dbname=%s sslmode=disable password=%s"
+// PG Docs: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+const cxnStr = "host=%s port=%s dbname=%s user=%s password=%s sslmode=%s"
 
 // CxnConfig holds connection information used to connect to a PostgreSQL database.
 type CxnConfig struct {
-	Host     string
 	IsTestDB bool
+	URL      string
+	Host     string
 	Port     string
 	Name     string
-	Password string
-	URL      string
 	User     string
+	Password string
+	SSLMode  string
 }
 
 // Connect creates a database connection through GORM according to the connection config and runs all migrations.
@@ -51,13 +53,19 @@ func buildCxnStr(config *CxnConfig) string {
 		return config.URL
 	}
 
+	if config.SSLMode == "" {
+		// PG Docs: https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS
+		config.SSLMode = "prefer"
+	}
+
 	return fmt.Sprintf(
 		cxnStr,
 		config.Host,
 		config.Port,
-		config.User,
 		config.Name,
+		config.User,
 		config.Password,
+		config.SSLMode,
 	)
 }
 
