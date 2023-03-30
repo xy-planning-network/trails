@@ -14,6 +14,7 @@ import (
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
+	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
 )
@@ -38,6 +39,7 @@ type Ranger struct {
 	db        postgres.DatabaseService
 	env       trails.Environment
 	metadata  Metadata
+	sessions  session.SessionStorer
 	shutdowns []ShutdownFn
 	srv       *http.Server
 }
@@ -55,12 +57,16 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	// Setup initial configuration
 	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
-	r.Logger = defaultLogger()
+	r.Logger = defaultLogger(r.env, cfg.logoutput)
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
-	r.db, err = defaultDB(r.env, cfg.Migrations)
-	if err != nil {
-		return nil, err
+	if cfg.mockdb == nil {
+		r.db, err = defaultDB(r.env, cfg.Migrations)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		r.db = cfg.mockdb
 	}
 
 	r.metadata, err = newMetadata()
@@ -68,10 +74,10 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		return nil, err
 	}
 
-	url := trails.EnvVarOrURL(baseURLEnvVar, defaultBaseURL)
+	url := trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
 	r.Responder = defaultResponder(r.Logger, url, defaultParser(r.env, url, cfg.FS, r.metadata), r.metadata.Contact)
 
-	sess, err := defaultSessionStore(r.env, r.metadata.Title)
+	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +97,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		middleware.RequestID(),
 		middleware.InjectIPAddress(),
 		middleware.LogRequest(r.Logger),
-		middleware.InjectSession(sess),
+		middleware.InjectSession(r.sessions),
 		middleware.CurrentUser(r.Responder, userstore),
 	)
 	r.Router = defaultRouter(r.env, url, r.Responder, mws)
@@ -104,6 +110,7 @@ func (r *Ranger) Context() (context.Context, context.CancelFunc) { return r.ctx,
 func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
 func (r *Ranger) Env() trails.Environment                        { return r.env }
 func (r *Ranger) Metadata() Metadata                             { return r.metadata }
+func (r *Ranger) SessionStore() session.SessionStorer            { return r.sessions }
 
 // Guide begins the web server.
 //
@@ -215,24 +222,24 @@ type Metadata struct {
 
 func newMetadata() (Metadata, error) {
 	m := Metadata{
-		Contact: os.Getenv(contactUsEnvVar),
-		Desc:    os.Getenv(appDescEnvVar),
-		Title:   os.Getenv(appTitleEnvVar),
+		Contact: trails.EnvVarOrString(ContactUsEnvVar, defaultContactUs),
+		Desc:    os.Getenv(AppDescEnvVar),
+		Title:   os.Getenv(AppTitleEnvVar),
 	}
 
 	if m.Contact == "" {
-		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, contactUsEnvVar)
+		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, ContactUsEnvVar)
 		return Metadata{}, err
 
 	}
 
 	if m.Desc == "" {
-		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, appDescEnvVar)
+		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, AppDescEnvVar)
 		return Metadata{}, err
 	}
 
 	if m.Title == "" {
-		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, appTitleEnvVar)
+		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, AppTitleEnvVar)
 		return Metadata{}, err
 	}
 

@@ -212,6 +212,7 @@ func TestResponderRaw(t *testing.T) {
 }
 
 func TestResponderRedirect(t *testing.T) {
+	otherURL := "http://otherexample.com"
 	tcs := []struct {
 		name   string
 		fns    []resp.Fn
@@ -240,13 +241,13 @@ func TestResponderRedirect(t *testing.T) {
 				resp.Params(map[string]string{"go": "fun"}),
 				resp.Params(map[string]string{"params": "4"}),
 				resp.Params(map[string]string{"good": "times"}),
-				resp.Url("http://example.com/redirect"),
+				resp.Url(otherURL + "/redirect"),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusFound, w.Code)
 
-				expected, err := url.ParseRequestURI("http://example.com/redirect")
+				expected, err := url.ParseRequestURI(otherURL + "/redirect")
 				require.Nil(t, err)
 
 				q := expected.Query()
@@ -265,7 +266,7 @@ func TestResponderRedirect(t *testing.T) {
 		{
 			name: "Overwrite-4xx",
 			fns: []resp.Fn{
-				resp.Url("http://example.com"),
+				resp.Url(otherURL),
 				resp.Code(http.StatusTeapot),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
@@ -275,7 +276,7 @@ func TestResponderRedirect(t *testing.T) {
 				actual, err := url.ParseRequestURI(w.Header().Get("Location"))
 				require.Nil(t, err)
 
-				expected, err := url.ParseRequestURI("http://example.com")
+				expected, err := url.ParseRequestURI(otherURL)
 				require.Nil(t, err)
 				require.Equal(t, expected.String(), actual.String())
 			},
@@ -283,7 +284,7 @@ func TestResponderRedirect(t *testing.T) {
 		{
 			name: "Overwrite-5xx",
 			fns: []resp.Fn{
-				resp.Url("http://example.com"),
+				resp.Url(otherURL),
 				resp.Code(http.StatusInsufficientStorage),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
@@ -293,7 +294,7 @@ func TestResponderRedirect(t *testing.T) {
 				actual, err := url.ParseRequestURI(w.Header().Get("Location"))
 				require.Nil(t, err)
 
-				expected, err := url.ParseRequestURI("http://example.com")
+				expected, err := url.ParseRequestURI(otherURL)
 				require.Nil(t, err)
 				require.Equal(t, expected.String(), actual.String())
 			},
@@ -301,7 +302,7 @@ func TestResponderRedirect(t *testing.T) {
 		{
 			"Keep-3xx",
 			[]resp.Fn{
-				resp.Url("http://example.com"),
+				resp.Url(otherURL),
 				resp.Code(http.StatusPermanentRedirect),
 			},
 			func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
@@ -311,7 +312,7 @@ func TestResponderRedirect(t *testing.T) {
 				actual, err := url.ParseRequestURI(w.Header().Get("Location"))
 				require.Nil(t, err)
 
-				require.Equal(t, "http://example.com", actual.String())
+				require.Equal(t, otherURL, actual.String())
 			},
 		},
 	}

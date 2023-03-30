@@ -3,6 +3,7 @@ package trails
 import (
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -122,6 +123,19 @@ func EnvVarOrEnv(key string, def Environment) Environment {
 	return env
 }
 
+// EnvVarOrInt gets the environment variable for the provided key,
+// creates an int from the retrieved value,
+// or returns the provided default
+// if the value is not a valid int.
+func EnvVarOrInt(key string, def int) int {
+	val, err := strconv.Atoi(os.Getenv(key))
+	if err != nil {
+		return def
+	}
+
+	return val
+}
+
 // EnvVarOrLogLevel gets the environment variable for the provided key,
 // creates a [logger.LogLevel] from the retrieved value,
 // or returns the provided default [logger.LogLevel]
@@ -141,7 +155,7 @@ func EnvVarOrLogLevel(key string, def logger.LogLevel) logger.LogLevel {
 }
 
 // EnvVarOrString gets the environment variable for the provided key or the provided default string.
-func EnvVarOrString(key string, def string) string {
+func EnvVarOrString(key, def string) string {
 	val := os.Getenv(key)
 	if val == "" {
 		return def
@@ -151,19 +165,24 @@ func EnvVarOrString(key string, def string) string {
 }
 
 // EnvVarOrURL gets the environment variable for the provided or the provided default *url.URL.
-func EnvVarOrURL(key string, def *url.URL) *url.URL {
-	if def.Path != "/" {
-		def.Path = "/"
+func EnvVarOrURL(key, def string) *url.URL {
+	defURL, err := url.ParseRequestURI(def)
+	if err != nil {
+		return nil
+	}
+
+	if defURL.Path != "/" {
+		defURL.Path = "/"
 	}
 
 	val := os.Getenv(key)
 	if val == "" {
-		return def
+		return defURL
 	}
 
 	u, err := url.ParseRequestURI(val)
 	if err != nil {
-		return def
+		return defURL
 	}
 
 	if u.Path != "/" {

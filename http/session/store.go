@@ -78,6 +78,7 @@ func validateConfig(c Config) error {
 func NewStoreService(cfg Config, opts ...ServiceOpt) (Service, error) {
 	var err error
 	gob.Register(Flash{})
+	gob.Register(trails.Key(""))
 
 	s := Service{
 		env:    cfg.Env,

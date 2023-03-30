@@ -317,7 +317,12 @@ func (doer *Responder) Redirect(w http.ResponseWriter, r *http.Request, opts ...
 		rr.code = http.StatusFound
 	}
 
-	http.Redirect(w, r, rr.url.String(), rr.code)
+	loc := rr.url.String()
+	if rr.url.Host == r.URL.Host && rr.url.Scheme == r.URL.Scheme {
+		loc = rr.url.RequestURI()
+	}
+
+	http.Redirect(w, r, loc, rr.code)
 	return nil
 }
 

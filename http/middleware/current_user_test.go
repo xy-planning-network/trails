@@ -40,7 +40,7 @@ func TestCurrentUser(t *testing.T) {
 
 	// Assert
 	require.Equal(t, http.StatusTemporaryRedirect, w.Code)
-	require.Equal(t, "https://example.com/test", w.Header().Get("Location"))
+	require.Equal(t, "/test", w.Header().Get("Location"))
 
 	// Arrange
 	w = httptest.NewRecorder()

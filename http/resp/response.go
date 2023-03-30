@@ -238,6 +238,7 @@ func ToRoot() Fn {
 		if d.rootUrl == nil {
 			return fmt.Errorf("%w: cannot set url, no defined root url", ErrMissingData)
 		}
+
 		r.url = d.rootUrl
 		return nil
 	}
@@ -386,7 +387,7 @@ func Vue(entry string) Fn {
 
 		props := map[string]any{"initialProps": init}
 		if val := r.r.Context().Value(trails.AppPropsKey); val != nil {
-			props[string(trails.AppPropsKey)] = val
+			props["appProps"] = val
 		}
 
 		switch t := r.data.(type) {

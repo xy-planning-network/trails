@@ -4,7 +4,9 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"io"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -27,12 +29,12 @@ import (
 
 const (
 	// Base URL defaults
-	baseURLEnvVar = "BASE_URL"
+	BaseURLEnvVar = "BASE_URL"
 
 	// App metadata
-	appDescEnvVar    = "APP_DESCRIPTION"
-	appTitleEnvVar   = "APP_TITLE"
-	contactUsEnvVar  = "CONTACT_US_EMAIL"
+	AppDescEnvVar    = "APP_DESCRIPTION"
+	AppTitleEnvVar   = "APP_TITLE"
+	ContactUsEnvVar  = "CONTACT_US_EMAIL"
 	defaultContactUs = "hello@xyplanningnetwork.com"
 
 	// Environment defaults
@@ -73,8 +75,8 @@ const (
 	DefaultServerWriteTimeout = 5 * time.Second
 
 	// Session defaults
-	sessionAuthKeyEnvVar    = "SESSION_AUTH_KEY"
-	sessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
+	SessionAuthKeyEnvVar    = "SESSION_AUTH_KEY"
+	SessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
 
 	// Test defaults
 	dbTestHostEnvVar  = "DATABASE_TEST_HOST"
@@ -88,21 +90,20 @@ const (
 )
 
 var (
-	defaultBaseURL, _ = url.ParseRequestURI("http://" + DefaultHost + DefaultPort)
-	setupLog          logger.Logger
+	defaultBaseURL = "http://" + DefaultHost + DefaultPort
+	setupLog       logger.Logger
 
 	//go:embed tmpl/*
 	tmpls embed.FS
 )
 
-// defaultDB connects to a Postgres database
-// using default configuration environment variables
-// and runs the list of [postgres.Migration] passed in.
-func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.DatabaseService, error) {
+// NewPostgresConfig constructs a *postgres.CxnConfig appropriate to the given environment.
+// Confer the DATABASE env vars for usage.
+func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 	var cfg *postgres.CxnConfig
 	url := os.Getenv(dbURLEnvVar)
 	switch {
-	case env.IsTesting(): // NOTE(dlk): this is an unexpected case since go test does not reach this
+	case env.IsTesting():
 		cfg = &postgres.CxnConfig{
 			Host:     trails.EnvVarOrString(dbTestHostEnvVar, defaultDBTestHost),
 			IsTestDB: true,
@@ -126,7 +127,14 @@ func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.Data
 		cfg = &postgres.CxnConfig{IsTestDB: false, URL: url}
 	}
 
-	db, err := postgres.Connect(cfg, list)
+	return cfg
+}
+
+// defaultDB connects to a Postgres database
+// using default configuration environment variables
+// and runs the list of [postgres.Migration] passed in.
+func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.DatabaseService, error) {
+	db, err := postgres.Connect(NewPostgresConfig(env), list)
 	if err != nil {
 		return nil, err
 	}
@@ -135,10 +143,18 @@ func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.Data
 }
 
 // defaultLogger constructs a [logger.Logger].
-func defaultLogger() logger.Logger {
+// A default logger.Logger can be overriden for in unit tests.
+func defaultLogger(env trails.Environment, output io.Writer) logger.Logger {
+	if output == nil {
+		output = os.Stdout
+	}
+
+	out := log.New(output, "", log.LstdFlags)
 	logLvl := trails.EnvVarOrLogLevel(logLevelEnvVar, defaultLogLvl)
 	args := []logger.LoggerOptFn{
+		logger.WithEnv(env.String()),
 		logger.WithLevel(logLvl),
+		logger.WithLogger(out),
 	}
 
 	return logger.New(args...)
@@ -225,8 +241,8 @@ func defaultSessionStore(env trails.Environment, appName string) (session.Sessio
 	appName = regexp.MustCompile(`\s`).ReplaceAllString(appName, "-")
 
 	cfg := session.Config{
-		AuthKey:     os.Getenv(sessionAuthKeyEnvVar),
-		EncryptKey:  os.Getenv(sessionEncryptKeyEnvVar),
+		AuthKey:     os.Getenv(SessionAuthKeyEnvVar),
+		EncryptKey:  os.Getenv(SessionEncryptKeyEnvVar),
 		Env:         env,
 		SessionName: "trails-" + appName,
 	}
