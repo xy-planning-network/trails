@@ -40,23 +40,27 @@ const (
 	defaultLogLvl  = logger.LogLevelInfo
 
 	// Database defaults
-	dbHostEnvVar  = "DATABASE_HOST"
-	defaultDBHost = "localhost"
-	dbNameEnvVar  = "DATABASE_NAME"
-	dbPassEnvVar  = "DATABSE_PASSWORD"
-	dbPortEnvVar  = "DATABASE_PORT"
-	defaultDBPort = "5432"
-	dbURLEnvVar   = "DATABASE_URL"
-	dbUserEnvVar  = "DATABASE_USER"
+	dbHostEnvVar     = "DATABASE_HOST"
+	defaultDBHost    = "localhost"
+	dbPortEnvVar     = "DATABASE_PORT"
+	defaultDBPort    = "5432"
+	dbNameEnvVar     = "DATABASE_NAME"
+	dbUserEnvVar     = "DATABASE_USER"
+	dbPassEnvVar     = "DATABSE_PASSWORD"
+	dbSSLModeEnvVar  = "DATABASE_SSLMODE"
+	defaultDBSSLMode = "prefer"
+	dbURLEnvVar      = "DATABASE_URL"
 
-	dbTestHostEnvVar  = "DATABASE_TEST_HOST"
-	defaultDBTestHost = "localhost"
-	dbTestNameEnvVar  = "DATABASE_TEST_NAME"
-	dbTestPassEnvVar  = "DATABASE_TEST_PASSWORD"
-	dbTestPortEnvVar  = "DATABASE_TEST_PORT"
-	defaultDBTestPort = "5432"
-	dbTestURLEnvVar   = "DATABASE_TEST_URL"
-	dbTestUserEnvVar  = "DATABASE_TEST_USER"
+	dbTestHostEnvVar     = "DATABASE_TEST_HOST"
+	defaultDBTestHost    = "localhost"
+	dbTestPortEnvVar     = "DATABASE_TEST_PORT"
+	defaultDBTestPort    = "5432"
+	dbTestNameEnvVar     = "DATABASE_TEST_NAME"
+	dbTestUserEnvVar     = "DATABASE_TEST_USER"
+	dbTestPassEnvVar     = "DATABASE_TEST_PASSWORD"
+	dbTestSSLModeEnvVar  = "DATABASE_TEST_SSLMODE"
+	defaultDBTestSSLMode = "prefer"
+	dbTestURLEnvVar      = "DATABASE_TEST_URL"
 
 	// Default template files
 	defaultTmplDir      = "tmpl"
@@ -129,12 +133,13 @@ func DefaultDB(list []postgres.Migration) RangerOption {
 			switch rng.env {
 			case trails.Testing: // NOTE(dlk): this is an unexpected case since go test does not reach this
 				cfg = &postgres.CxnConfig{
-					Host:     trails.EnvVarOrString(dbTestHostEnvVar, defaultDBTestHost),
 					IsTestDB: true,
-					Name:     os.Getenv(dbTestNameEnvVar),
-					Password: os.Getenv(dbTestPassEnvVar),
+					Host:     trails.EnvVarOrString(dbTestHostEnvVar, defaultDBTestHost),
 					Port:     trails.EnvVarOrString(dbTestPortEnvVar, defaultDBTestPort),
+					Name:     os.Getenv(dbTestNameEnvVar),
 					User:     os.Getenv(dbTestUserEnvVar),
+					Password: os.Getenv(dbTestPassEnvVar),
+					SSLMode:  trails.EnvVarOrString(dbTestSSLModeEnvVar, defaultDBTestSSLMode),
 				}
 
 			default:
@@ -142,12 +147,13 @@ func DefaultDB(list []postgres.Migration) RangerOption {
 					cfg = &postgres.CxnConfig{IsTestDB: false, URL: url}
 				} else {
 					cfg = &postgres.CxnConfig{
-						Host:     trails.EnvVarOrString(dbHostEnvVar, defaultDBHost),
 						IsTestDB: false,
-						Name:     os.Getenv(dbNameEnvVar),
-						Password: os.Getenv(dbPassEnvVar),
+						Host:     trails.EnvVarOrString(dbHostEnvVar, defaultDBHost),
 						Port:     trails.EnvVarOrString(dbPortEnvVar, defaultDBPort),
+						Name:     os.Getenv(dbNameEnvVar),
 						User:     os.Getenv(dbUserEnvVar),
+						Password: os.Getenv(dbPassEnvVar),
+						SSLMode:  trails.EnvVarOrString(dbSSLModeEnvVar, defaultDBSSLMode),
 					}
 				}
 			}
