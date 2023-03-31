@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -42,6 +43,7 @@ type Ranger struct {
 	sessions  session.SessionStorer
 	shutdowns []ShutdownFn
 	srv       *http.Server
+	url       *url.URL
 }
 
 // New constructs a Ranger from the provided options.
@@ -74,8 +76,8 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		return nil, err
 	}
 
-	url := trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
-	r.Responder = defaultResponder(r.Logger, url, defaultParser(r.env, url, cfg.FS, r.metadata), r.metadata.Contact)
+	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
+	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, cfg.FS, r.metadata), r.metadata.Contact)
 
 	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
 	if err != nil {
@@ -100,12 +102,13 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		middleware.InjectSession(r.sessions),
 		middleware.CurrentUser(r.Responder, userstore),
 	)
-	r.Router = defaultRouter(r.env, url, r.Responder, mws)
+	r.Router = defaultRouter(r.env, r.url, r.Responder, mws)
 	r.srv = defaultServer(r.ctx)
 
 	return r, nil
 }
 
+func (r *Ranger) BaseURL() *url.URL                              { return r.url }
 func (r *Ranger) Context() (context.Context, context.CancelFunc) { return r.ctx, r.cancel }
 func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
 func (r *Ranger) Env() trails.Environment                        { return r.env }
