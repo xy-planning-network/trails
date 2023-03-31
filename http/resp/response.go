@@ -44,18 +44,15 @@ func Authed() Fn {
 			return err
 		}
 
-		if len(r.tmpls) > 0 {
-			if r.tmpls[0] == d.templates.authed {
-				return nil
-			}
-
-			if r.tmpls[0] == d.templates.unauthed {
-				r.tmpls[0] = d.templates.authed
-				return nil
+		var n int
+		for _, tmpl := range r.tmpls {
+			if tmpl != d.templates.unauthed {
+				r.tmpls[n] = tmpl
+				n++
 			}
 		}
 
-		r.tmpls = append([]string{d.templates.authed}, r.tmpls...)
+		r.tmpls = append([]string{d.templates.authed, d.templates.additionalScripts}, r.tmpls[:n]...)
 		return nil
 	}
 }
@@ -254,18 +251,15 @@ func Unauthed() Fn {
 			return fmt.Errorf("%w: no unauthed tmpl", ErrBadConfig)
 		}
 
-		if len(r.tmpls) > 0 {
-			if r.tmpls[0] == d.templates.unauthed {
-				return nil
-			}
-
-			if r.tmpls[0] == d.templates.authed {
-				r.tmpls[0] = d.templates.unauthed
-				return nil
+		var n int
+		for _, tmpl := range r.tmpls {
+			if tmpl != d.templates.authed {
+				r.tmpls[n] = tmpl
+				n++
 			}
 		}
 
-		r.tmpls = append([]string{d.templates.unauthed}, r.tmpls...)
+		r.tmpls = append([]string{d.templates.unauthed, d.templates.additionalScripts}, r.tmpls[:n]...)
 		return nil
 	}
 }
@@ -372,7 +366,7 @@ func Vue(entry string) Fn {
 		if d.templates.vue == "" || entry == "" {
 			return nil
 		}
-		if err := Tmpls(d.templates.vue)(d, r); err != nil {
+		if err := Tmpls(d.templates.vue, d.templates.vueScripts)(d, r); err != nil {
 			return err
 		}
 		// NOTE(dlk): ignore error since Vue does not require a User

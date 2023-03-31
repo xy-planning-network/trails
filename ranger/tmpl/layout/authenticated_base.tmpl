@@ -10,18 +10,22 @@
     <link rel="shortcut icon" href="/assets/favicon.ico">
     <link href="https://rsms.me/inter/inter.css" rel="stylesheet" />
 
+    {{ template "additionalHeadScripts" }}
+
     {{ if not isDevelopment }}
     {{ packTag "app" true }}
     {{ end }}
   </head>
 
   <body class="bg-gray-50">
+    {{ template "additionalBodyScripts" }}
+
     {{ template "pageContent" . }}
 
     <script type="text/javascript">
       window.Flashes = {{ .Flashes }};
     </script>
 
-    {{ template "scripts" . }}
+    {{ template "vue" . }}
   </body>
 </html>

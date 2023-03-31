@@ -52,6 +52,8 @@ type Responder struct {
 	rootUrl *url.URL
 
 	templates struct {
+		additionalScripts string
+
 		// Root template to render when user is authenticated
 		authed string
 
@@ -64,6 +66,8 @@ type Responder struct {
 
 		// Vue template to render when rendering a Vue app
 		vue string
+
+		vueScripts string
 	}
 }
 
@@ -161,9 +165,9 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 		if err := populateUser(*doer, rr); err != nil {
 			return doer.handleHtmlError(w, r, err)
 		}
-
-		doer.parser.AddFn(template.CurrentUser(rr.user))
 	}
+
+	doer.parser.AddFn(template.CurrentUser(rr.user))
 
 	tmpl, err := doer.parser.Parse(rr.tmpls...)
 	if err != nil {
