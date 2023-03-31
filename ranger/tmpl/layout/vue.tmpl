@@ -1,0 +1,22 @@
+{{ define "pageContent" }}
+  <div id="vue-app" v-cloak></div>
+{{ end }}
+
+{{ define "scripts" }}
+  <script type="text/javascript">
+    var InitialVueProps = {{ .Data.props }}
+  </script>
+
+  {{ packTag .Data.entry false }}
+
+  {{ if .Data.includeTockify }}
+    <script data-cfasync="false" data-tockify-script="embed" src="https://public.tockify.com/browser/embed.js"></script>
+  {{ end }}
+
+  {{ if .Data.includeCalendly }}
+    <!-- Calendly link widget begin -->
+    <link href="https://calendly.com/assets/external/widget.css" rel="stylesheet">
+    <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js"></script>
+    <!-- Calendly link widget end -->
+  {{ end }}
+{{ end }}

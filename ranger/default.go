@@ -95,7 +95,6 @@ const (
 
 var (
 	defaultBaseURL = "http://" + DefaultHost + DefaultPort
-	setupLog       logger.Logger
 
 	//go:embed tmpl/*
 	tmpls embed.FS

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <title>{{ metadata "title" }}</title>
+    <meta name="description" content="{{ metadata "description" }}">
+    <meta name="author" content="XYPN Technology">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <link rel="shortcut icon" href="/assets/favicon.ico">
+    <link href="https://rsms.me/inter/inter.css" rel="stylesheet" />
+
+    {{ if not isDevelopment }}
+    {{ packTag "app" true }}
+    {{ end }}
+  </head>
+
+  <body class="bg-gray-50">
+    {{ template "pageContent" . }}
+
+    <script type="text/javascript">
+      window.Flashes = {{ .Flashes }};
+    </script>
+
+    {{ template "scripts" . }}
+  </body>
+</html>
