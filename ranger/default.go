@@ -45,16 +45,16 @@ const (
 	defaultLogLvl  = logger.LogLevelInfo
 
 	// Database defaults
-	dbHostEnvVar  = "DATABASE_HOST"
-	defaultDBHost = "localhost"
-	dbNameEnvVar  = "DATABASE_NAME"
-	dbPassEnvVar  = "DATABSE_PASSWORD"
-	dbPortEnvVar  = "DATABASE_PORT"
-	defaultDBPort = "5432"
-  dbSSLModeEnvVar  = "DATABASE_SSLMODE"
+	dbHostEnvVar     = "DATABASE_HOST"
+	defaultDBHost    = "localhost"
+	dbNameEnvVar     = "DATABASE_NAME"
+	dbPassEnvVar     = "DATABASE_PASSWORD"
+	dbPortEnvVar     = "DATABASE_PORT"
+	defaultDBPort    = "5432"
+	dbSSLModeEnvVar  = "DATABASE_SSLMODE"
 	defaultDBSSLMode = "prefer"
-	dbURLEnvVar   = "DATABASE_URL"
-	dbUserEnvVar  = "DATABASE_USER"
+	dbURLEnvVar      = "DATABASE_URL"
+	dbUserEnvVar     = "DATABASE_USER"
 
 	// Default HTML template files
 	defaultTmplDir      = "tmpl"
@@ -81,15 +81,15 @@ const (
 	SessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
 
 	// Test defaults
-	dbTestHostEnvVar  = "DATABASE_TEST_HOST"
-	defaultDBTestHost = "localhost"
-	dbTestNameEnvVar  = "DATABASE_TEST_NAME"
-	dbTestPassEnvVar  = "DATABASE_TEST_PASSWORD"
-	dbTestPortEnvVar  = "DATABASE_TEST_PORT"
-	defaultDBTestPort = "5432"
-	dbTestURLEnvVar   = "DATABASE_TEST_URL"
-	dbTestUserEnvVar  = "DATABASE_TEST_USER"
-  dbTestSSLModeEnvVar  = "DATABASE_TEST_SSLMODE"
+	dbTestHostEnvVar     = "DATABASE_TEST_HOST"
+	defaultDBTestHost    = "localhost"
+	dbTestNameEnvVar     = "DATABASE_TEST_NAME"
+	dbTestPassEnvVar     = "DATABASE_TEST_PASSWORD"
+	dbTestPortEnvVar     = "DATABASE_TEST_PORT"
+	defaultDBTestPort    = "5432"
+	dbTestURLEnvVar      = "DATABASE_TEST_URL"
+	dbTestUserEnvVar     = "DATABASE_TEST_USER"
+	dbTestSSLModeEnvVar  = "DATABASE_TEST_SSLMODE"
 	defaultDBTestSSLMode = "prefer"
 )
 
@@ -114,7 +114,7 @@ func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 			Name:     os.Getenv(dbTestNameEnvVar),
 			Password: os.Getenv(dbTestPassEnvVar),
 			Port:     trails.EnvVarOrString(dbTestPortEnvVar, defaultDBTestPort),
-      SSLMode:  trails.EnvVarOrString(dbTestSSLModeEnvVar, defaultDBTestSSLMode),
+			SSLMode:  trails.EnvVarOrString(dbTestSSLModeEnvVar, defaultDBTestSSLMode),
 			User:     os.Getenv(dbTestUserEnvVar),
 		}
 
@@ -125,7 +125,7 @@ func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 			Name:     os.Getenv(dbNameEnvVar),
 			Password: os.Getenv(dbPassEnvVar),
 			Port:     trails.EnvVarOrString(dbPortEnvVar, defaultDBPort),
-      SSLMode:  trails.EnvVarOrString(dbSSLModeEnvVar, defaultDBSSLMode),
+			SSLMode:  trails.EnvVarOrString(dbSSLModeEnvVar, defaultDBSSLMode),
 			User:     os.Getenv(dbUserEnvVar),
 		}
 
