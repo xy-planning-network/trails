@@ -17,14 +17,17 @@ import (
 )
 
 type templatesTest struct {
-	authed   string
-	err      string
-	unauthed string
-	vue      string
+	additionalScripts string
+	authed            string
+	err               string
+	unauthed          string
+	vue               string
+	vueScripts        string
 }
 
 func TestAuthed(t *testing.T) {
-	expected := "authed.tmpl"
+	firstExpected := "authed.tmpl"
+	secondExpected := "additional.tmpl"
 	unauthed := "unauthed.tmpl"
 
 	tcs := []struct {
@@ -45,7 +48,7 @@ func TestAuthed(t *testing.T) {
 		},
 		{
 			name: "With-Auth",
-			d:    Responder{templates: templatesTest{authed: expected}},
+			d:    Responder{templates: templatesTest{authed: firstExpected, additionalScripts: secondExpected}},
 			r:    &Response{},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.ErrorIs(t, err, ErrNoUser)
@@ -54,45 +57,49 @@ func TestAuthed(t *testing.T) {
 		},
 		{
 			name:     "With-User-With-Auth",
-			d:        Responder{templates: templatesTest{authed: expected}},
+			d:        Responder{templates: templatesTest{authed: firstExpected, additionalScripts: secondExpected}},
 			loggedIn: true,
 			r:        &Response{},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
-				require.Len(t, r.tmpls, 1)
-				require.Equal(t, expected, r.tmpls[0])
+				require.Len(t, r.tmpls, 2)
+				require.Equal(t, firstExpected, r.tmpls[0])
+				require.Equal(t, secondExpected, r.tmpls[1])
 			},
 		},
 		{
 			name:     "Tmpl-Authed",
-			d:        Responder{templates: templatesTest{authed: expected}},
+			d:        Responder{templates: templatesTest{authed: firstExpected, additionalScripts: secondExpected}},
 			loggedIn: true,
-			r:        &Response{tmpls: []string{expected}},
+			r:        &Response{tmpls: []string{firstExpected}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
-				require.Len(t, r.tmpls, 1)
-				require.Equal(t, expected, r.tmpls[0])
+				require.Len(t, r.tmpls, 3)
+				require.Equal(t, firstExpected, r.tmpls[0])
+				require.Equal(t, secondExpected, r.tmpls[1])
 			},
 		},
 		{
 			name:     "Tmpl-Unauthed",
-			d:        Responder{templates: templatesTest{authed: expected, unauthed: unauthed}},
+			d:        Responder{templates: templatesTest{authed: firstExpected, additionalScripts: secondExpected, unauthed: unauthed}},
 			loggedIn: true,
 			r:        &Response{tmpls: []string{unauthed}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
-				require.Len(t, r.tmpls, 1)
-				require.Equal(t, expected, r.tmpls[0])
+				require.Len(t, r.tmpls, 2)
+				require.Equal(t, firstExpected, r.tmpls[0])
+				require.Equal(t, secondExpected, r.tmpls[1])
 			},
 		},
 		{
 			name: "Tmpls",
-			d:    Responder{templates: templatesTest{authed: expected}},
+			d:    Responder{templates: templatesTest{authed: firstExpected, additionalScripts: secondExpected}},
 			r:    &Response{user: struct{}{}, tmpls: []string{"test.tmpl", "example.tmpl"}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
-				require.Len(t, r.tmpls, 3)
-				require.Equal(t, expected, r.tmpls[0])
+				require.Len(t, r.tmpls, 4)
+				require.Equal(t, firstExpected, r.tmpls[0])
+				require.Equal(t, secondExpected, r.tmpls[1])
 			},
 		},
 	}
@@ -615,7 +622,8 @@ func TestToRoot(t *testing.T) {
 }
 
 func TestUnauthed(t *testing.T) {
-	expected := "unauthed.tmpl"
+	firstExpected := "unauthed.tmpl"
+	secondExpected := "additional.tmpl"
 	authed := "authed.tmpl"
 	tcs := []struct {
 		name   string
@@ -633,21 +641,24 @@ func TestUnauthed(t *testing.T) {
 		},
 		{
 			name: "With-Unauthed",
-			d:    Responder{templates: templatesTest{unauthed: expected}},
+			d:    Responder{templates: templatesTest{unauthed: firstExpected, additionalScripts: secondExpected}},
 			r:    &Response{},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
-				require.Equal(t, expected, r.tmpls[0])
+				require.Len(t, r.tmpls, 2)
+				require.Equal(t, firstExpected, r.tmpls[0])
+				require.Equal(t, secondExpected, r.tmpls[1])
 			},
 		},
 		{
 			name: "With-Unauthed-Repeat",
-			d:    Responder{templates: templatesTest{unauthed: expected}},
-			r:    &Response{tmpls: []string{expected}},
+			d:    Responder{templates: templatesTest{unauthed: firstExpected, additionalScripts: secondExpected}},
+			r:    &Response{tmpls: []string{firstExpected}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
-				require.Equal(t, expected, r.tmpls[0])
-				require.Len(t, r.tmpls, 1)
+				require.Equal(t, firstExpected, r.tmpls[0])
+				require.Equal(t, secondExpected, r.tmpls[1])
+				require.Len(t, r.tmpls, 3)
 			},
 		},
 		{
@@ -660,22 +671,24 @@ func TestUnauthed(t *testing.T) {
 		},
 		{
 			name: "With-Authed-With-Unauthed",
-			d:    Responder{templates: templatesTest{authed: authed, unauthed: expected}},
+			d:    Responder{templates: templatesTest{authed: authed, unauthed: firstExpected, additionalScripts: secondExpected}},
 			r:    &Response{tmpls: []string{authed}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
-				require.Equal(t, expected, r.tmpls[0])
-				require.Len(t, r.tmpls, 1)
+				require.Equal(t, firstExpected, r.tmpls[0])
+				require.Equal(t, secondExpected, r.tmpls[1])
+				require.Len(t, r.tmpls, 2)
 			},
 		},
 		{
 			name: "With-Tmpls",
-			d:    Responder{templates: templatesTest{unauthed: expected}},
+			d:    Responder{templates: templatesTest{unauthed: firstExpected, additionalScripts: secondExpected}},
 			r:    &Response{tmpls: []string{"test.tmpl", "example.tmpl"}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
-				require.Equal(t, expected, r.tmpls[0])
-				require.Len(t, r.tmpls, 3)
+				require.Len(t, r.tmpls, 4)
+				require.Equal(t, firstExpected, r.tmpls[0])
+				require.Equal(t, secondExpected, r.tmpls[1])
 			},
 		},
 	}

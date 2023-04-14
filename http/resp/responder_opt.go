@@ -12,6 +12,16 @@ import (
 // A ResponderOptFn is used when constructing a new Responder.
 type ResponderOptFn func(*Responder)
 
+// WithAdditionalScriptsTemplate sets the template identified by the filepath to use for rendering
+// alongside Authed and Unauthed templates.
+//
+// Authed and Unauthed requires this option.
+func WithAdditionalScriptsTemplate(fp string) func(*Responder) {
+	return func(d *Responder) {
+		d.templates.additionalScripts = fp
+	}
+}
+
 // WithAuthTemplate sets the template identified by the filepath to use for rendering
 // when a user is authenticated.
 //
@@ -90,5 +100,15 @@ func WithUnauthTemplate(fp string) func(*Responder) {
 func WithVueTemplate(fp string) func(*Responder) {
 	return func(d *Responder) {
 		d.templates.vue = fp
+	}
+}
+
+// WithVueTemplate sets the template identified by the filepath to use for rendering
+// additional scripts within a Vue client application.
+//
+// Vue requires this option.
+func WithVueScriptsTemplate(fp string) func(*Responder) {
+	return func(d *Responder) {
+		d.templates.vueScripts = fp
 	}
 }

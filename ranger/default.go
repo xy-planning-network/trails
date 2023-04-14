@@ -57,12 +57,14 @@ const (
 	dbUserEnvVar     = "DATABASE_USER"
 
 	// Default HTML template files
-	defaultTmplDir      = "tmpl"
-	defaultErrTmpl      = defaultTmplDir + "/error.tmpl"
-	defaultLayoutDir    = defaultTmplDir + "/layout"
-	defaultAuthedTmpl   = defaultLayoutDir + "/authenticated_base.tmpl"
-	defaultUnauthedTmpl = defaultLayoutDir + "/unauthenticated_base.tmpl"
-	defaultVueTmpl      = defaultLayoutDir + "/vue.tmpl"
+	defaultTmplDir               = "tmpl"
+	defaultErrTmpl               = defaultTmplDir + "/error.tmpl"
+	defaultLayoutDir             = defaultTmplDir + "/layout"
+	defaultAdditionalScriptsTmpl = defaultLayoutDir + "/additional_scripts.tmpl"
+	defaultAuthedTmpl            = defaultLayoutDir + "/authenticated_base.tmpl"
+	defaultUnauthedTmpl          = defaultLayoutDir + "/unauthenticated_base.tmpl"
+	defaultVueTmpl               = defaultLayoutDir + "/vue.tmpl"
+	defaultVueScriptsTmpl        = defaultLayoutDir + "/vue_scripts.tmpl"
 
 	// Web server defaults
 	DefaultHost               = "localhost"
@@ -95,7 +97,6 @@ const (
 
 var (
 	defaultBaseURL = "http://" + DefaultHost + DefaultPort
-	setupLog       logger.Logger
 
 	//go:embed tmpl/*
 	tmpls embed.FS
@@ -199,6 +200,7 @@ func defaultParser(env trails.Environment, url *url.URL, files fs.FS, m Metadata
 // defaultResponder configures the [*resp.Responder] to be used by http.Handlers.
 func defaultResponder(l logger.Logger, url *url.URL, p template.Parser, contact string) *resp.Responder {
 	args := []resp.ResponderOptFn{
+		resp.WithAdditionalScriptsTemplate(defaultAdditionalScriptsTmpl),
 		resp.WithAuthTemplate(defaultAuthedTmpl),
 		resp.WithContactErrMsg(fmt.Sprintf(session.ContactUsErr, contact)),
 		resp.WithErrTemplate(defaultErrTmpl),
@@ -207,6 +209,7 @@ func defaultResponder(l logger.Logger, url *url.URL, p template.Parser, contact 
 		resp.WithRootUrl(url.String()),
 		resp.WithUnauthTemplate(defaultUnauthedTmpl),
 		resp.WithVueTemplate(defaultVueTmpl),
+		resp.WithVueScriptsTemplate(defaultVueScriptsTmpl),
 	}
 
 	return resp.NewResponder(args...)

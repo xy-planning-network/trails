@@ -1,0 +1,13 @@
+{{ define "pageContent" }}
+  <div id="vue-app" v-cloak></div>
+{{ end }}
+
+{{ define "vue" }}
+  <script type="text/javascript">
+    var InitialVueProps = {{ .Data.props }}
+  </script>
+
+  {{ packTag .Data.entry false }}
+
+  {{ template "vueScripts" . }}
+{{ end }}

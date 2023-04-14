@@ -36,11 +36,17 @@ func NewParser(fses []fs.FS, opts ...ParserOptFn) Parser {
 
 // Parse parses files found in the *Parse.fs with those functions provided previously.
 func (p *Parse) Parse(fps ...string) (*html.Template, error) {
-	for i, fp := range fps {
-		if fp == "" {
-			fps = append(fps[:i], fps[i+1:]...)
+	var n int
+	dupes := make(map[string]bool)
+	for _, fp := range fps {
+		if fp != "" && !dupes[fp] {
+			fps[n] = fp
+			dupes[fp] = true
+			n++
 		}
 	}
+
+	fps = fps[:n]
 
 	if len(fps) == 0 {
 		return nil, fmt.Errorf("%w", ErrNoFiles)
