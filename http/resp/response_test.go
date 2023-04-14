@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xy-planning-network/trails/http/keyring"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/logger"
 )
@@ -24,15 +24,15 @@ type templatesTest struct {
 }
 
 func TestAuthed(t *testing.T) {
-	key := ctxKey("test")
 	expected := "authed.tmpl"
 	unauthed := "unauthed.tmpl"
 
 	tcs := []struct {
-		name   string
-		d      Responder
-		r      *Response
-		assert func(*testing.T, *Response, error)
+		name     string
+		d        Responder
+		loggedIn bool
+		r        *Response
+		assert   func(*testing.T, *Response, error)
 	}{
 		{
 			name: "Zero-Value",
@@ -53,9 +53,10 @@ func TestAuthed(t *testing.T) {
 			},
 		},
 		{
-			name: "With-User-With-Auth",
-			d:    Responder{templates: templatesTest{authed: expected}, userSessionKey: key},
-			r:    &Response{},
+			name:     "With-User-With-Auth",
+			d:        Responder{templates: templatesTest{authed: expected}},
+			loggedIn: true,
+			r:        &Response{},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
 				require.Len(t, r.tmpls, 1)
@@ -63,9 +64,10 @@ func TestAuthed(t *testing.T) {
 			},
 		},
 		{
-			name: "Tmpl-Authed",
-			d:    Responder{templates: templatesTest{authed: expected}, userSessionKey: key},
-			r:    &Response{tmpls: []string{expected}},
+			name:     "Tmpl-Authed",
+			d:        Responder{templates: templatesTest{authed: expected}},
+			loggedIn: true,
+			r:        &Response{tmpls: []string{expected}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
 				require.Len(t, r.tmpls, 1)
@@ -73,9 +75,10 @@ func TestAuthed(t *testing.T) {
 			},
 		},
 		{
-			name: "Tmpl-Unauthed",
-			d:    Responder{templates: templatesTest{authed: expected, unauthed: unauthed}, userSessionKey: key},
-			r:    &Response{tmpls: []string{unauthed}},
+			name:     "Tmpl-Unauthed",
+			d:        Responder{templates: templatesTest{authed: expected, unauthed: unauthed}},
+			loggedIn: true,
+			r:        &Response{tmpls: []string{unauthed}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
 				require.Len(t, r.tmpls, 1)
@@ -84,7 +87,7 @@ func TestAuthed(t *testing.T) {
 		},
 		{
 			name: "Tmpls",
-			d:    Responder{templates: templatesTest{authed: expected}, userSessionKey: key},
+			d:    Responder{templates: templatesTest{authed: expected}},
 			r:    &Response{user: struct{}{}, tmpls: []string{"test.tmpl", "example.tmpl"}},
 			assert: func(t *testing.T, r *Response, err error) {
 				require.Nil(t, err)
@@ -98,9 +101,11 @@ func TestAuthed(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			if tc.d.userSessionKey != nil {
-				req = req.WithContext(context.WithValue(req.Context(), tc.d.userSessionKey, 1))
+			if tc.loggedIn {
+				req = req.WithContext(context.WithValue(req.Context(), trails.SessionKey, 1))
+				req = req.WithContext(context.WithValue(req.Context(), trails.CurrentUserKey, "I'm a user!"))
 			}
+
 			tc.r.r = req
 
 			// Act
@@ -195,26 +200,22 @@ func TestErr(t *testing.T) {
 }
 
 func TestFlash(t *testing.T) {
-	key := ctxKey("test")
 	tcs := []struct {
-		name   string
-		d      *Responder
-		f      session.Flash
-		assert func(*testing.T, session.FlashSessionable, session.Flash, error)
+		name       string
+		hasSession bool
+		assert     func(*testing.T, session.Session, session.Flash, error)
 	}{
 		{
-			name: "No-Key",
-			d:    NewResponder(),
-			f:    session.Flash{},
-			assert: func(t *testing.T, s session.FlashSessionable, _ session.Flash, err error) {
+			name:       "No-Key",
+			hasSession: false,
+			assert: func(t *testing.T, s session.Session, _ session.Flash, err error) {
 				require.Nil(t, s.Flashes(nil, nil))
 			},
 		},
 		{
-			name: "With-Key",
-			d:    NewResponder(WithSessionKey(key)),
-			f:    session.Flash{Type: "success", Msg: "well done!"},
-			assert: func(t *testing.T, s session.FlashSessionable, f session.Flash, err error) {
+			name:       "With-Key",
+			hasSession: true,
+			assert: func(t *testing.T, s session.Session, f session.Flash, err error) {
 				require.Nil(t, err)
 				require.Equal(t, f, s.Flashes(nil, nil)[0])
 			},
@@ -224,14 +225,24 @@ func TestFlash(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
+			responder := NewResponder()
+
 			w := httptest.NewRecorder()
-			s := new(testFlashSession)
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			ctx := context.WithValue(req.Context(), key, s)
-			r := &Response{r: req.WithContext(ctx), w: w}
+
+			f := session.Flash{Type: "success", Msg: "well done!"}
+
+			s, err := session.NewStub(false).GetSession(req)
+			require.Nil(t, err)
+
+			if tc.hasSession {
+				req = req.WithContext(context.WithValue(req.Context(), trails.SessionKey, s))
+			}
+
+			r := &Response{r: req, w: w}
 
 			// Act + Assert
-			tc.assert(t, s, tc.f, Flash(tc.f)(*tc.d, r))
+			tc.assert(t, s, f, Flash(f)(*responder, r))
 		})
 	}
 }
@@ -241,23 +252,13 @@ func TestGenericErr(t *testing.T) {
 		name   string
 		d      *Responder
 		err    error
-		assert func(*testing.T, testLogger, session.FlashSessionable, error)
+		assert func(*testing.T, testLogger, session.Session, error)
 	}{
 		{
-			"No-Session",
+			"Nil-Err-DefaultErrMsg",
 			NewResponder(WithLogger(newLogger())),
 			nil,
-			func(t *testing.T, l testLogger, s session.FlashSessionable, err error) {
-				require.Nil(t, err)
-				require.Nil(t, l.Bytes())
-				require.Nil(t, s.Flashes(nil, nil))
-			},
-		},
-		{
-			"With-Session-Nil-Err-DefaultErrMsg",
-			NewResponder(WithLogger(newLogger()), WithSessionKey(ctxKey("key"))),
-			nil,
-			func(t *testing.T, l testLogger, s session.FlashSessionable, err error) {
+			func(t *testing.T, l testLogger, s session.Session, err error) {
 				require.Nil(t, err)
 				require.Nil(t, l.Bytes())
 				require.Equal(t, session.Flash{Type: "error", Msg: session.DefaultErrMsg}, s.Flashes(nil, nil)[0])
@@ -265,9 +266,9 @@ func TestGenericErr(t *testing.T) {
 		},
 		{
 			"With-Err-With-ContactUsErr",
-			NewResponder(WithLogger(newLogger()), WithSessionKey(ctxKey("key")), WithContactErrMsg("howdy!")),
+			NewResponder(WithLogger(newLogger()), WithContactErrMsg("howdy!")),
 			ErrNotFound,
-			func(t *testing.T, l testLogger, s session.FlashSessionable, err error) {
+			func(t *testing.T, l testLogger, s session.Session, err error) {
 				require.Nil(t, err)
 				require.Equal(t, ErrNotFound.Error(), l.String())
 				require.Equal(t, session.Flash{Type: "error", Msg: "howdy!"}, s.Flashes(nil, nil)[0])
@@ -277,15 +278,15 @@ func TestGenericErr(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			s := new(testFlashSession)
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			if tc.d.sessionKey != nil {
-				req = req.WithContext(context.WithValue(req.Context(), tc.d.sessionKey, s))
-			}
-			r := &Response{r: req}
+
+			s, err := session.NewStub(false).GetSession(req)
+			require.Nil(t, err)
+
+			r := &Response{r: req.WithContext(context.WithValue(req.Context(), trails.SessionKey, s))}
 
 			// Act
-			err := GenericErr(tc.err)(*tc.d, r)
+			err = GenericErr(tc.err)(*tc.d, r)
 
 			// Assert
 			tc.assert(t, tc.d.logger.(testLogger), s, err)
@@ -371,23 +372,21 @@ func TestParams(t *testing.T) {
 
 func TestSuccess(t *testing.T) {
 	tcs := []struct {
-		name   string
-		d      *Responder
-		assert func(*testing.T, int, session.FlashSessionable, error)
+		name       string
+		hasSession bool
+		assert     func(*testing.T, int, session.Session, error)
 	}{
 		{
 			"No-Session",
-			NewResponder(),
-			func(t *testing.T, code int, s session.FlashSessionable, err error) {
-				require.Nil(t, err)
-				require.Equal(t, http.StatusOK, code)
-				require.Nil(t, s.Flashes(nil, nil))
+			false,
+			func(t *testing.T, code int, s session.Session, err error) {
+				require.ErrorIs(t, err, ErrNotFound)
 			},
 		},
 		{
 			"With-Session",
-			NewResponder(WithSessionKey(ctxKey("key"))),
-			func(t *testing.T, code int, s session.FlashSessionable, err error) {
+			true,
+			func(t *testing.T, code int, s session.Session, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, code)
 				require.Equal(t, session.Flash{Type: "success", Msg: "success!"}, s.Flashes(nil, nil)[0])
@@ -397,15 +396,21 @@ func TestSuccess(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			s := new(testFlashSession)
-			if tc.d.sessionKey != nil {
-				req = req.WithContext(context.WithValue(req.Context(), tc.d.sessionKey, s))
+
+			s, err := session.NewStub(false).GetSession(req)
+			require.Nil(t, err)
+
+			if tc.hasSession {
+				req = req.WithContext(context.WithValue(req.Context(), trails.SessionKey, s))
 			}
+
+			responder := NewResponder()
 			r := &Response{r: req}
 
 			// Act
-			err := Success("success!")(*tc.d, r)
+			err = Success("success!")(*responder, r)
 
 			// Assert
 			tc.assert(t, r.code, s, err)
@@ -461,6 +466,101 @@ func TestTmpls(t *testing.T) {
 		require.Nil(t, err)
 		require.Equal(t, expected, r.tmpls[1])
 	})
+}
+
+func TestToolbox(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		dataInput any
+		input     trails.Toolbox
+		assert    func(t *testing.T, data any, err error)
+	}{
+		{
+			"Zero-Value",
+			nil,
+			make(trails.Toolbox, 0),
+			func(t *testing.T, output any, err error) {
+				require.Nil(t, output)
+			},
+		},
+		{
+			"No-Renderable-Tools",
+			map[string]any{"props": make(map[string]any)},
+			trails.Toolbox{{Actions: nil}},
+			func(t *testing.T, output any, err error) {
+				require.Nil(t, err)
+
+				data, ok := output.(map[string]any)
+				require.True(t, ok)
+
+				props, ok := data["props"].(map[string]any)
+				require.True(t, ok)
+
+				actual, ok := props["toolbox"]
+				require.False(t, ok)
+				require.Nil(t, actual)
+			},
+		},
+		{
+			"New-One",
+			make(map[string]any),
+			trails.Toolbox{trails.Tool{Actions: make([]trails.ToolAction, 1)}},
+			func(t *testing.T, output any, err error) {
+				require.Nil(t, err)
+
+				data, ok := output.(map[string]any)
+				require.True(t, ok)
+
+				props, ok := data["props"].(map[string]any)
+				require.True(t, ok)
+
+				actual, ok := props["toolbox"].(trails.Toolbox)
+				require.True(t, ok)
+				require.Equal(t, trails.Toolbox{trails.Tool{Actions: make([]trails.ToolAction, 1)}}, actual)
+			},
+		},
+		{
+			"Add-One",
+			map[string]any{
+				"props": map[string]any{
+					"other":   true,
+					"toolbox": trails.Toolbox{trails.Tool{Actions: []trails.ToolAction{{Name: "preexisting"}}}},
+				},
+			},
+			trails.Toolbox{trails.Tool{Actions: []trails.ToolAction{{Name: "new"}}}},
+			func(t *testing.T, output any, err error) {
+				require.Nil(t, err)
+
+				data, ok := output.(map[string]any)
+				require.True(t, ok)
+
+				props, ok := data["props"].(map[string]any)
+				require.True(t, ok)
+
+				other, ok := props["other"].(bool)
+				require.True(t, ok)
+				require.True(t, other)
+
+				actual, ok := props["toolbox"].(trails.Toolbox)
+				require.True(t, ok)
+				require.Len(t, actual, 2)
+				require.Equal(t, "preexisting", actual[0].Actions[0].Name)
+				require.Equal(t, "new", actual[1].Actions[0].Name)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			d := Responder{}
+			r := &Response{data: tc.dataInput}
+
+			// Act
+			err := Toolbox(tc.input)(d, r)
+
+			// Assert
+			tc.assert(t, r.data, err)
+		})
+	}
 }
 
 func TestToRoot(t *testing.T) {
@@ -661,7 +761,7 @@ func TestUrl(t *testing.T) {
 func TestVue(t *testing.T) {
 	good, err := url.ParseRequestURI("https://example.com/test")
 	require.Nil(t, err)
-	aKey := ctxKey("ctx")
+
 	tcs := []struct {
 		name   string
 		d      Responder
@@ -731,26 +831,8 @@ func TestVue(t *testing.T) {
 			},
 		},
 		{
-			"With-CtxKeys",
-			Responder{templates: templatesTest{vue: "vue.tmpl"}, ctxKeys: []keyring.Keyable{aKey}},
-			&Response{user: "test"},
-			"test",
-			func(t *testing.T, tmpls []string, data any, err error) {
-				require.Nil(t, err)
-				require.Equal(t, "vue.tmpl", tmpls[0])
-
-				actualData, ok := data.(map[string]any)
-				require.True(t, ok)
-				require.Equal(t, "test", actualData["entry"])
-
-				actualProps, ok := actualData["props"].(map[string]any)
-				require.True(t, ok)
-				require.Equal(t, 1, actualProps[aKey.Key()])
-			},
-		},
-		{
 			"With-All",
-			Responder{templates: templatesTest{vue: "vue.tmpl"}, rootUrl: good, ctxKeys: []keyring.Keyable{aKey}},
+			Responder{templates: templatesTest{vue: "vue.tmpl"}, rootUrl: good},
 			&Response{user: 1, tmpls: []string{"test.tmpl"}, data: map[string]any{"entry": "not-test", "other": 1}},
 			"test",
 			func(t *testing.T, tmpls []string, data any, err error) {
@@ -778,7 +860,7 @@ func TestVue(t *testing.T) {
 			// Arrange
 			req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
 			require.Nil(t, err)
-			tc.r.r = req.Clone(context.WithValue(req.Context(), aKey, 1))
+			tc.r.r = req.Clone(context.WithValue(req.Context(), trails.AppPropsKey, 1))
 
 			// Act
 			err = Vue(tc.entry)(tc.d, tc.r)
@@ -791,36 +873,36 @@ func TestVue(t *testing.T) {
 
 func TestWarn(t *testing.T) {
 	tcs := []struct {
-		name   string
-		d      *Responder
-		msg    string
-		assert func(*testing.T, string, session.FlashSessionable, testLogger, error)
+		name       string
+		hasSession bool
+		msg        string
+		assert     func(*testing.T, string, session.Session, testLogger, error)
 	}{
 		{
 			"No-Sess-No-Msg",
-			NewResponder(WithLogger(newLogger())),
+			false,
 			"",
-			func(t *testing.T, expected string, s session.FlashSessionable, l testLogger, err error) {
-				require.Nil(t, err)
+			func(t *testing.T, expected string, s session.Session, l testLogger, err error) {
+				require.ErrorIs(t, err, ErrNotFound)
 				require.Equal(t, expected, l.String())
 				require.Nil(t, s.Flashes(nil, nil))
 			},
 		},
 		{
 			"No-Sess-With-Msg",
-			NewResponder(WithLogger(newLogger())),
+			false,
 			"Hey! Listen!",
-			func(t *testing.T, expected string, s session.FlashSessionable, l testLogger, err error) {
-				require.Nil(t, err)
+			func(t *testing.T, expected string, s session.Session, l testLogger, err error) {
+				require.ErrorIs(t, err, ErrNotFound)
 				require.Equal(t, expected, l.String())
 				require.Nil(t, s.Flashes(nil, nil))
 			},
 		},
 		{
 			"With-Sess-With-Msg",
-			NewResponder(WithLogger(newLogger()), WithSessionKey(ctxKey("key"))),
+			true,
 			"Hey! Listen!",
-			func(t *testing.T, expected string, s session.FlashSessionable, l testLogger, err error) {
+			func(t *testing.T, expected string, s session.Session, l testLogger, err error) {
 				require.Nil(t, err)
 				require.Equal(t, expected, l.String())
 				require.Equal(t, session.Flash{Type: "warning", Msg: expected}, s.Flashes(nil, nil)[0])
@@ -831,18 +913,24 @@ func TestWarn(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
+			d := NewResponder(WithLogger(newLogger()))
+
 			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-			s := new(testFlashSession)
-			if tc.d.sessionKey != nil {
-				req = req.WithContext(context.WithValue(req.Context(), tc.d.sessionKey, s))
+
+			s, err := session.NewStub(false).GetSession(req)
+			require.Nil(t, err)
+
+			if tc.hasSession {
+				req = req.WithContext(context.WithValue(req.Context(), trails.SessionKey, s))
 			}
+
 			r := &Response{r: req}
 
 			// Act
-			err := Warn(tc.msg)(*tc.d, r)
+			err = Warn(tc.msg)(*d, r)
 
 			// Assert
-			l, ok := tc.d.logger.(testLogger)
+			l, ok := d.logger.(testLogger)
 			require.True(t, ok)
 			tc.assert(t, tc.msg, s, l, err)
 		})
@@ -861,16 +949,3 @@ func (tl testLogger) Fatal(msg string, _ *logger.LogContext) { fmt.Fprint(tl, ms
 func (tl testLogger) Info(msg string, _ *logger.LogContext)  { fmt.Fprint(tl, msg) }
 func (tl testLogger) Warn(msg string, _ *logger.LogContext)  { fmt.Fprint(tl, msg) }
 func (tl testLogger) LogLevel() logger.LogLevel              { return logger.LogLevelDebug }
-
-type testFlashSession []session.Flash
-
-func (tfs testFlashSession) ClearFlashes(_ http.ResponseWriter, _ *http.Request) { tfs = nil }
-
-func (tfs testFlashSession) Flashes(_ http.ResponseWriter, _ *http.Request) []session.Flash {
-	return tfs
-}
-
-func (tfs *testFlashSession) SetFlash(_ http.ResponseWriter, _ *http.Request, f session.Flash) error {
-	*tfs = testFlashSession([]session.Flash{f})
-	return nil
-}

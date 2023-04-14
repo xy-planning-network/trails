@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/middleware"
 )
 
@@ -15,7 +16,7 @@ func TestForceHTTPS(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
 
 	// Act
-	middleware.ForceHTTPS("development")(noopHandler()).ServeHTTP(w, r)
+	middleware.ForceHTTPS(trails.Development)(noopHandler()).ServeHTTP(w, r)
 
 	// Assert
 	require.Equal(t, http.StatusOK, w.Code)
@@ -26,7 +27,7 @@ func TestForceHTTPS(t *testing.T) {
 	r.Header.Set("X-Forwarded-Proto", "https")
 
 	// Act
-	middleware.ForceHTTPS("testing")(noopHandler()).ServeHTTP(w, r)
+	middleware.ForceHTTPS(trails.Testing)(noopHandler()).ServeHTTP(w, r)
 
 	// Assert
 	require.Equal(t, http.StatusOK, w.Code)
@@ -37,7 +38,7 @@ func TestForceHTTPS(t *testing.T) {
 	r.Header.Set("X-Forwarded-Proto", "http")
 
 	// Act
-	middleware.ForceHTTPS("testing")(noopHandler()).ServeHTTP(w, r)
+	middleware.ForceHTTPS(trails.Testing)(noopHandler()).ServeHTTP(w, r)
 
 	// Assert
 	require.Equal(t, http.StatusPermanentRedirect, w.Code)

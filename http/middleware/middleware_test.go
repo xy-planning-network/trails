@@ -1,9 +1,7 @@
 /*
-
 middleware_test utilizes build tags to exclude tests for regular dev workflows.
 
 Include a -tags $TAG_NAME flag to include otherwise excluded tests.
-
 */
 package middleware_test
 
@@ -14,7 +12,6 @@ import (
 	"net/http"
 
 	"github.com/xy-planning-network/trails/http/middleware"
-	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/logger"
 )
 
@@ -50,37 +47,6 @@ func teapotHandler() http.Handler {
 func noopHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 }
-
-type ctxKey string
-
-func (k ctxKey) Key() string    { return string(k) }
-func (k ctxKey) String() string { return string(k) }
-
-type failedSession struct {
-	e error
-}
-
-func (failedSession) ClearFlashes(w http.ResponseWriter, r *http.Request) {}
-func (e failedSession) Flashes(w http.ResponseWriter, r *http.Request) []session.Flash {
-	return nil
-}
-func (e failedSession) SetFlash(w http.ResponseWriter, r *http.Request, flash session.Flash) error {
-	return error(e.e)
-}
-func (e failedSession) Delete(w http.ResponseWriter, r *http.Request) error      { return error(e.e) }
-func (e failedSession) Get(key string) any                                       { return nil }
-func (e failedSession) ResetExpiry(w http.ResponseWriter, r *http.Request) error { return error(e.e) }
-func (e failedSession) Save(w http.ResponseWriter, r *http.Request) error        { return error(e.e) }
-func (e failedSession) Set(w http.ResponseWriter, r *http.Request, key string, val any) error {
-	return error(e.e)
-}
-func (e failedSession) DeregisterUser(w http.ResponseWriter, r *http.Request) error {
-	return error(e.e)
-}
-func (e failedSession) RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error {
-	return error(e.e)
-}
-func (e failedSession) UserID() (uint, error) { return 0, error(e.e) }
 
 type testLogger struct {
 	*bytes.Buffer

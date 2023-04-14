@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/session"
 	tt "github.com/xy-planning-network/trails/http/template/templatetest"
@@ -48,7 +49,6 @@ func TestResponderDo(t *testing.T) {
 }
 
 func TestResponderCurrentUser(t *testing.T) {
-	key := ctxKey("user")
 	tcs := []struct {
 		name        string
 		ctx         context.Context
@@ -56,26 +56,34 @@ func TestResponderCurrentUser(t *testing.T) {
 		expectedErr error
 	}{
 		{"Not-Set", context.Background(), nil, resp.ErrNotFound},
-		{"Set-With-Nil", context.WithValue(context.Background(), key, nil), nil, resp.ErrNotFound},
-		{"Set-With-Val", context.WithValue(context.Background(), key, struct{}{}), struct{}{}, nil},
+		{
+			"Wrong-Key",
+			context.WithValue(context.Background(), trails.Key("not-current-user-key"), struct{}{}),
+			nil,
+			resp.ErrNotFound,
+		},
+		{
+			"Set-With-Nil",
+			context.WithValue(context.Background(), trails.CurrentUserKey, nil),
+			nil,
+			resp.ErrNotFound,
+		},
+		{
+			"Set-With-Val",
+			context.WithValue(context.Background(), trails.CurrentUserKey, struct{}{}),
+			struct{}{},
+			nil,
+		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			d := resp.NewResponder(resp.WithUserSessionKey(key))
+			d := resp.NewResponder()
 			actual, err := d.CurrentUser(tc.ctx)
 			require.ErrorIs(t, err, tc.expectedErr)
 			require.Equal(t, tc.expectedVal, actual)
 		})
 	}
-
-	t.Run("No-Key", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), key, struct{}{})
-		d := resp.NewResponder()
-		actual, err := d.CurrentUser(ctx)
-		require.ErrorIs(t, err, resp.ErrNotFound)
-		require.Nil(t, actual)
-	})
 }
 
 func TestResponderErr(t *testing.T) {
@@ -204,6 +212,7 @@ func TestResponderRaw(t *testing.T) {
 }
 
 func TestResponderRedirect(t *testing.T) {
+	otherURL := "http://otherexample.com"
 	tcs := []struct {
 		name   string
 		fns    []resp.Fn
@@ -232,13 +241,13 @@ func TestResponderRedirect(t *testing.T) {
 				resp.Params(map[string]string{"go": "fun"}),
 				resp.Params(map[string]string{"params": "4"}),
 				resp.Params(map[string]string{"good": "times"}),
-				resp.Url("http://example.com/redirect"),
+				resp.Url(otherURL + "/redirect"),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusFound, w.Code)
 
-				expected, err := url.ParseRequestURI("http://example.com/redirect")
+				expected, err := url.ParseRequestURI(otherURL + "/redirect")
 				require.Nil(t, err)
 
 				q := expected.Query()
@@ -257,7 +266,7 @@ func TestResponderRedirect(t *testing.T) {
 		{
 			name: "Overwrite-4xx",
 			fns: []resp.Fn{
-				resp.Url("http://example.com"),
+				resp.Url(otherURL),
 				resp.Code(http.StatusTeapot),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
@@ -267,7 +276,7 @@ func TestResponderRedirect(t *testing.T) {
 				actual, err := url.ParseRequestURI(w.Header().Get("Location"))
 				require.Nil(t, err)
 
-				expected, err := url.ParseRequestURI("http://example.com")
+				expected, err := url.ParseRequestURI(otherURL)
 				require.Nil(t, err)
 				require.Equal(t, expected.String(), actual.String())
 			},
@@ -275,7 +284,7 @@ func TestResponderRedirect(t *testing.T) {
 		{
 			name: "Overwrite-5xx",
 			fns: []resp.Fn{
-				resp.Url("http://example.com"),
+				resp.Url(otherURL),
 				resp.Code(http.StatusInsufficientStorage),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
@@ -285,7 +294,7 @@ func TestResponderRedirect(t *testing.T) {
 				actual, err := url.ParseRequestURI(w.Header().Get("Location"))
 				require.Nil(t, err)
 
-				expected, err := url.ParseRequestURI("http://example.com")
+				expected, err := url.ParseRequestURI(otherURL)
 				require.Nil(t, err)
 				require.Equal(t, expected.String(), actual.String())
 			},
@@ -293,7 +302,7 @@ func TestResponderRedirect(t *testing.T) {
 		{
 			"Keep-3xx",
 			[]resp.Fn{
-				resp.Url("http://example.com"),
+				resp.Url(otherURL),
 				resp.Code(http.StatusPermanentRedirect),
 			},
 			func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
@@ -303,7 +312,7 @@ func TestResponderRedirect(t *testing.T) {
 				actual, err := url.ParseRequestURI(w.Header().Get("Location"))
 				require.Nil(t, err)
 
-				require.Equal(t, "http://example.com", actual.String())
+				require.Equal(t, otherURL, actual.String())
 			},
 		},
 	}
@@ -320,8 +329,6 @@ func TestResponderRedirect(t *testing.T) {
 
 func TestResponderHtml(t *testing.T) {
 	brokenTmpl := []byte("{{ define }}")
-	sessionKey := ctxKey("test")
-	userKey := ctxKey("user")
 	tcs := []struct {
 		name   string
 		d      *resp.Responder
@@ -356,17 +363,6 @@ func TestResponderHtml(t *testing.T) {
 			name: "With-Parser-Tmpls",
 			d:    resp.NewResponder(resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", nil)))),
 			fns:  []resp.Fn{resp.Tmpls("test.tmpl")},
-			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
-				require.Equal(t, http.StatusOK, w.Code)
-			},
-		},
-		{
-			name: "With-Parser-Tmpls-Session",
-			d: resp.NewResponder(
-				resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", nil))),
-				resp.WithSessionKey(sessionKey),
-			),
-			fns: []resp.Fn{resp.Tmpls("test.tmpl")},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, w.Code)
@@ -407,24 +403,6 @@ func TestResponderHtml(t *testing.T) {
 				require.Equal(t, http.StatusInternalServerError, w.Code)
 			},
 		},
-		// NOTE(dlk): some sleight-of-hand here -
-		// resp.Authed() is not used since it will error first before
-		// reaching the checks in *Responder.Html;
-		// this test verifies someone setting the Authed template
-		// via another path is gracefully handled.
-		{
-			name: "With-Authed-No-User",
-			d: resp.NewResponder(
-				resp.WithParser(tt.NewParser(tt.NewMockFile("err.tmpl", nil))),
-				resp.WithAuthTemplate("auth.tmpl"),
-				resp.WithErrTemplate("err.tmpl"),
-			),
-			fns: []resp.Fn{resp.Tmpls("auth.tmpl")},
-			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
-				require.Nil(t, err)
-				require.Equal(t, http.StatusInternalServerError, w.Code)
-			},
-		},
 		{
 			name: "With-Authed",
 			d: resp.NewResponder(
@@ -433,7 +411,6 @@ func TestResponderHtml(t *testing.T) {
 					tt.NewMockFile("test.tmpl", nil),
 				)),
 				resp.WithAuthTemplate("auth.tmpl"),
-				resp.WithUserSessionKey(userKey),
 			),
 			fns: []resp.Fn{resp.Authed(), resp.Tmpls("test.tmpl")},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
@@ -444,46 +421,95 @@ func TestResponderHtml(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
+		// Arrange
 		r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-		ctx := context.WithValue(r.Context(), sessionKey, session.Stub{})
-		ctx = context.WithValue(ctx, userKey, "I am definitely a user")
+
+		s, err := session.NewStub(false).GetSession(r)
+		require.Nil(t, err)
+
+		ctx := context.WithValue(r.Context(), trails.SessionKey, s)
+		ctx = context.WithValue(ctx, trails.CurrentUserKey, "I am definitely a user")
 		r = r.WithContext(ctx)
+
 		w := httptest.NewRecorder()
+
 		t.Run(tc.name, func(t *testing.T) {
+			// Act + Assert
 			tc.assert(t, w, r, tc.d.Html(w, r, tc.fns...))
 		})
 	}
+
+	// NOTE(dlk): some sleight-of-hand here -
+	// resp.Authed() is not used since it will error first before
+	// reaching the checks in *Responder.Html;
+	// this test verifies someone setting the Authed template
+	// via another path (i.e., Tmpls) is gracefully handled.
+	t.Run("With-Authed-No-User", func(t *testing.T) {
+		// Arrange
+		r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+		ctx := context.WithValue(r.Context(), trails.SessionKey, session.Session{})
+		ctx = context.WithValue(ctx, trails.CurrentUserKey, "I am definitely a user")
+		w := httptest.NewRecorder()
+		r = r.WithContext(ctx)
+
+		responder := resp.NewResponder(
+			resp.WithParser(tt.NewParser(tt.NewMockFile("err.tmpl", nil))),
+			resp.WithAuthTemplate("auth.tmpl"),
+			resp.WithErrTemplate("err.tmpl"),
+		)
+
+		// Act
+		err := responder.Html(w, r, resp.Tmpls("auth.tmpl"))
+
+		// Assert
+		require.Nil(t, err)
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestResponderSession(t *testing.T) {
-	key := ctxKey("session")
 	tcs := []struct {
 		name        string
 		ctx         context.Context
 		expectedVal any
 		expectedErr error
 	}{
-		{"Not-Set", context.Background(), nil, resp.ErrNotFound},
-		{"Set-With-Nil", context.WithValue(context.Background(), key, nil), nil, resp.ErrNotFound},
-		{"Set-With-Val", context.WithValue(context.Background(), key, session.Stub{}), session.Stub{}, nil},
+		{"Not-Set", context.Background(), session.Session{}, resp.ErrNotFound},
+		{
+			"Wrong-Key",
+			context.WithValue(context.Background(), trails.Key("not-session-key"), session.Session{}),
+			session.Session{},
+			resp.ErrNotFound,
+		},
+		{
+			"Set-With-Nil",
+			context.WithValue(context.Background(), trails.SessionKey, nil),
+			session.Session{},
+			resp.ErrNotFound,
+		},
+		{
+			"Set-With-Wrong-Type",
+
+			context.WithValue(context.Background(), trails.SessionKey, struct{}{}),
+			session.Session{},
+			resp.ErrInvalid,
+		},
+		{
+			"Set-With-session.Session",
+			context.WithValue(context.Background(), trails.SessionKey, session.Session{}),
+			session.Session{},
+			nil,
+		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			d := resp.NewResponder(resp.WithSessionKey(key))
+			d := resp.NewResponder()
 			actual, err := d.Session(tc.ctx)
 			require.ErrorIs(t, err, tc.expectedErr)
 			require.Equal(t, tc.expectedVal, actual)
 		})
 	}
-
-	t.Run("No-Key", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), key, struct{}{})
-		d := resp.NewResponder()
-		actual, err := d.Session(ctx)
-		require.Nil(t, err)
-		require.Nil(t, actual)
-	})
 }
 
 func BenchmarkResponderRedirect(b *testing.B) {

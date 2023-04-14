@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/middleware"
 )
 
@@ -19,7 +20,7 @@ func TestInjectIPAddress(t *testing.T) {
 
 	// Assert
 	actual(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
-		val, ok := rx.Context().Value(middleware.IpAddrCtxKey).(string)
+		val, ok := rx.Context().Value(trails.IpAddrKey).(string)
 		require.True(t, ok)
 		require.Equal(t, "0.0.0.0", val)
 	})).ServeHTTP(w, r)
@@ -34,7 +35,7 @@ func TestInjectIPAddress(t *testing.T) {
 
 	// Assert
 	actual(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
-		val, ok := rx.Context().Value(middleware.IpAddrCtxKey).(string)
+		val, ok := rx.Context().Value(trails.IpAddrKey).(string)
 		require.True(t, ok)
 		require.Equal(t, "1.1.1.1", val)
 	})).ServeHTTP(w, r)

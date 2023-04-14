@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
@@ -24,29 +23,6 @@ func TestResponderWithContactErrMsg(t *testing.T) {
 	expected := fmt.Sprintf(session.ContactUsErr, "us@example.com")
 	d := NewResponder(WithContactErrMsg(expected))
 	require.Equal(t, expected, d.contactErrMsg)
-}
-
-func TestResponderWithCtxKeys(t *testing.T) {
-	tcs := []struct {
-		name     string
-		keys     []keyring.Keyable
-		expected []keyring.Keyable
-	}{
-		{"nil", nil, nil},
-		{"zero-value", make([]keyring.Keyable, 0), nil},
-		{"many-zero-value", make([]keyring.Keyable, 99), nil},
-		{"sorted", []keyring.Keyable{ctxKey("a"), ctxKey("c"), ctxKey("e"), ctxKey("d")}, []keyring.Keyable{ctxKey("a"), ctxKey("c"), ctxKey("d"), ctxKey("e")}},
-		{"deduped", []keyring.Keyable{ctxKey("a"), ctxKey("a"), ctxKey("a")}, []keyring.Keyable{ctxKey("a")}},
-		{"filtered-zero-value", []keyring.Keyable{ctxKey(""), ctxKey("a"), ctxKey(""), ctxKey("b"), ctxKey("")}, []keyring.Keyable{ctxKey("a"), ctxKey("b")}},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			d := &Responder{}
-			WithCtxKeys(tc.keys...)(d)
-			require.Equal(t, tc.expected, d.ctxKeys)
-		})
-	}
 }
 
 func TestResponderWithErrTemplate(t *testing.T) {
@@ -95,22 +71,10 @@ func TestResponderWithRootUrl(t *testing.T) {
 	})
 }
 
-func TestResponderWithSessionKey(t *testing.T) {
-	expected := ctxKey("test")
-	d := NewResponder(WithSessionKey(expected))
-	require.Equal(t, expected, d.sessionKey)
-}
-
 func TestResponderWithUnauthTemplate(t *testing.T) {
 	expected := "test.tmpl"
 	d := NewResponder(WithUnauthTemplate(expected))
 	require.Equal(t, expected, d.templates.unauthed)
-}
-
-func TestResponderWithUserSessionKey(t *testing.T) {
-	expected := ctxKey("user")
-	d := NewResponder(WithUserSessionKey(expected))
-	require.Equal(t, expected, d.userSessionKey)
 }
 
 func TestResponderWithVueTemplate(t *testing.T) {
@@ -118,8 +82,3 @@ func TestResponderWithVueTemplate(t *testing.T) {
 	d := NewResponder(WithVueTemplate(expected))
 	require.Equal(t, expected, d.templates.vue)
 }
-
-type ctxKey string
-
-func (k ctxKey) Key() string    { return string(k) }
-func (k ctxKey) String() string { return string(k) }

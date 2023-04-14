@@ -3,6 +3,8 @@ package ranger
 import (
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 
 	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/middleware"
@@ -12,10 +14,41 @@ import (
 )
 
 type Config[U RangerUser] struct {
-	// NOTE(dlk): Ranger can accept a type parameter also.
+	// NOTE(dlk): Ranger can accept a type parameter also, like how New does.
 	// Config was chosen to minimize proliferating generic type parameters
 	// in all Ranger methods or references to Ranger.
 	// Config ought to be restricted to New.
+
+	// FS is the filesystem to find templates in for rendering them.
+	FS fs.FS
+
+	// Migrations are a list of DB migrations to run upon DB successful connection.
+	Migrations []postgres.Migration
+
+	// Shutdowns are a series of functions that ought to be called before *Ranger
+	// stops handling HTTP requests.
+	Shutdowns []ShutdownFn
+
+	mockdb    *postgres.MockDatabaseService
+	logoutput io.Writer
+}
+
+// UseDBMock overrides a real database connection with a mocked database
+// hooked up to ctrl.
+func (c *Config[U]) UseDBMock(mockdb *postgres.MockDatabaseService) { c.mockdb = mockdb }
+
+// UseLogOutput overrides the writing logs to os.Stdout;
+// use a bytes.Buffer in unit tests so log outputs can be inspected.
+func (c *Config[U]) UseLogOutput(w io.Writer) { c.logoutput = w }
+
+// Valid asserts the Config has all required data,
+// returning trails.ErrBadConfig if not.
+func (c Config[U]) Valid() error {
+	if c.FS == nil {
+		return fmt.Errorf("%w: c.FS cannot be nil", trails.ErrBadConfig)
+	}
+
+	return nil
 }
 
 // defaultUserStore constructs a function matching the signature of middleware.UserStorer.

@@ -15,7 +15,7 @@ const defaultMaxAge = 86400 // 1 day
 
 // The SessionStorer defines methods for interacting with a Sessionable for the given *http.Request.
 type SessionStorer interface {
-	GetSession(r *http.Request) (Sessionable, error) // TODO(dlk): Sessionable or TrailsSessionable?
+	GetSession(r *http.Request) (Session, error)
 }
 
 // A Service wraps a gorilla.Store to manage constructing a new one
@@ -23,52 +23,99 @@ type SessionStorer interface {
 //
 // Service implements SessionStorer.
 type Service struct {
-	ak     []byte
-	ek     []byte
-	sk     string
-	uk     string
-	env    trails.Environment
+	// The authentication key.
+	ak []byte
+
+	// The encryption key.
+	ek []byte
+
+	// The name this Service's sessions are stored under.
+	// Also used as the name of the cookie when WithCookie is used.
+	sn string
+
+	// The environment the Service is operating within.
+	env trails.Environment
+
+	// The number of seconds a session is valid.
 	maxAge int
-	store  gorilla.Store
+
+	// how the Service actually implements storing sessions.
+	store gorilla.Store
+}
+
+// A Config provides the required values
+type Config struct {
+	Env trails.Environment
+
+	// The name sessions are stored under.
+	// Also used as the name of the cookie when WithCookie is used.
+	SessionName string
+
+	// Hex-encoded key
+	AuthKey string
+
+	// Hex-encoded key
+	EncryptKey string
+}
+
+func validateConfig(c Config) error {
+	err := c.Env.Valid()
+	if err != nil {
+		return err
+	}
+
+	if c.SessionName == "" {
+		return fmt.Errorf("%w: SessionName cannot be %q", trails.ErrBadConfig, c.SessionName)
+	}
+
+	return nil
 }
 
 // NewStoreService initiates a data store for user web sessions
-// with the provided hex-encoded authentication key and encryption keys.
+// with the provided config.
 // If no backing storage is provided through a functional option -
 // like WithRedis - NewService stores sessions in cookies.
-func NewStoreService(env trails.Environment, authKey, encryptKey, sessionKey, userKey string, opts ...ServiceOpt) (Service, error) {
-	gob.Register(Flash{})
+func NewStoreService(cfg Config, opts ...ServiceOpt) (Service, error) {
 	var err error
-	s := Service{env: env, maxAge: defaultMaxAge, sk: sessionKey, uk: userKey}
+	gob.Register(Flash{})
+	gob.Register(trails.Key(""))
 
-	s.ak, err = hex.DecodeString(authKey)
-	if err != nil {
-		return Service{}, err
+	s := Service{
+		env:    cfg.Env,
+		maxAge: defaultMaxAge,
+		sn:     cfg.SessionName,
 	}
-	s.ek, err = hex.DecodeString(encryptKey)
+
+	s.ak, err = hex.DecodeString(cfg.AuthKey)
 	if err != nil {
-		return Service{}, err
+		return Service{}, fmt.Errorf("%w: authentication key is not valid: %s", trails.ErrBadConfig, err)
+	}
+
+	s.ek, err = hex.DecodeString(cfg.EncryptKey)
+	if err != nil {
+		return Service{}, fmt.Errorf("%w: encryption key is not valid: %s", trails.ErrBadConfig, err)
 	}
 
 	for _, opt := range opts {
 		if err := opt(&s); err != nil {
-			return Service{}, fmt.Errorf("%w: %s", ErrFailedConfig, err)
+			return Service{}, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
 		}
 	}
 
 	if s.store == nil {
 		if err := WithCookie()(&s); err != nil {
-			return Service{}, fmt.Errorf("%w: %s", ErrFailedConfig, err)
+			return Service{}, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
 		}
 	}
 
 	return s, nil
 }
 
-// GetSession wraps gorilla.Get, creating a brand new Session or one from the session retrieved.
-func (s Service) GetSession(r *http.Request) (Sessionable, error) {
-	session, err := s.store.Get(r, s.sk)
-	return Session{s: session, uk: s.uk}, err
+// GetSession retrieves the Session for the *http.Request,
+// or creates a brand new one.
+func (s Service) GetSession(r *http.Request) (Session, error) {
+	session, err := s.store.Get(r, s.sn)
+	return Session{s: session}, err
 }
 
 // A ServiceOpt configures the provided *Service,
@@ -84,6 +131,7 @@ func WithCookie() ServiceOpt {
 		} else {
 			c = gorilla.NewCookieStore(s.ak)
 		}
+
 		c.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
 		c.Options.HttpOnly = true
 		c.MaxAge(s.maxAge)
@@ -117,7 +165,7 @@ func WithRedis(uri, pass string) ServiceOpt {
 			r, err = redistore.NewRediStore(10, "tcp", uri, pass, s.ak, s.ek)
 		}
 		if err != nil {
-			return fmt.Errorf("%w: failed initializing Redis: %s", ErrFailedConfig, err)
+			return fmt.Errorf("%w: failed initializing Redis: %s", trails.ErrBadConfig, err)
 		}
 		r.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
 		r.Options.HttpOnly = true
@@ -126,3 +174,26 @@ func WithRedis(uri, pass string) ServiceOpt {
 		return nil
 	}
 }
+
+type Stub struct {
+	s *gorilla.Session
+}
+
+func NewStub(loggedIn bool) *Stub {
+	s := new(Stub)
+	s.s = gorilla.NewSession(s, "stub")
+	if loggedIn {
+		s.s.Values[trails.CurrentUserKey] = uint(1)
+	}
+
+	return s
+}
+
+func (s *Stub) GetSession(r *http.Request) (Session, error) {
+	return Session{s.s}, nil
+
+}
+
+func (s Stub) Get(r *http.Request, name string) (*gorilla.Session, error)               { return s.s, nil }
+func (s Stub) New(r *http.Request, name string) (*gorilla.Session, error)               { return s.s, nil }
+func (s Stub) Save(r *http.Request, w http.ResponseWriter, sess *gorilla.Session) error { return nil }

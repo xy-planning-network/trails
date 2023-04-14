@@ -38,14 +38,14 @@ var (
 // If that key has been used before (and has not expired),
 // Idempotent falls into one of these scenarios:
 //
-// - if a status code has not been set for that key,
-//   Idempotent responds with 409 since the idempotent request is still processing
+//   - if a status code has not been set for that key,
+//     Idempotent responds with 409 since the idempotent request is still processing
 //
-// - if the newly requested resource (the URI) does not match the original,
-//   Idempotent responsds with 422
+//   - if the newly requested resource (the URI) does not match the original,
+//     Idempotent responsds with 422
 //
-// - if the new request's body does not match the body of the original request's,
-//   Idempotent responds with 422
+//   - if the new request's body does not match the body of the original request's,
+//     Idempotent responds with 422
 //
 // - Idempotent writes the status code and body set for the key
 //

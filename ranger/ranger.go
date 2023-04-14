@@ -12,12 +12,10 @@ import (
 
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/xy-planning-network/trails"
-	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
 	"github.com/xy-planning-network/trails/http/session"
-	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
 )
@@ -41,69 +39,90 @@ type Ranger struct {
 	ctx       context.Context
 	db        postgres.DatabaseService
 	env       trails.Environment
-	kr        keyring.Keyringable
-	p         template.Parser
+	metadata  Metadata
 	sessions  session.SessionStorer
 	shutdowns []ShutdownFn
 	srv       *http.Server
 	url       *url.URL
-	userstore middleware.UserStorer
 }
 
 // New constructs a Ranger from the provided options.
 // Default options are applied first followed by the options passed into New.
 // Options supplied to New overwrite default configurations.
-func New[User RangerUser](cfg Config[U], opts ...RangerOption) (*Ranger, error) {
+func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
+	err := cfg.Valid()
+	if err != nil {
+		return nil, err
+	}
+
 	r := new(Ranger)
-	followups := make([]OptFollowup, 0)
 
 	// Setup initial configuration
 	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
+	r.Logger = defaultLogger(r.env, cfg.logoutput)
+	r.ctx, r.cancel = context.WithCancel(context.Background())
 
-	// NOTE(dlk): calling an option configures the *Ranger under construction.
-	// Some options require data from other options.
-	// These options, therefore, must delay configuring the *Ranger
-	// until either (1) user supplied RangerOptions or (2) default RangerOptions
-	// configure the *Ranger first.
-	// They return an optFollowup to be called after the initial set of options are run.
-	for _, opt := range append(defaultOpts(), opts...) {
-		fn, err := opt(r)
+	if cfg.mockdb == nil {
+		r.db, err = defaultDB(r.env, cfg.Migrations)
 		if err != nil {
-			return r, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
+			return nil, err
 		}
-
-		if fn != nil {
-			followups = append(followups, fn)
-		}
+	} else {
+		r.db = cfg.mockdb
 	}
 
-	r.userstore = cfg.defaultUserStore(r.db)
-
-	for _, fn := range followups {
-		if err := fn(); err != nil {
-			return nil, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
-		}
+	r.metadata, err = newMetadata()
+	if err != nil {
+		return nil, err
 	}
 
-	r.p = nil
+	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
+	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, cfg.FS, r.metadata), r.metadata.Contact)
+
+	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
+	if err != nil {
+		return nil, err
+	}
+
+	userstore := cfg.defaultUserStore(r.db)
+	mws := make([]middleware.Adapter, 0)
+	// NOTE(dlk): PRODUCTION only middlewares
+	if r.env.IsProduction() {
+		mws = append(
+			mws,
+			middleware.ForceHTTPS(r.env),
+		)
+	}
+
+	mws = append(
+		mws,
+		middleware.RequestID(),
+		middleware.InjectIPAddress(),
+		middleware.LogRequest(r.Logger),
+		middleware.InjectSession(r.sessions),
+		middleware.CurrentUser(r.Responder, userstore),
+	)
+	r.Router = defaultRouter(r.env, r.url, r.Responder, mws)
+	r.srv = defaultServer(r.ctx)
 
 	return r, nil
 }
 
-func (r *Ranger) EmitDB() postgres.DatabaseService        { return r.db }
-func (r *Ranger) EmitKeyring() keyring.Keyringable        { return r.kr }
-func (r *Ranger) EmitSessionStore() session.SessionStorer { return r.sessions }
+func (r *Ranger) BaseURL() *url.URL                              { return r.url }
+func (r *Ranger) Context() (context.Context, context.CancelFunc) { return r.ctx, r.cancel }
+func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
+func (r *Ranger) Env() trails.Environment                        { return r.env }
+func (r *Ranger) Metadata() Metadata                             { return r.metadata }
+func (r *Ranger) SessionStore() session.SessionStorer            { return r.sessions }
 
 // Guide begins the web server.
 //
 // These, and (*Ranger).Shutdown, stop Guide:
-//
-// - os.Interrupt
-// - os.Kill
-// - syscall.SIGHUP
-// - syscall.SIGINT
-// - syscall.SIGQUIT
-// - syscall.SIGTERM
+//   - os.Interrupt
+//   - syscall.SIGHUP
+//   - syscall.SIGINT
+//   - syscall.SIGQUIT
+//   - syscall.SIGTERM
 func (r *Ranger) Guide() error {
 	if r.ctx == nil {
 		r.ctx, r.cancel = context.WithCancel(context.Background())
@@ -122,28 +141,29 @@ func (r *Ranger) Guide() error {
 	cc := logger.CurrentCaller()
 	go func() {
 		s := <-ch
-		r.Logger.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: cc})
+		r.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: cc})
 		r.cancel()
 	}()
 
 	go func() {
-		r.Logger.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: cc})
+		r.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: cc})
 		r.srv.Handler = r.Router
 		if err := r.srv.ListenAndServe(); err != http.ErrServerClosed {
 			err = fmt.Errorf("could not listen: %w", err)
-			r.Logger.Error(err.Error(), &logger.LogContext{Caller: cc})
+			r.Error(err.Error(), &logger.LogContext{Caller: cc})
 		}
 	}()
 
 	<-r.ctx.Done()
 	close(ch)
 
-	return r.Shutdown()
+	return r.shutdown()
 }
 
-// Shutdown shutdowns the web server.
+// Shutdown shutdowns the web server
+// and cancels the context.Context exposed by *Ranger.Context.
 //
-// If you pass custom ShutdownFns using WithShutdowns,
+// If you pass custom ShutdownFns using Config.Shutdowns,
 // Shutdown calls these before closing the web server.
 //
 // You may want to provide custom ShutdownFns if other services
@@ -152,7 +172,14 @@ func (r *Ranger) Guide() error {
 // In such a case, Ranger continues to accept HTTP requests
 // until these custom ShutdownFns finish.
 // This state of affairs ought to be gracefully handled in your web handlers.
-func (r *Ranger) Shutdown() error {
+func (r *Ranger) Shutdown() {
+	// NOTE(dlk): this misdirection exists to ensure any dependencies on this *Ranger
+	// not using a ShutdownFn can clean themselves up,
+	// given *Ranger has been told to shutdown.
+	r.cancel()
+}
+
+func (r *Ranger) shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -185,3 +212,51 @@ func (r *Ranger) Shutdown() error {
 	ll.Info("web server shutdown successfully", nil)
 	return nil
 }
+
+// Metadata captures values set by different env vars
+// used to customize identifying the application to end users.
+//
+// Metadata provides its data through the "metadata" template function.
+type Metadata struct {
+	Contact string
+	Desc    string
+	Title   string
+}
+
+func newMetadata() (Metadata, error) {
+	m := Metadata{
+		Contact: trails.EnvVarOrString(ContactUsEnvVar, defaultContactUs),
+		Desc:    os.Getenv(AppDescEnvVar),
+		Title:   os.Getenv(AppTitleEnvVar),
+	}
+
+	if m.Contact == "" {
+		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, ContactUsEnvVar)
+		return Metadata{}, err
+
+	}
+
+	if m.Desc == "" {
+		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, AppDescEnvVar)
+		return Metadata{}, err
+	}
+
+	if m.Title == "" {
+		err := fmt.Errorf("%w: missing %q", trails.ErrBadConfig, AppTitleEnvVar)
+		return Metadata{}, err
+	}
+
+	return m, nil
+}
+
+func (m Metadata) templateFunc() (string, func(key string) string) {
+	return "metadata", func(key string) string {
+		return map[string]string{
+			"contactUs":   m.Contact,
+			"description": m.Desc,
+			"title":       m.Title,
+		}[key]
+	}
+}
+
+type ShutdownFn func(context.Context) error

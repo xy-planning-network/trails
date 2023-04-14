@@ -4,54 +4,19 @@ import (
 	"net/http"
 
 	gorilla "github.com/gorilla/sessions"
+	"github.com/xy-planning-network/trails"
 )
-
-// The Sessionable wraps methods for basic adding values to, deleting, and getting values from a session
-// associated with an *http.Request and saving those to the session store.
-type Sessionable interface {
-	Delete(w http.ResponseWriter, r *http.Request) error
-	Get(key string) any
-	ResetExpiry(w http.ResponseWriter, r *http.Request) error
-	Save(w http.ResponseWriter, r *http.Request) error
-	Set(w http.ResponseWriter, r *http.Request, key string, val any) error
-}
-
-// The UserSessionable wraps methods for adding, removing, and retrieving
-// user IDs from a session.
-type UserSessionable interface {
-	DeregisterUser(w http.ResponseWriter, r *http.Request) error
-	RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error
-	UserID() (uint, error)
-}
-
-// The TrailsSessionable composes session's major interfaces.
-type TrailsSessionable interface {
-	FlashSessionable
-	Sessionable
-	UserSessionable
-}
 
 // A Session provides all functionality for managing a fully featured session.
 //
 // Its functionality is implemented by lightly wrapping a gorilla.Session.
-//
-// TODO(dlk): embed *gorilla.Session anonymously? do not export?
 type Session struct {
-	s  *gorilla.Session
-	uk string
+	s *gorilla.Session
 }
 
-// NewSession constructs a new Session as an implementation of TrailsSessionable
-// from an interface value that is a *gorilla.Session.
-// If it isn't, ErrNotValid returns.
-//
-// Typical usage is to pass in the value retrieved from a http.Request.Context.
-// Given context keys are unexported, this package cannot perform that retrieval.
-func NewSession(g *gorilla.Session) TrailsSessionable { return Session{s: g} }
-
+// ClearFlashes removes all Flashes from the Session.
 func (s Session) ClearFlashes(w http.ResponseWriter, r *http.Request) {
 	_ = s.Flashes(w, r)
-	return
 }
 
 // Delete removes a session by making the MaxAge negative.
@@ -62,13 +27,17 @@ func (s Session) Delete(w http.ResponseWriter, r *http.Request) error {
 
 // DeregisterUser removes the User from the session.
 func (s Session) DeregisterUser(w http.ResponseWriter, r *http.Request) error {
-	delete(s.s.Values, s.uk)
+	delete(s.s.Values, trails.CurrentUserKey)
 	return s.Save(w, r)
 }
 
 // Flashes retrieves []Flash stored in the session.
 func (s Session) Flashes(w http.ResponseWriter, r *http.Request) []Flash {
 	raw := s.s.Flashes()
+	if len(raw) == 0 {
+		return nil
+	}
+
 	fs := make([]Flash, 0)
 	for _, r := range raw {
 		f, ok := r.(Flash)
@@ -78,6 +47,7 @@ func (s Session) Flashes(w http.ResponseWriter, r *http.Request) []Flash {
 
 		fs = append(fs, f)
 	}
+
 	if len(fs) > 0 {
 		// NOTE(dlk): Flashes are removed after they are accessed,
 		// but the session needs to be saved for them to be finally removed
@@ -96,7 +66,7 @@ func (s Session) Get(key string) any {
 
 // RegisterUserSession stores the user's ID in the session.
 func (s Session) RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error {
-	s.s.Values[s.uk] = ID
+	s.s.Values[trails.CurrentUserKey] = ID
 	return s.Save(w, r)
 }
 
@@ -109,7 +79,7 @@ func (s Session) ResetExpiry(w http.ResponseWriter, r *http.Request) error {
 func (s Session) Save(w http.ResponseWriter, r *http.Request) error { return s.s.Save(r, w) }
 
 // Set stores a value according to the key passed in on the session.
-func (s Session) Set(w http.ResponseWriter, r *http.Request, key string, val any) error {
+func (s Session) Set(w http.ResponseWriter, r *http.Request, key trails.Key, val any) error {
 	s.s.Values[key] = val
 	return s.Save(w, r)
 }
@@ -127,7 +97,7 @@ func (s Session) SetFlash(w http.ResponseWriter, r *http.Request, flash Flash) e
 //
 // If the value returned from the session is not a uint, ErrNotValid is returned and represents a programming error.
 func (s Session) UserID() (uint, error) {
-	intfVal, ok := s.s.Values[s.uk]
+	intfVal, ok := s.s.Values[trails.CurrentUserKey]
 	if !ok {
 		return 0, ErrNoUser
 	}
@@ -139,21 +109,3 @@ func (s Session) UserID() (uint, error) {
 
 	return val, nil
 }
-
-var _ TrailsSessionable = Stub{}
-
-type Stub struct{}
-
-func (s Stub) ClearFlashes(w http.ResponseWriter, r *http.Request)                {}
-func (s Stub) Flashes(w http.ResponseWriter, r *http.Request) []Flash             { return nil }
-func (s Stub) SetFlash(w http.ResponseWriter, r *http.Request, flash Flash) error { return nil }
-func (s Stub) Delete(w http.ResponseWriter, r *http.Request) error                { return nil }
-func (s Stub) Get(key string) any                                                 { return nil }
-func (s Stub) ResetExpiry(w http.ResponseWriter, r *http.Request) error           { return nil }
-func (s Stub) Save(w http.ResponseWriter, r *http.Request) error                  { return nil }
-func (s Stub) Set(w http.ResponseWriter, r *http.Request, key string, val any) error {
-	return nil
-}
-func (s Stub) DeregisterUser(w http.ResponseWriter, r *http.Request) error        { return nil }
-func (s Stub) RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error { return nil }
-func (s Stub) UserID() (uint, error)                                              { return 0, nil }

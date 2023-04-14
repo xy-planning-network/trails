@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/xy-planning-network/trails/http/keyring"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/session"
 )
@@ -14,23 +14,19 @@ import (
 // for users, as specified by type T.
 type AuthorizeApplicator[T any] struct {
 	d *resp.Responder
-	k keyring.Keyable
 }
 
 // NewAuthorizeApplicator constructs an AuthorizeApplicator for type T.
 // Apply methods for the constructed AuthorizeApplicator will use the Responder for redirects.
-// Apply methods will use the keyring.Keyable to pull a user out of the request Context.
-// Accordingly, the keyring.Keyable provided ought to be the same
-// as that returned by keyring.CurrentUserKey().
-func NewAuthorizeApplicator[T any](d *resp.Responder, k keyring.Keyable) AuthorizeApplicator[T] {
-	return AuthorizeApplicator[T]{d, k}
+// Apply methods will use trails.CurrentUserKey to pull a user out of the request Context.
+func NewAuthorizeApplicator[T any](d *resp.Responder) AuthorizeApplicator[T] {
+	return AuthorizeApplicator[T]{d}
 }
 
 // Apply wraps a custom function validating the authorization of a user,
 // whose type is specified by T.
 //
-// Using the kerying.Keyable the AuthorizeApplicator was constructed with,
-// Apply retrieves the value for that key from the request Context.
+// Apply retrieves the value for the trails.CurrentUserKey from the request Context.
 // Apply should not be used in a situation where the http.Request.Context
 // in some cases stores the requisite value and others does not.
 //
@@ -45,10 +41,10 @@ func NewAuthorizeApplicator[T any](d *resp.Responder, k keyring.Keyable) Authori
 //
 // Instead, Apply takes one of two actions
 // depending on the "Accept" HTTP header of the request.
-// - By default, Apply writes 401.
-// - If "text/html" appears in the "Accept" header, though,
-//   Apply sets a "no access" flash on the session
-//   and redirects to the URL the custom function returns.
+//   - By default, Apply writes 401.
+//   - If "text/html" appears in the "Accept" header, though,
+//     Apply sets a "no access" flash on the session
+//     and redirects to the URL the custom function returns.
 //
 // If fn is nil, Apply returns a NoopAdapter.
 func (aa AuthorizeApplicator[T]) Apply(fn func(user T) (string, bool)) Adapter {
@@ -60,10 +56,15 @@ func (aa AuthorizeApplicator[T]) Apply(fn func(user T) (string, bool)) Adapter {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			doRedirect := acceptsTextHtml(r.Header)
 
-			val, ok := r.Context().Value(aa.k).(T)
+			val, ok := r.Context().Value(trails.CurrentUserKey).(T)
 			if !ok {
-				err := fmt.Errorf("value in request context for key %q is not %T", aa.k.String(), val)
+				err := fmt.Errorf(
+					"value in request context for key %q is %T",
+					trails.CurrentUserKey.String(),
+					val,
+				)
 				aa.d.Err(w, r, err)
+
 				return
 			}
 

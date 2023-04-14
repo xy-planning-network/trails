@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/xy-planning-network/trails/http/keyring"
 	"github.com/xy-planning-network/trails/http/middleware"
 )
 
@@ -27,7 +26,7 @@ type Route struct {
 // A Router handles many [Route], directing HTTP requests to the appropriate endpoint.
 type Router interface {
 	// AuthedRoutes registers the set of Routes as those requiring authentication.
-	AuthedRoutes(key keyring.Keyable, loginUrl string, logoffUrl string, routes []Route, middlewares ...middleware.Adapter)
+	AuthedRoutes(loginUrl string, logoffUrl string, routes []Route, middlewares ...middleware.Adapter)
 
 	// Handle applies the [Route] to the Router
 	Handle(route Route)
@@ -50,7 +49,7 @@ type Router interface {
 	Subrouter(prefix string) Router
 
 	// UnauthedRoutes handles the set of Routes
-	UnauthedRoutes(key keyring.Keyable, routes []Route, middlewares ...middleware.Adapter)
+	UnauthedRoutes(routes []Route, middlewares ...middleware.Adapter)
 
 	http.Handler
 }
@@ -77,13 +76,12 @@ type DefaultRouter struct {
 //
 // key ought to be the one returned by your keyring.Keyringable.CurrentUserKey.
 func (r *DefaultRouter) AuthedRoutes(
-	key keyring.Keyable,
-	loginUrl string,
+	loginUrl,
 	logoffUrl string,
 	routes []Route,
 	middlewares ...middleware.Adapter,
 ) {
-	r.HandleRoutes(routes, append(middlewares, middleware.RequireAuthed(key, loginUrl, logoffUrl))...)
+	r.HandleRoutes(routes, append(middlewares, middleware.RequireAuthed(loginUrl, logoffUrl))...)
 }
 
 // NewRouter constructs an implementation of [Router] using [DefaultRouter] for the given environment.
@@ -160,13 +158,10 @@ func (r *DefaultRouter) Subrouter(prefix string) Router {
 	}
 }
 
-// UnauthedRoutes registers routes as those requiring unauthenticated users.
+// UnauthedRoutes registers the set of Routes as those requiring unauthenticated users.
 // It applies the given middlewares before performing that check.
-// It uses key to check whether a user is authenticated or not.
-//
-// key ought to be the one returned by your keyring.Keyringable.CurrentUserKey.
-func (r *DefaultRouter) UnauthedRoutes(key keyring.Keyable, routes []Route, middlewares ...middleware.Adapter) {
-	r.HandleRoutes(routes, append(middlewares, middleware.RequireUnauthed(key))...)
+func (r *DefaultRouter) UnauthedRoutes(routes []Route, middlewares ...middleware.Adapter) {
+	r.HandleRoutes(routes, append(middlewares, middleware.RequireUnauthed())...)
 }
 
 // cacheControlWrapper helps by adding a "Cache-Control" header to the response.

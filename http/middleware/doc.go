@@ -22,6 +22,5 @@ Instead, the following can be copy-pasted:
 		middleware.InjectSession(sessionStore, sessionKey),
 		middleware.CurrentUser(responder, userStore, userKey),
 	}
-
 */
 package middleware
