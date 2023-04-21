@@ -190,7 +190,7 @@ func defaultParser(env trails.Environment, url *url.URL, files fs.FS, m Metadata
 		template.WithFn("isProduction", env.IsProduction),
 		template.WithFn(m.templateFunc()),
 		template.WithFn(template.Nonce()),
-		template.WithFn("packTag", template.TagPacker(env, files)),
+		template.WithFn("packTag", template.TagPacker(env, os.DirFS("."))),
 		template.WithFn(template.RootUrl(url)),
 	}
 
