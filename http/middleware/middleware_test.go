@@ -54,9 +54,10 @@ type testLogger struct {
 
 func newLogger() testLogger { return testLogger{new(bytes.Buffer)} }
 
+func (tl testLogger) AddSkip(i int) logger.Logger            { return tl }
+func (tl testLogger) Skip() int                              { return 0 }
 func (tl testLogger) Debug(msg string, _ *logger.LogContext) { fmt.Fprint(tl, msg) }
 func (tl testLogger) Error(msg string, _ *logger.LogContext) { fmt.Fprint(tl, msg) }
 func (tl testLogger) Fatal(msg string, _ *logger.LogContext) { fmt.Fprint(tl, msg) }
 func (tl testLogger) Info(msg string, _ *logger.LogContext)  { fmt.Fprint(tl, msg) }
 func (tl testLogger) Warn(msg string, _ *logger.LogContext)  { fmt.Fprint(tl, msg) }
-func (tl testLogger) LogLevel() logger.LogLevel              { return logger.LogLevelDebug }

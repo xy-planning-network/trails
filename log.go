@@ -1,6 +1,10 @@
 package trails
 
-import "golang.org/x/exp/slog"
+import (
+	"strings"
+
+	"golang.org/x/exp/slog"
+)
 
 const (
 	LogKindKey = "kind"
@@ -17,3 +21,24 @@ var (
 	// to hide sensitive data from log messages.
 	MaskedLogValue = slog.StringValue(LogMaskVal)
 )
+
+// NewLogLevel translates val into a [golang.org/x/exp/slog.Level]
+func NewLogLevel(val string) slog.Level {
+	if strings.EqualFold("DEBUG", val) {
+		return slog.LevelDebug
+	}
+
+	if strings.EqualFold("INFO", val) {
+		return slog.LevelInfo
+	}
+
+	if strings.EqualFold("WARN", val) {
+		return slog.LevelWarn
+	}
+
+	if strings.EqualFold("ERROR", val) {
+		return slog.LevelError
+	}
+
+	return slog.LevelInfo
+}

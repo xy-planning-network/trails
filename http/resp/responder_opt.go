@@ -53,9 +53,6 @@ func WithErrTemplate(fp string) func(*Responder) {
 //
 // If no Logger is provided through this option, a defaultLogger will be configured.
 func WithLogger(log logger.Logger) func(*Responder) {
-	if log == nil {
-		log = logger.New()
-	}
 	return func(d *Responder) {
 		d.logger = log
 	}

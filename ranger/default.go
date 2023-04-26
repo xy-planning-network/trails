@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xy-planning-network/tint"
 	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/http/resp"
@@ -42,10 +42,11 @@ const (
 	environmentEnvVar = "ENVIRONMENT"
 
 	// Log defaults
-	logLevelEnvVar = "LOG_LEVEL"
-	defaultLogLvl  = logger.LogLevelInfo
-	logJSONEnvVar  = "LOG_JSON"
-	defaultLogJSON = false
+	logLevelEnvVar  = "LOG_LEVEL"
+	defaultLogLvl   = slog.LevelInfo
+	logJSONEnvVar   = "LOG_JSON"
+	defaultLogJSON  = false
+	sentryDsnEnvVar = "SENTRY_DSN"
 
 	// Database defaults
 	dbHostEnvVar     = "DATABASE_HOST"
@@ -152,29 +153,78 @@ func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.Data
 	return postgres.NewService(db), nil
 }
 
-// defaultLogger constructs a [logger.Logger].
-// A default logger.Logger can be overriden for in unit tests.
-func defaultLogger(env trails.Environment, output io.Writer) logger.Logger {
-	out := log.New(output, "", log.LstdFlags)
-	logLvl := trails.EnvVarOrLogLevel(logLevelEnvVar, defaultLogLvl)
-	args := []logger.LoggerOptFn{
-		logger.WithEnv(env.String()),
-		logger.WithLevel(logLvl),
-		logger.WithLogger(out),
+// defaultAppLogger constructs a [tlog.Logger] configured for use in the application.
+func defaultAppLogger(env trails.Environment, output io.Writer) logger.Logger {
+	slogger := newSlogger(trails.AppLogKind, env, output)
+	l := logger.New(slogger)
+	if dsn := os.Getenv(sentryDsnEnvVar); dsn != "" {
+		l = logger.NewSentryLogger(env, l, dsn)
 	}
 
-	return logger.New(args...)
+	slog.SetDefault(slogger)
+
+	return l
 }
 
-// defaultSloggerHandler contstructs a [golang.org/x/exp/slog.Handler]
-// with the output source,
-// toggling between JSON or plain text (dev only) encoding.
-func defaultSloggerHandler(env trails.Environment, output io.Writer) slog.Handler {
-	if !trails.EnvVarOrBool(logJSONEnvVar, defaultLogJSON) && env.IsDevelopment() {
-		return slog.NewTextHandler(output)
+// defaultHTTPLogger constructs a [*golang.org/x/exp/slog.Logger] for use in HTTP router logging.
+func defaultHTTPLogger(env trails.Environment, output io.Writer) *slog.Logger {
+	return newSlogger(trails.HTTPLogKind, env, output)
+}
+
+func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Logger {
+	lvl := new(slog.LevelVar)
+	lvl.Set(trails.EnvVarOrLogLevel(logLevelEnvVar, slog.LevelInfo))
+
+	useJSON := !env.IsDevelopment() || trails.EnvVarOrBool(logJSONEnvVar, defaultLogJSON)
+	kindStr := kind.String()
+	isApp, isHTTP := kindStr == trails.AppLogKind.String(), kindStr == trails.HTTPLogKind.String()
+
+	var handler slog.Handler
+	switch {
+	case isApp && useJSON:
+		opts := slog.HandlerOptions{
+			AddSource:   true,
+			Level:       lvl,
+			ReplaceAttr: logger.TruncSourceAttr,
+		}
+		handler = opts.NewJSONHandler(out)
+
+	case isApp && !useJSON:
+		handler = tint.Options{
+			AddSource:  true,
+			Level:      lvl,
+			TimeFormat: "2006-01-02 15:04:05.000",
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				a = logger.ColorizeLevel(groups, a)
+				return logger.TruncSourceAttr(groups, a)
+			},
+		}.NewHandler(out)
+
+	case isHTTP && useJSON:
+		opts := slog.HandlerOptions{
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				a = logger.DeleteLevelAttr(groups, a)
+				return logger.DeleteMessageAttr(groups, a)
+			},
+		}
+		handler = opts.NewJSONHandler(out)
+
+	case isHTTP && !useJSON:
+		opts := slog.HandlerOptions{
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				a = logger.DeleteLevelAttr(groups, a)
+				return logger.DeleteMessageAttr(groups, a)
+			},
+		}
+		handler = opts.NewTextHandler(out)
+
 	}
 
-	return slog.NewJSONHandler(output)
+	handler = handler.WithAttrs([]slog.Attr{
+		{Key: trails.LogKindKey, Value: kind},
+	})
+
+	return slog.New(handler)
 }
 
 // defaultParser constructs a template.Parser to be used
@@ -184,8 +234,8 @@ func defaultSloggerHandler(env trails.Environment, output io.Writer) slog.Handle
 //
 //   - "env"
 //   - "metadata"
-//     - "description" returns the value set by the APP_DESCRIPTION env var
-//     - "title" returns the value set by the APP_TITLE env var
+//   - "description" returns the value set by the APP_DESCRIPTION env var
+//   - "title" returns the value set by the APP_TITLE env var
 //   - "nonce"
 //   - "rootUrl"
 //   - "packTag"

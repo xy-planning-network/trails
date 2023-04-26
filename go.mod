@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff
-	github.com/fatih/color v1.12.0
 	github.com/getsentry/sentry-go v0.11.0
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/golang/mock v1.5.0
@@ -14,7 +13,8 @@ require (
 	github.com/gorilla/sessions v1.2.1
 	github.com/joho/godotenv v1.4.0
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/exp v0.0.0-20230419192730-864b3d6c5c2c
+	github.com/xy-planning-network/tint v0.0.0-20230425211519-12ff4bc615ea
+	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb
 	golang.org/x/text v0.3.6
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
 	gorm.io/driver/postgres v1.0.8
@@ -38,11 +38,8 @@ require (
 	github.com/jackc/pgx/v4 v4.10.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.2 // indirect
-	github.com/mattn/go-colorable v0.1.8 // indirect
-	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
-	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )

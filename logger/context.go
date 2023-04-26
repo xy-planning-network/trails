@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"runtime"
+
+	"github.com/xy-planning-network/trails"
+	"golang.org/x/exp/slog"
 )
 
 var (
@@ -27,12 +29,12 @@ type LogUser interface {
 // A LogContext provides additional information and configuration
 // for a [*logger.Logger] method that cannot be tersely captured in the message itself.
 type LogContext struct {
-	// Caller overrides the caller file and line number with the provided value.
+	// Caller overrides the caller file and line number with the PC.
 	//
 	// Caller is not logged in the text of a LogContext.
 	//
 	// Caller helps goroutines identify the callers of the process that spawned it.
-	Caller string
+	Caller uintptr
 
 	// Data is any information pertinent at the time of the logging event.
 	Data map[string]any
@@ -47,6 +49,8 @@ type LogContext struct {
 	User LogUser
 }
 
+func (lc LogContext) LogValue() slog.Value { return slog.GroupValue(lc.attrs()...) }
+
 // MarshalText converts LogContext into a JSON representation,
 // eliminating zero-value fields or fields not requiring logging.
 //
@@ -54,6 +58,22 @@ type LogContext struct {
 //
 // MarshalText implements [encoding.TextMarshaler].
 func (lc LogContext) MarshalText() ([]byte, error) {
+	return json.Marshal(lc.toMap())
+}
+
+// String stringifies LogContext as a JSON representation of it.
+func (lc LogContext) String() string {
+	b, err := json.Marshal(lc)
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	return string(b)
+}
+
+func (lc LogContext) attrs() []slog.Attr { return processLogValues(lc.toMap()) }
+
+func (lc LogContext) toMap() map[string]any {
 	m := make(map[string]any)
 	if lc.Data != nil {
 		m["data"] = lc.Data
@@ -83,6 +103,10 @@ func (lc LogContext) MarshalText() ([]byte, error) {
 			r["form"] = lc.Request.Form
 		}
 
+		if id, ok := lc.Request.Context().Value(trails.RequestIDKey).(string); ok {
+			r["id"] = id
+		}
+
 		if len(r) > 0 {
 			m["request"] = r
 		}
@@ -101,28 +125,27 @@ func (lc LogContext) MarshalText() ([]byte, error) {
 		}
 	}
 
-	return json.Marshal(m)
+	return m
 }
 
-// String stringifies LogContext as a JSON representation of it.
-func (lc LogContext) String() string {
-	b, err := json.Marshal(lc)
-	if err != nil {
-		fmt.Println(err)
-		return ""
+func processLogValues(m map[string]any) []slog.Attr {
+	g := make([]slog.Attr, 0)
+	for k, v := range m {
+		switch t := v.(type) {
+		case http.Header:
+		// NOTE(dlk): throw away values we don't care to print in application logs.
+
+		case slog.Attr:
+			g = append(g, t)
+
+		case map[string]any:
+			// NOTE(dlk): break up nested values into slog.Groups
+			subg := processLogValues(t)
+			g = append(g, slog.Group(k, subg...))
+
+		default:
+			g = append(g, slog.Any(k, t))
+		}
 	}
-	return string(b)
-}
-
-// CurrentCaller retrieves the caller for the caller of CurrentCaller,
-// formatted for using as a value in LogContext.Caller.
-//
-//	 myFunc() { 		<- returns this caller
-//			func() {
-//				CurrentCaller()
-//			}()
-//	 }
-func CurrentCaller() string {
-	_, file, line, _ := runtime.Caller(2)
-	return fmt.Sprintf(callerTmpl, immediateFilepath(file), line)
+	return g
 }

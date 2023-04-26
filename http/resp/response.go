@@ -93,10 +93,7 @@ func Err(e error) Fn {
 			populateUser(d, r) // NOTE(dlk): ignore err since a user is not required
 
 			u, _ := r.user.(logger.LogUser)
-			l := d.logger
-			if sl, ok := d.logger.(logger.SkipLogger); ok {
-				l = sl.AddSkip(sl.Skip() + responseFnFrames)
-			}
+			l := d.logger.AddSkip(d.logger.Skip() + responseFnFrames)
 			l.Error(e.Error(), newLogContext(r.r, e, r.data, u))
 		}
 
@@ -430,9 +427,7 @@ func Warn(msg string) Fn {
 
 		u, _ := r.user.(logger.LogUser)
 		l := d.logger
-		if sl, ok := d.logger.(logger.SkipLogger); ok {
-			l = sl.AddSkip(sl.Skip() + responseFnFrames)
-		}
+		l = l.AddSkip(l.Skip() + responseFnFrames)
 		l.Warn(msg, newLogContext(r.r, errors.New(msg), r.data, u))
 
 		if err := Flash(session.Flash{Type: session.FlashWarning, Msg: msg})(d, r); err != nil {

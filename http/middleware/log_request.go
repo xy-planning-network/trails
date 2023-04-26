@@ -24,15 +24,10 @@ const (
 // - password
 //
 // If handler is nil, NoopAdapter returns and this middleware does nothing.
-func LogRequest(handler slog.Handler) Adapter {
-	if handler == nil {
+func LogRequest(ls *slog.Logger) Adapter {
+	if ls == nil {
 		return NoopAdapter
 	}
-
-	// NOTE(dlk): add constant values to include on every message here
-	ls := slog.New(handler.WithAttrs([]slog.Attr{
-		{Key: trails.LogKindKey, Value: trails.HTTPLogKind},
-	}))
 
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

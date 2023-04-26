@@ -46,3 +46,14 @@ func populateUser(d Responder, r *Response) error {
 
 	return CurrentUser(u)(d, r)
 }
+
+// stubLogger enables setting up a Responder without logging,
+// specifically for unit tests.
+type stubLogger struct{}
+
+func (l stubLogger) AddSkip(i int) logger.Logger          { return l }
+func (l stubLogger) Skip() int                            { return 0 }
+func (l stubLogger) Debug(_ string, _ *logger.LogContext) { return }
+func (l stubLogger) Info(_ string, _ *logger.LogContext)  { return }
+func (l stubLogger) Warn(_ string, _ *logger.LogContext)  { return }
+func (l stubLogger) Error(_ string, _ *logger.LogContext) { return }

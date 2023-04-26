@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -157,31 +155,6 @@ func TestLogContextMarshalText(t *testing.T) {
 	require.Equal(t, expected, m)
 	_, err = io.ReadAll(r.Body)
 	require.Nil(t, err)
-}
-
-func TestCurrentCaller(t *testing.T) {
-	// Arrange
-	expected := "testing/testing.go"
-
-	// Act
-	cc := logger.CurrentCaller()
-
-	// Assert
-	require.Contains(t, cc, expected)
-
-	// Arrange
-
-	fn := func() {
-		cc = logger.CurrentCaller()
-	}
-
-	// Act
-	_, file, line, _ := runtime.Caller(0)
-	fn()
-
-	// Assert
-	expected = fmt.Sprintf("%s:%d", file, line+1)
-	require.Contains(t, expected, cc)
 }
 
 type testUser struct{}
