@@ -185,9 +185,5 @@ func EnvVarOrURL(key, def string) *url.URL {
 		return defURL
 	}
 
-	if u.Path != "/" {
-		u.Path = "/"
-	}
-
 	return u
 }
