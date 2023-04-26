@@ -26,6 +26,6 @@
       window.Flashes = {{ .Flashes }};
     </script>
 
-    {{ template "vue" . }}
+    {{ block "vue" . }}{{ end }}
   </body>
 </html>
