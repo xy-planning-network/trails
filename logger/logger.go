@@ -29,11 +29,27 @@ var (
 
 // The Logger interface defines the ways of logging messages at certain levels of importance.
 type Logger interface {
+	// AddSkip sets the number of stacktrace frames to ascend when
+	// determining the file and line number of the log message.
+	//
+	// NB: AddSkip does not add to the amount set by previous AddSkip calls.
+	// To add to it, do something like: l = l.AddSkip(l.Skip + i)
 	AddSkip(i int) Logger
+
+	// Skip returns the number of frames that not be included
+	// when determining the file/line number of a call to a log message method.
 	Skip() int
+
+	// Debug writes a debug log message.
 	Debug(msg string, ctx *LogContext)
+
+	// Error writes an error log message.
 	Error(msg string, ctx *LogContext)
+
+	// Info writes an info log message.
 	Info(msg string, ctx *LogContext)
+
+	// Warn writes a warning log message.
 	Warn(msg string, ctx *LogContext)
 }
 
@@ -41,10 +57,6 @@ type Logger interface {
 type TrailsLogger struct {
 	l    *slog.Logger
 	skip int
-}
-
-type Config struct {
-	Handler slog.Handler
 }
 
 // New constructs a Logger using [golang.org/x/exp/slog.Logger].
@@ -56,27 +68,11 @@ func (l *TrailsLogger) AddSkip(i int) Logger {
 	return &newl
 }
 
-func (l *TrailsLogger) Skip() int { return l.skip }
-
-// Debug writes a debug log.
-func (l *TrailsLogger) Debug(msg string, ctx *LogContext) {
-	l.log(slog.LevelDebug, msg, ctx)
-}
-
-// Error writes an error log.
-func (l *TrailsLogger) Error(msg string, ctx *LogContext) {
-	l.log(slog.LevelError, msg, ctx)
-}
-
-// Info writes an info log.
-func (l *TrailsLogger) Info(msg string, ctx *LogContext) {
-	l.log(slog.LevelInfo, msg, ctx)
-}
-
-// Warn writes a warning log.
-func (l *TrailsLogger) Warn(msg string, ctx *LogContext) {
-	l.log(slog.LevelWarn, msg, ctx)
-}
+func (l *TrailsLogger) Skip() int                         { return l.skip }
+func (l *TrailsLogger) Debug(msg string, ctx *LogContext) { l.log(slog.LevelDebug, msg, ctx) }
+func (l *TrailsLogger) Error(msg string, ctx *LogContext) { l.log(slog.LevelError, msg, ctx) }
+func (l *TrailsLogger) Info(msg string, ctx *LogContext)  { l.log(slog.LevelInfo, msg, ctx) }
+func (l *TrailsLogger) Warn(msg string, ctx *LogContext)  { l.log(slog.LevelWarn, msg, ctx) }
 
 // log executes printing the log message,
 // including any context if available.
