@@ -66,7 +66,7 @@ func LogRequest(handler slog.Handler) Adapter {
 
 // A LogRequestRecord represents the fields that a LogRequest
 type LogRequestRecord struct {
-	BodySize       int    `json:"responseBodySize"`
+	BodySize       int    `json:"bodySize"`
 	Duration       int64  `json:"duration"`
 	Host           string `json:"host"`
 	ID             string `json:"id"`
@@ -75,8 +75,8 @@ type LogRequestRecord struct {
 	Path           string `json:"path"`
 	Protocol       string `json:"protocol"`
 	Referrer       string `json:"referrer"`
-	ReqContentLen  int    `json:"requestContentLength"`
-	ReqContentType string `json:"requestContentType"`
+	ReqContentLen  int    `json:"contentLength"`
+	ReqContentType string `json:"contentType"`
 	Scheme         string `json:"scheme"`
 	Status         int    `json:"status"`
 	URI            string `json:"uri"`
@@ -98,7 +98,7 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 	ip, _ := r.Context().Value(trails.IpAddrKey).(string)
 
 	return LogRequestRecord{
-		BodySize:       w.bodysize,
+		BodySize:       w.bodySize,
 		Host:           r.Host,
 		ID:             id,
 		IPAddr:         ip,
@@ -125,9 +125,9 @@ func (r LogRequestRecord) attrs() []slog.Attr {
 		slog.String("path", r.Path),
 		slog.String("protocol", r.Protocol),
 		slog.String("referrer", r.Referrer),
-		slog.Int("requestContentLength", r.ReqContentLen),
-		slog.String("requestContentType", r.ReqContentType),
-		slog.Int("responseBodySize", r.BodySize),
+		slog.Int("contentLength", r.ReqContentLen),
+		slog.String("contentType", r.ReqContentType),
+		slog.Int("bodySize", r.BodySize),
 		slog.String("scheme", r.Scheme),
 		slog.Int("status", r.Status),
 		slog.String("uri", r.URI),
@@ -138,7 +138,7 @@ func (r LogRequestRecord) attrs() []slog.Attr {
 type requestLogger struct {
 	http.ResponseWriter
 	status   int
-	bodysize int
+	bodySize int
 }
 
 func (rl *requestLogger) Header() http.Header { return rl.ResponseWriter.Header() }
@@ -149,7 +149,7 @@ func (rl *requestLogger) Header() http.Header { return rl.ResponseWriter.Header(
 func (rl *requestLogger) Unwrap() http.ResponseWriter { return rl.ResponseWriter }
 func (rl *requestLogger) Write(b []byte) (int, error) {
 	size, err := rl.ResponseWriter.Write(b)
-	rl.bodysize += size
+	rl.bodySize += size
 
 	return size, err
 
