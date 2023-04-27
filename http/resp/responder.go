@@ -86,7 +86,8 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 		opt(d)
 	}
 
-	d.logger = d.logger.AddSkip(responderFrames)
+	l := d.logger.AddSkip(responderFrames)
+	d.logger = l
 
 	if d.parser != nil {
 		d.parser.AddFn(template.Nonce())

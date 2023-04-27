@@ -36,15 +36,16 @@ type Ranger struct {
 	*resp.Responder
 	router.Router
 
-	cancel    context.CancelFunc
-	ctx       context.Context
-	db        postgres.DatabaseService
-	env       trails.Environment
-	metadata  Metadata
-	sessions  session.SessionStorer
-	shutdowns []ShutdownFn
-	srv       *http.Server
-	url       *url.URL
+	cancel       context.CancelFunc
+	ctx          context.Context
+	db           postgres.DatabaseService
+	env          trails.Environment
+	metadata     Metadata
+	sessions     session.SessionStorer
+	shutdowns    []ShutdownFn
+	srv          *http.Server
+	url          *url.URL
+	workerLogger logger.Logger
 }
 
 // New constructs a Ranger from the provided options.
@@ -65,6 +66,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	// Setup initial configuration
 	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
 	r.Logger = defaultAppLogger(r.env, cfg.logoutput)
+	r.workerLogger = defaultWorkerLogger(r.env, cfg.logoutput)
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
 	if cfg.mockdb == nil {
@@ -119,6 +121,7 @@ func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
 func (r *Ranger) Env() trails.Environment                        { return r.env }
 func (r *Ranger) Metadata() Metadata                             { return r.metadata }
 func (r *Ranger) SessionStore() session.SessionStorer            { return r.sessions }
+func (r *Ranger) WorkerLogger() logger.Logger                    { return r.workerLogger }
 
 // Guide begins the web server.
 //

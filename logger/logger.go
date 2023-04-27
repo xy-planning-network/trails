@@ -37,7 +37,7 @@ type Logger interface {
 	Warn(msg string, ctx *LogContext)
 }
 
-// TrailsLogger implements [Logger] using [*golang.org/x/exp/slog.Logger].
+// TrailsLogger implements [Logger] using [golang.org/x/exp/slog.Logger].
 type TrailsLogger struct {
 	l    *slog.Logger
 	skip int
@@ -47,8 +47,7 @@ type Config struct {
 	Handler slog.Handler
 }
 
-// TODO
-// New constructs a Logger using log.
+// New constructs a Logger using [golang.org/x/exp/slog.Logger].
 func New(log *slog.Logger) Logger { return &TrailsLogger{l: log} }
 
 func (l *TrailsLogger) AddSkip(i int) Logger {

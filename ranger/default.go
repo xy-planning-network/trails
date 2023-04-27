@@ -157,8 +157,10 @@ func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.Data
 func defaultAppLogger(env trails.Environment, output io.Writer) logger.Logger {
 	slogger := newSlogger(trails.AppLogKind, env, output)
 	l := logger.New(slogger)
+	l.Debug("setting up app logger", nil)
 	if dsn := os.Getenv(sentryDsnEnvVar); dsn != "" {
 		l = logger.NewSentryLogger(env, l, dsn)
+		l.Debug("using SentryLogger for appLogger", nil)
 	}
 
 	slog.SetDefault(slogger)
@@ -168,20 +170,40 @@ func defaultAppLogger(env trails.Environment, output io.Writer) logger.Logger {
 
 // defaultHTTPLogger constructs a [*golang.org/x/exp/slog.Logger] for use in HTTP router logging.
 func defaultHTTPLogger(env trails.Environment, output io.Writer) *slog.Logger {
-	return newSlogger(trails.HTTPLogKind, env, output)
+	sl := newSlogger(trails.HTTPLogKind, env, output)
+	sl.Debug("setting up HTTP router logger")
+
+	return sl
 }
 
+// defaultWorkerLogger constructs a [*golang.org/x/exp/slog.Logger] for use in Faktory worker logging.
+func defaultWorkerLogger(env trails.Environment, output io.Writer) logger.Logger {
+	slogger := newSlogger(trails.WorkerLogKind, env, output)
+	l := logger.New(slogger)
+	l.Debug("setting up worker logger", nil)
+	if dsn := os.Getenv(sentryDsnEnvVar); dsn != "" {
+		l = logger.NewSentryLogger(env, l, dsn)
+		l.Debug("using SentryLogger for workerLogger", nil)
+	}
+
+	return l
+}
+
+// newSlogger toggles contructing the specific [*golang.org/x/exp/slog.Logger]
+// from the given parameters.
 func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Logger {
 	lvl := new(slog.LevelVar)
 	lvl.Set(trails.EnvVarOrLogLevel(logLevelEnvVar, slog.LevelInfo))
 
 	useJSON := !env.IsDevelopment() || trails.EnvVarOrBool(logJSONEnvVar, defaultLogJSON)
 	kindStr := kind.String()
-	isApp, isHTTP := kindStr == trails.AppLogKind.String(), kindStr == trails.HTTPLogKind.String()
+	isApp := kindStr == trails.AppLogKind.String()
+	isHTTP := kindStr == trails.HTTPLogKind.String()
+	isWorker := kindStr == trails.WorkerLogKind.String()
 
 	var handler slog.Handler
 	switch {
-	case isApp && useJSON:
+	case useJSON && (isApp || isWorker):
 		opts := slog.HandlerOptions{
 			AddSource:   true,
 			Level:       lvl,
@@ -189,7 +211,7 @@ func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Lo
 		}
 		handler = opts.NewJSONHandler(out)
 
-	case isApp && !useJSON:
+	case !useJSON && (isApp || isWorker):
 		handler = tint.Options{
 			AddSource:  true,
 			Level:      lvl,

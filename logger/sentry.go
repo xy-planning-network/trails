@@ -8,6 +8,11 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+const (
+	knownSentryLogFrames     = 1
+	knownSentryCaptureFrames = 2
+)
+
 // A SentryLogger logs messages and reports sufficiently important
 // ones to error tracking software Sentry (https://sentry.io).
 type SentryLogger struct {
@@ -28,15 +33,15 @@ func NewSentryLogger(env trails.Environment, l Logger, dsn string) Logger {
 
 		return nil
 	}
+	l.Debug("initing SentryLogger", nil)
 
-	// TODO add 1 to skip count
-	return &SentryLogger{l: l}
+	return &SentryLogger{l: l.AddSkip(l.Skip() + knownSentryLogFrames)}
 }
 
-func (sl *SentryLogger) AddSkip(i int) Logger {
-	sl.l = sl.l.AddSkip(i)
-	return sl
-}
+// Unwrap exposes the underlying Logger backing the *SentryLogger.
+func (sl *SentryLogger) Unwrap() Logger { return sl.l }
+
+func (sl *SentryLogger) AddSkip(i int) Logger { return &SentryLogger{sl.l.AddSkip(i)} }
 
 func (sl *SentryLogger) Skip() int { return sl.l.Skip() }
 
@@ -47,7 +52,7 @@ func (sl *SentryLogger) Debug(msg string, ctx *LogContext) {
 
 // Error writes an error log and sends it to Sentry.
 func (sl *SentryLogger) Error(msg string, ctx *LogContext) {
-	if tl, ok := sl.l.(*TrailsLogger); ok && tl.l.Enabled(nil, slog.LevelError) {
+	if tl, ok := sl.l.(*TrailsLogger); ok && !tl.l.Enabled(nil, slog.LevelError) {
 		return
 	}
 
@@ -62,7 +67,7 @@ func (sl *SentryLogger) Info(msg string, ctx *LogContext) {
 
 // Warn writes a warning log and sends it to Sentry.
 func (sl *SentryLogger) Warn(msg string, ctx *LogContext) {
-	if tl, ok := sl.l.(*TrailsLogger); ok && tl.l.Enabled(nil, slog.LevelWarn) {
+	if tl, ok := sl.l.(*TrailsLogger); ok && !tl.l.Enabled(nil, slog.LevelWarn) {
 		return
 	}
 
@@ -93,7 +98,25 @@ func (sl *SentryLogger) send(level sentry.Level, ctx *LogContext) {
 			scope.SetExtra("data", ctx.Data)
 		}
 
+		scope.AddEventProcessor(skipBackFrames(sl.Skip()))
 		scope.SetLevel(level)
+
 		sentry.CaptureException(ctx.Error)
 	})
+}
+
+// skipBackFrames removes stacktrace frames from the *sentry.Event
+// so Sentry accurately captures the immediately relevant line of code
+// as the source of the exception.
+func skipBackFrames(skip int) func(*sentry.Event, *sentry.EventHint) *sentry.Event {
+	return func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
+		for i, exc := range event.Exception {
+			// NOTE(dlk): strip out frames from sentry pkg (knownSentryCaptureFrames)
+			// and any additional frames the Logger was setup with,
+			// as identified by skip.
+			last := len(exc.Stacktrace.Frames) - knownSentryCaptureFrames - skip
+			event.Exception[i].Stacktrace.Frames = exc.Stacktrace.Frames[:last]
+		}
+		return event
+	}
 }
