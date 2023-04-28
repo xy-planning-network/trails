@@ -65,6 +65,10 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	// Setup initial configuration
 	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
 	r.Logger = defaultAppLogger(r.env, cfg.logoutput)
+	if _, ok := r.Logger.(*logger.SentryLogger); ok {
+		r.shutdowns = append(r.shutdowns, logger.FlushSentry)
+	}
+
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
 	if cfg.mockdb == nil {

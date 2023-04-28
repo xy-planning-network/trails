@@ -25,10 +25,6 @@ type Config[U RangerUser] struct {
 	// Migrations are a list of DB migrations to run upon DB successful connection.
 	Migrations []postgres.Migration
 
-	// Shutdowns are a series of functions that ought to be called before *Ranger
-	// stops handling HTTP requests.
-	Shutdowns []ShutdownFn
-
 	mockdb    *postgres.MockDatabaseService
 	logoutput io.Writer
 }
