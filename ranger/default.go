@@ -160,7 +160,7 @@ func defaultAppLogger(env trails.Environment, output io.Writer) logger.Logger {
 	l.Debug("setting up app logger", nil)
 	if dsn := os.Getenv(sentryDsnEnvVar); dsn != "" {
 		l = logger.NewSentryLogger(env, l, dsn)
-		l.Debug("using SentryLogger for appLogger", nil)
+		l.Debug("using SentryLogger for app logger", nil)
 	}
 
 	slog.SetDefault(slogger)
@@ -177,13 +177,13 @@ func defaultHTTPLogger(env trails.Environment, output io.Writer) *slog.Logger {
 }
 
 // defaultWorkerLogger constructs a [*golang.org/x/exp/slog.Logger] for use in Faktory worker logging.
-func defaultWorkerLogger(env trails.Environment, output io.Writer) logger.Logger {
-	slogger := newSlogger(trails.WorkerLogKind, env, output)
+func defaultWorkerLogger(env trails.Environment) logger.Logger {
+	slogger := newSlogger(trails.WorkerLogKind, env, os.Stdout)
 	l := logger.New(slogger)
 	l.Debug("setting up worker logger", nil)
 	if dsn := os.Getenv(sentryDsnEnvVar); dsn != "" {
 		l = logger.NewSentryLogger(env, l, dsn)
-		l.Debug("using SentryLogger for workerLogger", nil)
+		l.Debug("using SentryLogger for worker logger", nil)
 	}
 
 	return l

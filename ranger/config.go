@@ -81,3 +81,8 @@ func (Config[U]) defaultUserStore(db postgres.DatabaseService) middleware.UserSt
 		return user, nil
 	}
 }
+
+type WorkerConfig struct {
+	// Migrations are a list of DB migrations to run upon DB successful connection.
+	Migrations []postgres.Migration
+}
