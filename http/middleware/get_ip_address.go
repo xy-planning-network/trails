@@ -10,8 +10,6 @@ import (
 	"github.com/xy-planning-network/trails"
 )
 
-const IpAddrCtxKey = "trails/middleware/ip-address" // TODO(dlk): change to key provided by app?
-
 // An ipRange is a range of IP addresses.
 type ipRange struct {
 	start net.IP

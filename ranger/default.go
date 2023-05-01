@@ -23,6 +23,7 @@ import (
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
+	"golang.org/x/exp/slog"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -43,6 +44,8 @@ const (
 	// Log defaults
 	logLevelEnvVar = "LOG_LEVEL"
 	defaultLogLvl  = logger.LogLevelInfo
+	logJSONEnvVar  = "LOG_JSON"
+	defaultLogJSON = false
 
 	// Database defaults
 	dbHostEnvVar     = "DATABASE_HOST"
@@ -152,10 +155,6 @@ func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.Data
 // defaultLogger constructs a [logger.Logger].
 // A default logger.Logger can be overriden for in unit tests.
 func defaultLogger(env trails.Environment, output io.Writer) logger.Logger {
-	if output == nil {
-		output = os.Stdout
-	}
-
 	out := log.New(output, "", log.LstdFlags)
 	logLvl := trails.EnvVarOrLogLevel(logLevelEnvVar, defaultLogLvl)
 	args := []logger.LoggerOptFn{
@@ -165,6 +164,17 @@ func defaultLogger(env trails.Environment, output io.Writer) logger.Logger {
 	}
 
 	return logger.New(args...)
+}
+
+// defaultSloggerHandler contstructs a [golang.org/x/exp/slog.Handler]
+// with the output source,
+// toggling between JSON or plain text (dev only) encoding.
+func defaultSloggerHandler(env trails.Environment, output io.Writer) slog.Handler {
+	if !trails.EnvVarOrBool(logJSONEnvVar, defaultLogJSON) && env.IsDevelopment() {
+		return slog.NewTextHandler(output)
+	}
+
+	return slog.NewJSONHandler(output)
 }
 
 // defaultParser constructs a template.Parser to be used

@@ -55,6 +55,10 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		return nil, err
 	}
 
+	if cfg.logoutput == nil {
+		cfg.logoutput = os.Stdout
+	}
+
 	r := new(Ranger)
 
 	// Setup initial configuration
@@ -98,7 +102,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		mws,
 		middleware.RequestID(),
 		middleware.InjectIPAddress(),
-		middleware.LogRequest(r.Logger),
+		middleware.LogRequest(defaultSloggerHandler(r.env, cfg.logoutput)),
 		middleware.InjectSession(r.sessions),
 		middleware.CurrentUser(r.Responder, userstore),
 	)
