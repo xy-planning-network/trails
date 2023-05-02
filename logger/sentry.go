@@ -1,7 +1,9 @@
 package logger
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/xy-planning-network/trails"
@@ -103,6 +105,12 @@ func (sl *SentryLogger) send(level sentry.Level, ctx *LogContext) {
 
 		sentry.CaptureException(ctx.Error)
 	})
+}
+
+// FlushSentry is a ranger.ShutdownFn that calls sentry.Flush on app shutdown.
+func FlushSentry(_ context.Context) error {
+	sentry.Flush(2 * time.Second)
+	return nil
 }
 
 // skipBackFrames removes stacktrace frames from the *sentry.Event
