@@ -36,16 +36,15 @@ type Ranger struct {
 	*resp.Responder
 	router.Router
 
-	cancel       context.CancelFunc
-	ctx          context.Context
-	db           postgres.DatabaseService
-	env          trails.Environment
-	metadata     Metadata
-	sessions     session.SessionStorer
-	shutdowns    []ShutdownFn
-	srv          *http.Server
-	url          *url.URL
-	workerLogger logger.Logger
+	cancel    context.CancelFunc
+	ctx       context.Context
+	db        postgres.DatabaseService
+	env       trails.Environment
+	metadata  Metadata
+	sessions  session.SessionStorer
+	shutdowns []ShutdownFn
+	srv       *http.Server
+	url       *url.URL
 }
 
 // New constructs a Ranger from the provided options.
@@ -66,7 +65,10 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	// Setup initial configuration
 	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
 	r.Logger = defaultAppLogger(r.env, cfg.logoutput)
-	r.workerLogger = defaultWorkerLogger(r.env, cfg.logoutput)
+	if _, ok := r.Logger.(*logger.SentryLogger); ok {
+		r.shutdowns = append(r.shutdowns, logger.FlushSentry)
+	}
+
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
 	if cfg.mockdb == nil {
@@ -78,12 +80,12 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		r.db = cfg.mockdb
 	}
 
+	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
 	r.metadata, err = newMetadata()
 	if err != nil {
 		return nil, err
 	}
 
-	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
 	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, cfg.FS, r.metadata), r.metadata.Contact)
 
 	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
@@ -121,7 +123,6 @@ func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
 func (r *Ranger) Env() trails.Environment                        { return r.env }
 func (r *Ranger) Metadata() Metadata                             { return r.metadata }
 func (r *Ranger) SessionStore() session.SessionStorer            { return r.sessions }
-func (r *Ranger) WorkerLogger() logger.Logger                    { return r.workerLogger }
 
 // Guide begins the web server.
 //
@@ -216,6 +217,29 @@ func (r *Ranger) shutdown() error {
 
 	ll.Info("web server shutdown successfully", nil)
 	return nil
+}
+
+// BuildWorkerCore constructs a *Ranger but skips those components relating to the HTTP router.
+func BuildWorkerCore(cfg WorkerConfig) (*Ranger, error) {
+	var err error
+	r := new(Ranger)
+	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
+	r.Logger = defaultWorkerLogger(r.env)
+
+	r.ctx, r.cancel = context.WithCancel(context.Background())
+
+	r.db, err = defaultDB(r.env, cfg.Migrations)
+	if err != nil {
+		return nil, err
+	}
+
+	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
+	r.metadata, err = newMetadata()
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
 }
 
 // Metadata captures values set by different env vars
