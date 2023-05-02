@@ -3,7 +3,6 @@ package resp
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/url"
 	"testing"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
+	"golang.org/x/exp/slog"
 )
 
 func TestResponderWithAuthTemplate(t *testing.T) {
@@ -34,9 +34,8 @@ func TestResponderWithErrTemplate(t *testing.T) {
 func TestResponderWithLogger(t *testing.T) {
 	// Arrange
 	b := new(bytes.Buffer)
-	l := log.New(b, "", log.LstdFlags)
-	ll := logger.New(logger.WithLogger(l))
-	d := NewResponder(WithLogger(ll))
+	l := logger.New(slog.New(slog.HandlerOptions{AddSource: true}.NewTextHandler(b)))
+	d := NewResponder(WithLogger(l))
 
 	msg := "unit testing is fun!"
 
@@ -45,7 +44,7 @@ func TestResponderWithLogger(t *testing.T) {
 
 	// Assert
 	actual := b.String()
-	require.Contains(t, actual, "[INFO]")
+	require.Contains(t, actual, "level=INFO")
 	require.Contains(t, actual, "responder_opt_test.go")
 	require.Contains(t, actual, msg)
 }

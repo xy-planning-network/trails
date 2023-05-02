@@ -4,39 +4,46 @@ import (
 	"fmt"
 
 	"github.com/getsentry/sentry-go"
+	"github.com/xy-planning-network/trails"
+	"golang.org/x/exp/slog"
+)
+
+const (
+	knownSentryLogFrames     = 1
+	knownSentryCaptureFrames = 2
 )
 
 // A SentryLogger logs messages and reports sufficiently important
 // ones to error tracking software Sentry (https://sentry.io).
 type SentryLogger struct {
-	l    SkipLogger
-	skip int
+	l Logger
 }
 
-// NewSentryLogger constructs a [SentryLogger] based off the provided [*TrailsLogger],
+// NewSentryLogger constructs a [*SentryLogger] based off the provided [*TrailsLogger],
 // routing messages to the DSN provided.
-func NewSentryLogger(tl *TrailsLogger, dsn string) Logger {
+func NewSentryLogger(env trails.Environment, l Logger, dsn string) Logger {
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:          dsn,
-		Environment:  tl.env,
+		Environment:  env.String(),
 		IgnoreErrors: []string{"write: broken pipe"},
 	})
 	if err != nil {
 		err = fmt.Errorf("unable to init Sentry: %s", err)
-		tl.Error(err.Error(), nil)
-		return tl
-	}
+		l.Error(err.Error(), nil)
 
-	l := tl.AddSkip(1 + tl.Skip())
-	return &SentryLogger{l: l}
+		return nil
+	}
+	l.Debug("initing SentryLogger", nil)
+
+	return &SentryLogger{l: l.AddSkip(l.Skip() + knownSentryLogFrames)}
 }
 
-// AddSkip replaces the current number of frames to scroll back
-// when logging a message.
-//
-// Use [*SentryLogger.Skip] to get the current skip amount
-// when needing to add to it with AddSkip.
-func (sl *SentryLogger) AddSkip(i int) SkipLogger { return sl.l.AddSkip(i) }
+// Unwrap exposes the underlying Logger backing the *SentryLogger.
+func (sl *SentryLogger) Unwrap() Logger { return sl.l }
+
+func (sl *SentryLogger) AddSkip(i int) Logger { return &SentryLogger{sl.l.AddSkip(i)} }
+
+func (sl *SentryLogger) Skip() int { return sl.l.Skip() }
 
 // Debug writes a debug log.
 func (sl *SentryLogger) Debug(msg string, ctx *LogContext) {
@@ -45,22 +52,12 @@ func (sl *SentryLogger) Debug(msg string, ctx *LogContext) {
 
 // Error writes an error log and sends it to Sentry.
 func (sl *SentryLogger) Error(msg string, ctx *LogContext) {
-	if sl.l.LogLevel() > LogLevelError {
+	if tl, ok := sl.l.(*TrailsLogger); ok && !tl.l.Enabled(nil, slog.LevelError) {
 		return
 	}
 
 	sl.l.Error(msg, ctx)
 	sl.send(sentry.LevelError, ctx)
-}
-
-// Fatal writes a fatal log and sends it to Sentry.
-func (sl *SentryLogger) Fatal(msg string, ctx *LogContext) {
-	if sl.l.LogLevel() > LogLevelFatal {
-		return
-	}
-
-	sl.l.Fatal(msg, ctx)
-	sl.send(sentry.LevelFatal, ctx)
 }
 
 // Info writes an info log.
@@ -70,22 +67,13 @@ func (sl *SentryLogger) Info(msg string, ctx *LogContext) {
 
 // Warn writes a warning log and sends it to Sentry.
 func (sl *SentryLogger) Warn(msg string, ctx *LogContext) {
-	if sl.l.LogLevel() > LogLevelWarn {
+	if tl, ok := sl.l.(*TrailsLogger); ok && !tl.l.Enabled(nil, slog.LevelWarn) {
 		return
 	}
 
 	sl.l.Warn(msg, ctx)
 	sl.send(sentry.LevelWarning, ctx)
 }
-
-// LogLevel returns the LogLevel set for the SentryLogger.
-//
-// Use [WithLevel] to set the log level on app startup.
-func (sl *SentryLogger) LogLevel() LogLevel { return sl.l.LogLevel() }
-
-// Skip returns the current amount of frames to scroll back
-// when logging a message.
-func (sl *SentryLogger) Skip() int { return sl.l.Skip() }
 
 // send ships the *LogContext.Error to Sentry,
 // including any additional data from *LogContext.
@@ -110,7 +98,25 @@ func (sl *SentryLogger) send(level sentry.Level, ctx *LogContext) {
 			scope.SetExtra("data", ctx.Data)
 		}
 
+		scope.AddEventProcessor(skipBackFrames(sl.Skip()))
 		scope.SetLevel(level)
+
 		sentry.CaptureException(ctx.Error)
 	})
+}
+
+// skipBackFrames removes stacktrace frames from the *sentry.Event
+// so Sentry accurately captures the immediately relevant line of code
+// as the source of the exception.
+func skipBackFrames(skip int) func(*sentry.Event, *sentry.EventHint) *sentry.Event {
+	return func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
+		for i, exc := range event.Exception {
+			// NOTE(dlk): strip out frames from sentry pkg (knownSentryCaptureFrames)
+			// and any additional frames the Logger was setup with,
+			// as identified by skip.
+			last := len(exc.Stacktrace.Frames) - knownSentryCaptureFrames - skip
+			event.Exception[i].Stacktrace.Frames = exc.Stacktrace.Frames[:last]
+		}
+		return event
+	}
 }

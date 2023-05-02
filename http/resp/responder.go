@@ -79,19 +79,15 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 	//
 	// TODO(dlk): include default parser?
 	d := &Responder{
-		pool: &sync.Pool{New: func() any { return new(bytes.Buffer) }},
+		logger: stubLogger{},
+		pool:   &sync.Pool{New: func() any { return new(bytes.Buffer) }},
 	}
 	for _, opt := range opts {
 		opt(d)
 	}
 
-	if d.logger == nil {
-		d.logger = logger.New()
-	}
-
-	if l, ok := d.logger.(logger.SkipLogger); ok {
-		d.logger = l.AddSkip(responderFrames)
-	}
+	l := d.logger.AddSkip(responderFrames)
+	d.logger = l
 
 	if d.parser != nil {
 		d.parser.AddFn(template.Nonce())

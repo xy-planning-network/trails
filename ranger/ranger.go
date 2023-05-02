@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -35,15 +36,16 @@ type Ranger struct {
 	*resp.Responder
 	router.Router
 
-	cancel    context.CancelFunc
-	ctx       context.Context
-	db        postgres.DatabaseService
-	env       trails.Environment
-	metadata  Metadata
-	sessions  session.SessionStorer
-	shutdowns []ShutdownFn
-	srv       *http.Server
-	url       *url.URL
+	cancel       context.CancelFunc
+	ctx          context.Context
+	db           postgres.DatabaseService
+	env          trails.Environment
+	metadata     Metadata
+	sessions     session.SessionStorer
+	shutdowns    []ShutdownFn
+	srv          *http.Server
+	url          *url.URL
+	workerLogger logger.Logger
 }
 
 // New constructs a Ranger from the provided options.
@@ -63,7 +65,8 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	// Setup initial configuration
 	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
-	r.Logger = defaultLogger(r.env, cfg.logoutput)
+	r.Logger = defaultAppLogger(r.env, cfg.logoutput)
+	r.workerLogger = defaultWorkerLogger(r.env, cfg.logoutput)
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
 	if cfg.mockdb == nil {
@@ -102,7 +105,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		mws,
 		middleware.RequestID(),
 		middleware.InjectIPAddress(),
-		middleware.LogRequest(defaultSloggerHandler(r.env, cfg.logoutput)),
+		middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput)),
 		middleware.InjectSession(r.sessions),
 		middleware.CurrentUser(r.Responder, userstore),
 	)
@@ -118,6 +121,7 @@ func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
 func (r *Ranger) Env() trails.Environment                        { return r.env }
 func (r *Ranger) Metadata() Metadata                             { return r.metadata }
 func (r *Ranger) SessionStore() session.SessionStorer            { return r.sessions }
+func (r *Ranger) WorkerLogger() logger.Logger                    { return r.workerLogger }
 
 // Guide begins the web server.
 //
@@ -142,19 +146,19 @@ func (r *Ranger) Guide() error {
 		syscall.SIGTERM,
 	)
 
-	cc := logger.CurrentCaller()
+	pc, _, _, _ := runtime.Caller(1)
 	go func() {
 		s := <-ch
-		r.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: cc})
+		r.Info(fmt.Sprint("received shutdown signal: ", s), &logger.LogContext{Caller: pc})
 		r.cancel()
 	}()
 
 	go func() {
-		r.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: cc})
+		r.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: pc})
 		r.srv.Handler = r.Router
 		if err := r.srv.ListenAndServe(); err != http.ErrServerClosed {
 			err = fmt.Errorf("could not listen: %w", err)
-			r.Error(err.Error(), &logger.LogContext{Caller: cc})
+			r.Error(err.Error(), nil)
 		}
 	}()
 
@@ -187,10 +191,7 @@ func (r *Ranger) shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ll := r.Logger
-	if sl, ok := ll.(logger.SkipLogger); ok {
-		ll = sl.AddSkip(sl.Skip() + 2)
-	}
+	ll := r.Logger.AddSkip(r.Logger.Skip() + 2)
 
 	ll.Info("shutting down web server", nil)
 	if len(r.shutdowns) > 0 {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xy-planning-network/trails/logger"
+	"golang.org/x/exp/slog"
 )
 
 // An Environment is a different context in which a trails app operates.
@@ -137,21 +137,15 @@ func EnvVarOrInt(key string, def int) int {
 }
 
 // EnvVarOrLogLevel gets the environment variable for the provided key,
-// creates a [logger.LogLevel] from the retrieved value,
-// or returns the provided default [logger.LogLevel]
-// if the value is an unknown [logger.LogLevel].
-func EnvVarOrLogLevel(key string, def logger.LogLevel) logger.LogLevel {
+// creates a [golang.org/x/exp/slog.Level] from the retrieved value,
+// or returns the provided default [golang.org/x/exp/slog.Level].
+func EnvVarOrLogLevel(key string, def slog.Level) slog.Level {
 	val := os.Getenv(key)
 	if val == "" {
 		return def
 	}
 
-	ll := logger.NewLogLevel(val)
-	if ll == logger.LogLevelUnk {
-		return def
-	}
-
-	return ll
+	return NewLogLevel(val)
 }
 
 // EnvVarOrString gets the environment variable for the provided key or the provided default string.

@@ -1,21 +1,25 @@
 package logger
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"log"
+	"context"
 	"os"
 	"path"
 	"regexp"
 	"runtime"
+	"strconv"
+	"time"
 
-	"github.com/fatih/color"
+	"golang.org/x/exp/slog"
 )
 
 const (
 	callerTmpl  = "%s:%d"
 	knownFrames = 2
+
+	ansiRed    = "\033[91m"
+	ansiYellow = "\033[93m"
+	ansiBlue   = "\033[94m"
+	ansiReset  = "\033[0m"
 )
 
 var (
@@ -25,195 +29,125 @@ var (
 
 // The Logger interface defines the ways of logging messages at certain levels of importance.
 type Logger interface {
-	Debug(msg string, ctx *LogContext)
-	Error(msg string, ctx *LogContext)
-	Fatal(msg string, ctx *LogContext)
-	Info(msg string, ctx *LogContext)
-	Warn(msg string, ctx *LogContext)
+	// AddSkip sets the number of stacktrace frames to ascend when
+	// determining the file and line number of the log message.
+	//
+	// NB: AddSkip does not add to the amount set by previous AddSkip calls.
+	// To add to it, do something like: l = l.AddSkip(l.Skip + i)
+	AddSkip(i int) Logger
 
-	LogLevel() LogLevel
-}
-
-// The SkipLogger interface defines a Logger that scrolls back
-// the number of frames provided in order to ascertain the call site.
-type SkipLogger interface {
-	AddSkip(i int) SkipLogger
+	// Skip returns the number of frames that not be included
+	// when determining the file/line number of a call to a log message method.
 	Skip() int
-	Logger
+
+	// Debug writes a debug log message.
+	Debug(msg string, ctx *LogContext)
+
+	// Error writes an error log message.
+	Error(msg string, ctx *LogContext)
+
+	// Info writes an info log message.
+	Info(msg string, ctx *LogContext)
+
+	// Warn writes a warning log message.
+	Warn(msg string, ctx *LogContext)
 }
 
-type LogLevel int
-
-const (
-	LogLevelUnk LogLevel = iota
-	LogLevelDebug
-	LogLevelInfo
-	LogLevelWarn
-	LogLevelError
-	LogLevelFatal
-)
-
-// NewLogLevel translates val into a LogLevel.
-// The string representation ought to be all uppercase;
-// e.g., DEBUG, WARN.
-func NewLogLevel(val string) LogLevel {
-	switch val {
-	case "DEBUG":
-		return LogLevelDebug
-	case "INFO":
-		return LogLevelInfo
-	case "WARN":
-		return LogLevelWarn
-	case "ERROR":
-		return LogLevelError
-	case "FATAL":
-		return LogLevelFatal
-	default:
-		return LogLevelUnk
-	}
-}
-
-func (ll LogLevel) String() string {
-	return map[LogLevel]string{
-		LogLevelDebug: "[DEBUG]",
-		LogLevelInfo:  "[INFO]",
-		LogLevelWarn:  "[WARN]",
-		LogLevelError: "[ERROR]",
-		LogLevelFatal: "[FATAL]",
-		LogLevelUnk:   "[UNK]",
-	}[ll]
-}
-
-// TrailsLogger implements [Logger] using [*log.Logger].
+// TrailsLogger implements [Logger] using [golang.org/x/exp/slog.Logger].
 type TrailsLogger struct {
+	l    *slog.Logger
 	skip int
-	env  string
-	l    *log.Logger
-	ll   LogLevel
 }
 
-// New constructs a TrailsLogger.
-//
-// Logs are printed to [os.Stdout] by default, using the std lib log pkg.
-// The default environment is DEVELOPMENT.
-// The default log level is DEBUG.
-func New(opts ...LoggerOptFn) Logger {
-	logger := log.New(os.Stdout, "", log.LstdFlags)
-	l := &TrailsLogger{
-		env: "DEVELOPMENT",
-		l:   logger,
-		ll:  LogLevelInfo,
-	}
-	for _, opt := range opts {
-		opt(l)
-	}
+// New constructs a Logger using [golang.org/x/exp/slog.Logger].
+func New(log *slog.Logger) Logger { return &TrailsLogger{l: log} }
 
-	if sentryDsn := os.Getenv("SENTRY_DSN"); sentryDsn != "" {
-		l.Info("SENTRY_DSN set, configuring SentryLogger", nil)
-		return NewSentryLogger(l, sentryDsn)
-	}
-
-	return l
-}
-
-// AddSkip replaces the current number of frames to scroll back
-// when logging a message.
-//
-// Use Skip to get the current skip amount
-// when needing to add to it with AddSkip.
-func (l *TrailsLogger) AddSkip(i int) SkipLogger {
+func (l *TrailsLogger) AddSkip(i int) Logger {
 	newl := *l
 	newl.skip = i
 	return &newl
 }
 
-// Debug writes a debug log.
-func (l *TrailsLogger) Debug(msg string, ctx *LogContext) {
-	if l.ll > LogLevelDebug {
-		return
-	}
-
-	l.log(color.WhiteString, LogLevelDebug, msg, ctx)
-}
-
-// Error writes an error log.
-func (l *TrailsLogger) Error(msg string, ctx *LogContext) {
-	if l.ll > LogLevelError {
-		return
-	}
-
-	l.log(color.RedString, LogLevelError, msg, ctx)
-}
-
-// Fatal writes a fatal log.
-func (l *TrailsLogger) Fatal(msg string, ctx *LogContext) {
-	if l.ll > LogLevelFatal {
-		return
-	}
-
-	l.log(color.MagentaString, LogLevelFatal, msg, ctx)
-}
-
-// Info writes an info log.
-func (l *TrailsLogger) Info(msg string, ctx *LogContext) {
-	if l.ll > LogLevelInfo {
-		return
-	}
-
-	l.log(color.BlueString, LogLevelInfo, msg, ctx)
-}
-
-// Warn writes a warning log.
-func (l *TrailsLogger) Warn(msg string, ctx *LogContext) {
-	if l.ll > LogLevelWarn {
-		return
-	}
-
-	l.log(color.YellowString, LogLevelWarn, msg, ctx)
-}
-
-// LogLevel returns the LogLevel set for the TrailsLogger.
-func (l *TrailsLogger) LogLevel() LogLevel { return l.ll }
-
-// Skip returns the current amount of frames to scroll back
-// when logging a message.
-func (l *TrailsLogger) Skip() int { return l.skip }
+func (l *TrailsLogger) Skip() int                         { return l.skip }
+func (l *TrailsLogger) Debug(msg string, ctx *LogContext) { l.log(slog.LevelDebug, msg, ctx) }
+func (l *TrailsLogger) Error(msg string, ctx *LogContext) { l.log(slog.LevelError, msg, ctx) }
+func (l *TrailsLogger) Info(msg string, ctx *LogContext)  { l.log(slog.LevelInfo, msg, ctx) }
+func (l *TrailsLogger) Warn(msg string, ctx *LogContext)  { l.log(slog.LevelWarn, msg, ctx) }
 
 // log executes printing the log message,
 // including any context if available.
-func (l *TrailsLogger) log(colorizer func(string, ...any) string, level LogLevel, msg string, ctx *LogContext) {
-	var caller string
-	if ctx != nil && ctx.Caller != "" {
-		caller = ctx.Caller
-	} else {
+func (l *TrailsLogger) log(level slog.Level, msg string, ctx *LogContext) {
+	if ctx == nil {
+		ctx = new(LogContext)
+	}
+
+	pc := ctx.Caller
+	if pc == 0 {
 		// NOTE(dlk): skip the number of frames the TrailsLogger has
 		// and however many the TrailsLogger is configured with
-		_, file, line, _ := runtime.Caller(knownFrames + l.Skip())
-		caller = fmt.Sprintf(callerTmpl, immediateFilepath(file), line)
+		pc, _, _, _ = runtime.Caller(knownFrames + l.Skip())
 	}
 
-	msg = colorizer("%s %s %q", level, caller, msg)
-	if ctx != nil {
-		b, err := json.Marshal(ctx)
-		if err != nil {
-			l.l.Println("failed marshaling LogContext:", err)
-		}
+	rec := slog.NewRecord(time.Now(), level, msg, pc)
+	rec.AddAttrs(ctx.attrs()...)
 
-		if b != nil && bytes.Compare(b, emptyJSON) != 0 {
-			l.l.Println(msg, "log_context:", string(b))
-			return
-		}
-	}
-
-	l.l.Println(msg)
+	l.l.Handler().Handle(context.TODO(), rec)
 }
 
-func getEnvOrString(key, def string) string {
-	val := os.Getenv(key)
-	if val == "" {
-		return def
+// ColorizeLevel adds color to the log level!
+func ColorizeLevel(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.LevelKey {
+		switch slog.Level(a.Value.Int64()) {
+		case slog.LevelDebug:
+			a.Value = slog.StringValue("[DEBUG]")
+		case slog.LevelInfo:
+			a.Value = slog.StringValue(ansiBlue + "[INFO]" + ansiReset)
+		case slog.LevelWarn:
+			a.Value = slog.StringValue(ansiYellow + "[WARN]" + ansiReset)
+		case slog.LevelError:
+			a.Value = slog.StringValue(ansiRed + "[ERROR]" + ansiReset)
+		}
 	}
-	return val
+
+	return a
+}
+
+// DeleteLevelAttr removes the log level from output.
+func DeleteLevelAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.LevelKey {
+		a = slog.Attr{}
+	}
+
+	return a
+}
+
+// DeleteMessageAttr removes the message from output.
+func DeleteMessageAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.MessageKey {
+		a = slog.Attr{}
+	}
+
+	return a
+}
+
+// TruncSourceAttr truncates the full filepath of the source log call
+// to a more-to-the-point path.
+func TruncSourceAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.SourceKey {
+		var val string
+		switch v := a.Value.Any().(type) {
+		case runtime.Frame: //NOTE(dlk): github.com/xy-planning-network/tint
+			val = immediateFilepath(v.File)
+			val += ":" + strconv.Itoa(v.Line)
+
+		case string: //NOTE(dlk): golang.org/x/exp/slog
+			val = immediateFilepath(v)
+		}
+
+		a = slog.Attr{Key: slog.SourceKey, Value: slog.StringValue(val)}
+	}
+
+	return a
 }
 
 // immediateFilepath either shortens a full filepath to the most immediate parent directory and file,

@@ -595,14 +595,9 @@ type testLogger struct {
 }
 
 func newLogger() testLogger                                  { return testLogger{bytes.NewBuffer(nil)} }
+func (tl testLogger) AddSkip(i int) logger.Logger            { return tl }
+func (tl testLogger) Skip() int                              { return 0 }
 func (tl testLogger) Debug(msg string, _ *logger.LogContext) { fmt.Fprint(tl.b, msg) }
 func (tl testLogger) Error(msg string, _ *logger.LogContext) { fmt.Fprint(tl.b, msg) }
-func (tl testLogger) Fatal(msg string, _ *logger.LogContext) { fmt.Fprint(tl.b, msg) }
 func (tl testLogger) Info(msg string, _ *logger.LogContext)  { fmt.Fprint(tl.b, msg) }
 func (tl testLogger) Warn(msg string, _ *logger.LogContext)  { fmt.Fprint(tl.b, msg) }
-func (tl testLogger) LogLevel() logger.LogLevel              { return logger.LogLevelDebug }
-
-type ctxKey string
-
-func (k ctxKey) Key() string    { return string(k) }
-func (k ctxKey) String() string { return string(k) }
