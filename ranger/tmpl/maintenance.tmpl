@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{{ metadata "title" }}</title>
+    <meta name="description" content="{{ metadata "description" }}"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://rsms.me/inter/inter.css" rel="stylesheet" />
+    <link rel="icon" href="https://www.xyplanningnetwork.com/wp-content/uploads/2019/09/Favicon.png" type="image/png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="#E2E8F0">
+<style>
+  :root {
+    font-family: 'Inter', sans-serif;
+  }
+  footer {
+    bottom: 0px;
+    margin: 1rem 0;
+    text-align: center;
+    color: #1F6DF4;
+  }
+  main {
+    background: #F5F5F5;
+    border-radius: 0.2rem;
+    height: 100%;
+    min-height: 50vh;
+    max-width: 1280px;
+    margin: auto;
+    padding: 1.5rem;
+    position: static;
+  }
+  section {
+    background: #F8FAFC;
+    border-radius: 0.2rem;
+    margin: 1rem 0;
+    padding: .25rem .5rem;
+  }
+  #logo {
+    margin: 0 0 2rem 100px; 
+  }
+  #sash {
+    background: #1F6DF4;
+    height: 100%;
+    left: 0px;
+    position: absolute;
+    top: 0px;
+    width: 100px;
+    z-index: -1;
+  }
+</style>
+  </head>
+  <body>
+    <div id="sash"></div>
+    <img
+      id="logo"
+      src="https://www.xyplanningnetwork.com/wp-content/uploads/2019/08/XYPN-banner-2019_1000x200-300x60.png"
+      alt="XY Planning Network"
+      width="200"
+      height="40"
+    >
+    <main>
+      <h3>We&rsquo;ll be back soon!</h3>
+      <section>
+        <p>
+          Sorry for the inconvenience but we&rsquo;re performing some maintenance at the moment. If you need to, you can 
+          always <a href="mailto:{{ . }}">contact us</a>, otherwise we&rsquo;ll be back online shortly!
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

@@ -22,6 +22,10 @@ type Config[U RangerUser] struct {
 	// FS is the filesystem to find templates in for rendering them.
 	FS fs.FS
 
+	// MaintMode determines how to configure ranger on ranger.New.
+	// If true, it skips setting up a database connection and routes to a maintenance page.
+	MaintMode bool
+
 	// Migrations are a list of DB migrations to run upon DB successful connection.
 	Migrations []postgres.Migration
 

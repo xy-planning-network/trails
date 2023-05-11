@@ -97,7 +97,7 @@ func (sl *SentryLogger) send(level sentry.Level, ctx *LogContext) {
 		}
 
 		if ctx.Data != nil {
-			scope.SetExtra("data", ctx.Data)
+			scope.SetContext("data", ctx.Data)
 		}
 
 		scope.AddEventProcessor(skipBackFrames(sl.Skip()))
@@ -119,6 +119,10 @@ func FlushSentry(_ context.Context) error {
 func skipBackFrames(skip int) func(*sentry.Event, *sentry.EventHint) *sentry.Event {
 	return func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
 		for i, exc := range event.Exception {
+			if exc.Stacktrace == nil {
+				continue
+			}
+
 			// NOTE(dlk): strip out frames from sentry pkg (knownSentryCaptureFrames)
 			// and any additional frames the Logger was setup with,
 			// as identified by skip.

@@ -17,6 +17,7 @@ import (
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
 	"github.com/xy-planning-network/trails/http/session"
+	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
 )
@@ -71,7 +72,9 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
-	if cfg.mockdb == nil {
+	// Skip database connection for maintenance mode
+	if cfg.MaintMode {
+	} else if cfg.mockdb == nil {
 		r.db, err = defaultDB(r.env, cfg.Migrations)
 		if err != nil {
 			return nil, err
@@ -85,15 +88,9 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	if err != nil {
 		return nil, err
 	}
+	parser := defaultParser(r.env, r.url, cfg.FS, r.metadata)
+	r.Responder = defaultResponder(r.Logger, r.url, parser, r.metadata.Contact)
 
-	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, cfg.FS, r.metadata), r.metadata.Contact)
-
-	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
-	if err != nil {
-		return nil, err
-	}
-
-	userstore := cfg.defaultUserStore(r.db)
 	mws := make([]middleware.Adapter, 0)
 	// NOTE(dlk): PRODUCTION only middlewares
 	if r.env.IsProduction() {
@@ -108,11 +105,39 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		middleware.RequestID(),
 		middleware.InjectIPAddress(),
 		middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput)),
-		middleware.InjectSession(r.sessions),
-		middleware.CurrentUser(r.Responder, userstore),
 	)
+	// Add session/user middlewares when not in maintenance mode
+	if !cfg.MaintMode {
+		r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
+		if err != nil {
+			return nil, err
+		}
+
+		mws = append(
+			mws,
+			middleware.InjectSession(r.sessions),
+			middleware.CurrentUser(r.Responder, cfg.defaultUserStore(r.db)),
+		)
+	}
 	r.Router = defaultRouter(r.env, r.url, r.Responder, mws)
 	r.srv = defaultServer(r.ctx)
+
+	if cfg.MaintMode {
+		methods := []string{
+			http.MethodDelete,
+			http.MethodPatch,
+			http.MethodPost,
+			http.MethodPut,
+		}
+		for _, method := range methods {
+			r.Router.Handle(router.Route{
+				Path:    "/",
+				Method:  method,
+				Handler: maintModeHandler(parser, r.Logger, r.metadata.Contact),
+			})
+		}
+		r.Logger.Info("Maintenance mode is turned on", nil)
+	}
 
 	return r, nil
 }
@@ -289,3 +314,19 @@ func (m Metadata) templateFunc() (string, func(key string) string) {
 }
 
 type ShutdownFn func(context.Context) error
+
+func maintModeHandler(p template.Parser, l logger.Logger, contact string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Add("Retry-After", "300")
+
+		tmpl, err := p.Parse("tmpl/maintenance.tmpl")
+		if err != nil {
+			l.Error(err.Error(), nil)
+			return
+		}
+		if err := tmpl.Execute(w, contact); err != nil {
+			l.Error(err.Error(), nil)
+			return
+		}
+	}
+}
