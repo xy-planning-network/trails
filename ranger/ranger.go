@@ -296,7 +296,7 @@ func (m Metadata) templateFunc() (string, func(key string) string) {
 
 type ShutdownFn func(context.Context) error
 
-// newMaintRanger configures the bare minimum to render an HTML main page.
+// newMaintRanger configures the bare minimum to render an HTML maintenance page.
 // This includes logging.
 func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
 	mws := []middleware.Adapter{
