@@ -72,9 +72,18 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
-	// Skip database connection for maintenance mode
+	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
+	r.metadata, err = newMetadata()
+	if err != nil {
+		return nil, err
+	}
+
+	// Return minimal ranger with configured routing for maintenance mode
 	if cfg.MaintMode {
-	} else if cfg.mockdb == nil {
+		return newMaintRanger(r, cfg), nil
+	}
+
+	if cfg.mockdb == nil {
 		r.db, err = defaultDB(r.env, cfg.Migrations)
 		if err != nil {
 			return nil, err
@@ -83,14 +92,14 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		r.db = cfg.mockdb
 	}
 
-	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
-	r.metadata, err = newMetadata()
+	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, cfg.FS, r.metadata), r.metadata.Contact)
+
+	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
 	if err != nil {
 		return nil, err
 	}
-	parser := defaultParser(r.env, r.url, cfg.FS, r.metadata)
-	r.Responder = defaultResponder(r.Logger, r.url, parser, r.metadata.Contact)
 
+	userstore := cfg.defaultUserStore(r.db)
 	mws := make([]middleware.Adapter, 0)
 	// NOTE(dlk): PRODUCTION only middlewares
 	if r.env.IsProduction() {
@@ -105,39 +114,11 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		middleware.RequestID(),
 		middleware.InjectIPAddress(),
 		middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput)),
+		middleware.InjectSession(r.sessions),
+		middleware.CurrentUser(r.Responder, userstore),
 	)
-	// Add session/user middlewares when not in maintenance mode
-	if !cfg.MaintMode {
-		r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
-		if err != nil {
-			return nil, err
-		}
-
-		mws = append(
-			mws,
-			middleware.InjectSession(r.sessions),
-			middleware.CurrentUser(r.Responder, cfg.defaultUserStore(r.db)),
-		)
-	}
 	r.Router = defaultRouter(r.env, r.url, r.Responder, mws)
 	r.srv = defaultServer(r.ctx)
-
-	if cfg.MaintMode {
-		methods := []string{
-			http.MethodDelete,
-			http.MethodPatch,
-			http.MethodPost,
-			http.MethodPut,
-		}
-		for _, method := range methods {
-			r.Router.Handle(router.Route{
-				Path:    "/",
-				Method:  method,
-				Handler: maintModeHandler(parser, r.Logger, r.metadata.Contact),
-			})
-		}
-		r.Logger.Info("Maintenance mode is turned on", nil)
-	}
 
 	return r, nil
 }
@@ -314,6 +295,45 @@ func (m Metadata) templateFunc() (string, func(key string) string) {
 }
 
 type ShutdownFn func(context.Context) error
+
+// newMaintRanger configures the bare minimum to render an HTML main page.
+// This includes logging.
+func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
+	mws := []middleware.Adapter{
+		middleware.RequestID(),
+		middleware.InjectIPAddress(),
+		middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput)),
+	}
+
+	r.Router = router.NewRouter(r.env.String())
+	r.Router.OnEveryRequest(mws...)
+
+	parser := defaultParser(r.env, r.url, cfg.FS, r.metadata)
+	methods := []string{
+		http.MethodGet,
+		http.MethodHead,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodPatch,
+		http.MethodDelete,
+		http.MethodConnect,
+		http.MethodOptions,
+		http.MethodTrace,
+	}
+	for _, method := range methods {
+		r.Router.Handle(router.Route{
+			Path:    "/",
+			Method:  method,
+			Handler: maintModeHandler(parser, r.Logger, r.metadata.Contact),
+		})
+	}
+
+	r.srv = defaultServer(r.ctx)
+
+	r.Logger.Info("Maintenance mode is turned on", nil)
+
+	return r
+}
 
 func maintModeHandler(p template.Parser, l logger.Logger, contact string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
