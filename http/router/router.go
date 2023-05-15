@@ -28,6 +28,9 @@ type Router interface {
 	// AuthedRoutes registers the set of Routes as those requiring authentication.
 	AuthedRoutes(loginUrl string, logoffUrl string, routes []Route, middlewares ...middleware.Adapter)
 
+	// CatchAll sets up a handler for all routes to funnel to for e.g. maintenace mode.
+	CatchAll(handler http.HandlerFunc)
+
 	// Handle applies the [Route] to the Router
 	Handle(route Route)
 
@@ -103,6 +106,16 @@ func NewRouter(env string) Router {
 	)
 
 	return &DefaultRouter{Env: env, Router: r}
+}
+
+// CatchAll sets up a handler for all routes to funnel to for e.g. maintenace mode.
+func (r *DefaultRouter) CatchAll(handler http.HandlerFunc) {
+	r.Router.PathPrefix("/").Handler(
+		middleware.Chain(
+			middleware.ReportPanic(r.Env)(handler),
+			r.everyReqStack...,
+		),
+	)
 }
 
 // Handle applies the [Route] to the [Router].

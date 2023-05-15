@@ -308,25 +308,11 @@ func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
 	r.Router = router.NewRouter(r.env.String())
 	r.Router.OnEveryRequest(mws...)
 
-	parser := defaultParser(r.env, r.url, cfg.FS, r.metadata)
-	methods := []string{
-		http.MethodGet,
-		http.MethodHead,
-		http.MethodPost,
-		http.MethodPut,
-		http.MethodPatch,
-		http.MethodDelete,
-		http.MethodConnect,
-		http.MethodOptions,
-		http.MethodTrace,
-	}
-	for _, method := range methods {
-		r.Router.Handle(router.Route{
-			Path:    "/",
-			Method:  method,
-			Handler: maintModeHandler(parser, r.Logger, r.metadata.Contact),
-		})
-	}
+	r.Router.CatchAll(maintModeHandler(
+		defaultParser(r.env, r.url, cfg.FS, r.metadata),
+		r.Logger,
+		r.metadata.Contact),
+	)
 
 	r.srv = defaultServer(r.ctx)
 
