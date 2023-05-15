@@ -17,6 +17,7 @@ import (
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
 	"github.com/xy-planning-network/trails/http/session"
+	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
 )
@@ -71,6 +72,17 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
+	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
+	r.metadata, err = newMetadata()
+	if err != nil {
+		return nil, err
+	}
+
+	// Return minimal ranger with configured routing for maintenance mode
+	if cfg.MaintMode {
+		return newMaintRanger(r, cfg), nil
+	}
+
 	if cfg.mockdb == nil {
 		r.db, err = defaultDB(r.env, cfg.Migrations)
 		if err != nil {
@@ -78,12 +90,6 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		}
 	} else {
 		r.db = cfg.mockdb
-	}
-
-	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
-	r.metadata, err = newMetadata()
-	if err != nil {
-		return nil, err
 	}
 
 	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, cfg.FS, r.metadata), r.metadata.Contact)
@@ -289,3 +295,58 @@ func (m Metadata) templateFunc() (string, func(key string) string) {
 }
 
 type ShutdownFn func(context.Context) error
+
+// newMaintRanger configures the bare minimum to render an HTML maintenance page.
+// This includes logging.
+func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
+	mws := []middleware.Adapter{
+		middleware.RequestID(),
+		middleware.InjectIPAddress(),
+		middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput)),
+	}
+
+	r.Router = router.NewRouter(r.env.String())
+	r.Router.OnEveryRequest(mws...)
+
+	parser := defaultParser(r.env, r.url, cfg.FS, r.metadata)
+	methods := []string{
+		http.MethodGet,
+		http.MethodHead,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodPatch,
+		http.MethodDelete,
+		http.MethodConnect,
+		http.MethodOptions,
+		http.MethodTrace,
+	}
+	for _, method := range methods {
+		r.Router.Handle(router.Route{
+			Path:    "/",
+			Method:  method,
+			Handler: maintModeHandler(parser, r.Logger, r.metadata.Contact),
+		})
+	}
+
+	r.srv = defaultServer(r.ctx)
+
+	r.Logger.Info("Maintenance mode is turned on", nil)
+
+	return r
+}
+
+func maintModeHandler(p template.Parser, l logger.Logger, contact string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Add("Retry-After", "300")
+
+		tmpl, err := p.Parse("tmpl/maintenance.tmpl")
+		if err != nil {
+			l.Error(err.Error(), nil)
+			return
+		}
+		if err := tmpl.Execute(w, contact); err != nil {
+			l.Error(err.Error(), nil)
+			return
+		}
+	}
+}
