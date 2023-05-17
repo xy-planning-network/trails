@@ -249,38 +249,37 @@ func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Lo
 	return slog.New(handler)
 }
 
-// defaultParser constructs a template.Parser to be used
+// defaultParser constructs a *template.Parser to be used
 // when responding to HTTP requests with [*http/resp.Responder.Html].
 //
 // defaultParser makes available these functions in an HTML template:
 //
 //   - "env"
 //   - "metadata"
-//   - "description" returns the value set by the APP_DESCRIPTION env var
-//   - "title" returns the value set by the APP_TITLE env var
+//   	- "description" returns the value set by the APP_DESCRIPTION env var
+//   	- "title" returns the value set by the APP_TITLE env var
 //   - "nonce"
 //   - "rootUrl"
 //   - "packTag"
 //   - "isDevelopment"
 //   - "isStaging"
 //   - "isProduction"
-func defaultParser(env trails.Environment, url *url.URL, files fs.FS, m Metadata) template.Parser {
-	args := []template.ParserOptFn{
-		template.WithFn(template.Env(env)),
-		template.WithFn("isDevelopment", env.IsDevelopment),
-		template.WithFn("isStaging", env.IsStaging),
-		template.WithFn("isProduction", env.IsProduction),
-		template.WithFn(m.templateFunc()),
-		template.WithFn(template.Nonce()),
-		template.WithFn("packTag", template.TagPacker(env, os.DirFS("."))),
-		template.WithFn(template.RootUrl(url)),
-	}
+func defaultParser(env trails.Environment, url *url.URL, files fs.FS, m Metadata) *template.Parser {
+	p := template.NewParser([]fs.FS{files, tmpls})
+	p = p.AddFn(template.Env(env))
+	p = p.AddFn("isDevelopment", env.IsDevelopment)
+	p = p.AddFn("isStaging", env.IsStaging)
+	p = p.AddFn("isProduction", env.IsProduction)
+	p = p.AddFn(m.templateFunc())
+	p = p.AddFn(template.Nonce())
+	p = p.AddFn("packTag", template.TagPacker(env, os.DirFS(".")))
+	p = p.AddFn(template.RootUrl(url))
 
-	return template.NewParser([]fs.FS{files, tmpls}, args...)
+	return p
 }
 
 // defaultResponder configures the [*resp.Responder] to be used by http.Handlers.
-func defaultResponder(l logger.Logger, url *url.URL, p template.Parser, contact string) *resp.Responder {
+func defaultResponder(l logger.Logger, url *url.URL, p *template.Parser, contact string) *resp.Responder {
 	args := []resp.ResponderOptFn{
 		resp.WithAdditionalScriptsTemplate(defaultAdditionalScriptsTmpl),
 		resp.WithAuthTemplate(defaultAuthedTmpl),

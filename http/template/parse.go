@@ -7,14 +7,8 @@ import (
 	"path"
 )
 
-// Parser is the interface for parsing HTML templates with the functions provided.
-type Parser interface {
-	AddFn(name string, fn any)
-	Parse(fps ...string) (*html.Template, error)
-}
-
 // Parse implements Parser with a focus on utilizing embedded HTML templates through fs.FS.
-type Parse struct {
+type Parser struct {
 	cache mergeFS
 	fns   html.FuncMap
 }
@@ -23,19 +17,24 @@ type Parse struct {
 // The order of fs.FS in fses matters.
 // The first reference to a filepath,
 // starting at the beginning of fses, is cached.
-func NewParser(fses []fs.FS, opts ...ParserOptFn) Parser {
-	p := &Parse{fns: make(html.FuncMap)}
-	for _, opt := range opts {
-		opt(p)
+func NewParser(fses []fs.FS) *Parser {
+	return &Parser{
+		fns:   make(html.FuncMap),
+		cache: merge(fses),
+	}
+}
+
+func (p *Parser) clone() *Parser {
+	newP := &Parser{cache: p.cache, fns: make(html.FuncMap)}
+	for k, v := range p.fns {
+		newP.fns[k] = v
 	}
 
-	p.cache = merge(fses)
-
-	return p
+	return newP
 }
 
 // Parse parses files found in the *Parse.fs with those functions provided previously.
-func (p *Parse) Parse(fps ...string) (*html.Template, error) {
+func (p *Parser) Parse(fps ...string) (*html.Template, error) {
 	var n int
 	dupes := make(map[string]bool)
 	for _, fp := range fps {

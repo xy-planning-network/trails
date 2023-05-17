@@ -17,7 +17,8 @@ func TestParse(t *testing.T) {
 	stub := []byte("<!DOCTYPE html>\n<html></html>")
 	tcs := []struct {
 		name   string
-		parser template.Parser
+		parser *template.Parser
+		fns    map[string]any
 		fps    []string
 		assert testFn
 	}{
@@ -110,18 +111,21 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
-			name: "With-Fns",
+			name: "Add-Fns",
 			parser: template.NewParser(
 				[]fs.FS{
 					tt.NewMockFS(
 						tt.NewMockFile(
 							"example.tmpl",
-							[]byte("<!DOCTYPE html><html>{{ test }}</html>"),
+							[]byte(`<!DOCTYPE html><html>{{ test }} {{ second "cool" }}</html>`),
 						),
 					),
 				},
-				template.WithFn("test", func() string { return "test" }),
 			),
+			fns: map[string]any{
+				"test":   func() string { return "test" },
+				"second": func(s string) string { return s },
+			},
 			fps: []string{"example.tmpl"},
 			assert: func(t *testing.T, tmpl *html.Template, err error) {
 				require.Nil(t, err)
@@ -129,13 +133,17 @@ func TestParse(t *testing.T) {
 
 				b := new(bytes.Buffer)
 				require.Nil(t, tmpl.Execute(b, nil))
-				require.Equal(t, "<!DOCTYPE html><html>test</html>", b.String())
+				require.Equal(t, "<!DOCTYPE html><html>test cool</html>", b.String())
 			},
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			for k, v := range tc.fns {
+				tc.parser = tc.parser.AddFn(k, v)
+			}
+
 			tmpl, err := tc.parser.Parse(tc.fps...)
 			tc.assert(t, tmpl, err)
 		})

@@ -59,7 +59,7 @@ func WithLogger(log logger.Logger) func(*Responder) {
 }
 
 // WithParser sets the provided implementation of template.Parser to use for parsing HTML templates.
-func WithParser(p template.Parser) func(*Responder) {
+func WithParser(p *template.Parser) func(*Responder) {
 	return func(d *Responder) {
 		d.parser = p
 	}
