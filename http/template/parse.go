@@ -25,11 +25,7 @@ func NewParser(fses []fs.FS) *Parser {
 }
 
 func (p *Parser) clone() *Parser {
-	newP := &Parser{cache: make(mergeFS), fns: make(html.FuncMap)}
-	for k, v := range p.cache {
-		newP.cache[k] = v
-	}
-
+	newP := &Parser{cache: p.cache, fns: make(html.FuncMap)}
 	for k, v := range p.fns {
 		newP.fns[k] = v
 	}
