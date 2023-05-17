@@ -23,12 +23,12 @@ func TestAddFn(t *testing.T) {
 		{"repeat", "one", func() {}, 4},
 	}
 
-	p := &Parse{}
+	p := new(Parser)
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// Act
-			require.NotPanics(t, func() { p.AddFn(tc.first, tc.second) })
+			require.NotPanics(t, func() { p = p.AddFn(tc.first, tc.second) })
 
 			// Assert
 			if tc.length == 0 {

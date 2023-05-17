@@ -39,7 +39,7 @@ type Responder struct {
 	logger logger.Logger
 
 	// Initialized template parser
-	parser template.Parser
+	parser *template.Parser
 
 	// Pool of *bytes.Buffer to prerender responses into
 	pool *sync.Pool
@@ -76,8 +76,6 @@ type Responder struct {
 // TODO(dlk): make setting root url required arg? + cannot redirect in err state w/o
 func NewResponder(opts ...ResponderOptFn) *Responder {
 	// ranging over opts may or may not overwrite defaults
-	//
-	// TODO(dlk): include default parser?
 	d := &Responder{
 		logger: stubLogger{},
 		pool:   &sync.Pool{New: func() any { return new(bytes.Buffer) }},
@@ -86,13 +84,12 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 		opt(d)
 	}
 
-	l := d.logger.AddSkip(responderFrames)
-	d.logger = l
+	d.logger = d.logger.AddSkip(responderFrames)
 
 	if d.parser != nil {
-		d.parser.AddFn(template.Nonce())
+		d.parser = d.parser.AddFn(template.Nonce())
 		if d.rootUrl != nil {
-			d.parser.AddFn(template.RootUrl(d.rootUrl))
+			d.parser = d.parser.AddFn(template.RootUrl(d.rootUrl))
 		}
 	}
 
@@ -163,9 +160,9 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 		}
 	}
 
-	doer.parser.AddFn(template.CurrentUser(rr.user))
+	p := doer.parser.AddFn(template.CurrentUser(rr.user))
 
-	tmpl, err := doer.parser.Parse(rr.tmpls...)
+	tmpl, err := p.Parse(rr.tmpls...)
 	if err != nil {
 		return doer.handleHtmlError(w, r, fmt.Errorf("cannot parse: %w", err))
 	}

@@ -321,7 +321,7 @@ func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
 	return r
 }
 
-func maintModeHandler(p template.Parser, l logger.Logger, contact string) http.HandlerFunc {
+func maintModeHandler(p *template.Parser, l logger.Logger, contact string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Add("Retry-After", "300")
 

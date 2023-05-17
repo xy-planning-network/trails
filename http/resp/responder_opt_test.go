@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xy-planning-network/trails/http/session"
-	"github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
 	"golang.org/x/exp/slog"
 )
@@ -47,12 +46,6 @@ func TestResponderWithLogger(t *testing.T) {
 	require.Contains(t, actual, "level=INFO")
 	require.Contains(t, actual, "responder_opt_test.go")
 	require.Contains(t, actual, msg)
-}
-
-func TestResponderWithParser(t *testing.T) {
-	p := templatetest.NewParser()
-	d := NewResponder(WithParser(p))
-	require.Equal(t, p, d.parser)
 }
 
 func TestResponderWithRootUrl(t *testing.T) {

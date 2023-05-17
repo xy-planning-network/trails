@@ -16,8 +16,8 @@ import (
 	"github.com/xy-planning-network/trails/http/template"
 )
 
-// NewParser constructs a template.Parser with the mocked files.
-func NewParser(tmpls ...FileMocker) template.Parser {
+// NewParser constructs a *template.Parser with the mocked files.
+func NewParser(tmpls ...FileMocker) *template.Parser {
 	return template.NewParser([]fs.FS{NewMockFS(tmpls...)})
 }
 

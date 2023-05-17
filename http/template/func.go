@@ -9,11 +9,15 @@ import (
 )
 
 // AddFn includes the named function in the Parse function map.
-func (p *Parse) AddFn(name string, fn any) {
-	if p.fns == nil {
-		p.fns = make(html.FuncMap)
+func (p *Parser) AddFn(name string, fn any) *Parser {
+	newP := p.clone()
+	if newP.fns == nil {
+		newP.fns = make(html.FuncMap)
 	}
-	p.fns[name] = fn
+
+	newP.fns[name] = fn
+
+	return newP
 }
 
 // CurrentUser encloses some value representing a user.
