@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -58,19 +57,21 @@ func (aa AuthorizeApplicator[T]) Apply(fn func(user T) (string, bool)) Adapter {
 
 			val, ok := r.Context().Value(trails.CurrentUserKey).(T)
 			if !ok {
-				err := fmt.Errorf(
-					"value in request context for key %q is %T",
-					trails.CurrentUserKey.String(),
-					val,
-				)
-				aa.d.Err(w, r, err)
+				if doRedirect {
+					f := session.Flash{Type: session.FlashWarning, Msg: session.NoAccessMsg}
+					if err := aa.d.Redirect(w, r, resp.Flash(f)); err != nil {
+						aa.d.Err(w, r, err)
+					}
 
+					return
+				}
+
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
 			if url, ok := fn(val); !ok {
 				if doRedirect {
-					// TODO(dlk): configurable to not add a flash?
 					f := session.Flash{Type: session.FlashWarning, Msg: session.NoAccessMsg}
 					if err := aa.d.Redirect(w, r, resp.Flash(f), resp.Url(url)); err != nil {
 						aa.d.Err(w, r, err)
