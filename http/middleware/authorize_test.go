@@ -43,7 +43,7 @@ func TestAuthorizeApplicator(t *testing.T) {
 	adpt(teapotHandler()).ServeHTTP(w, r)
 
 	//	Assert
-	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Equal(t, http.StatusUnauthorized, w.Code)
 
 	// Arrange
 	w = httptest.NewRecorder()
