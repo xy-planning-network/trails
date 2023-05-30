@@ -17,6 +17,7 @@ import (
 	"github.com/xy-planning-network/trails/http/session"
 	tt "github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
+	"golang.org/x/exp/slog"
 )
 
 type testFn func(*testing.T, *httptest.ResponseRecorder, *http.Request, error)
@@ -328,6 +329,9 @@ func TestResponderRedirect(t *testing.T) {
 }
 
 func TestResponderHtml(t *testing.T) {
+	b := new(bytes.Buffer)
+	testlog := logger.New(slog.New(slog.NewTextHandler(b)))
+
 	brokenTmpl := []byte("{{ define }}")
 	tcs := []struct {
 		name   string
@@ -371,22 +375,25 @@ func TestResponderHtml(t *testing.T) {
 		{
 			name: "Bad-Template-Syntax",
 			d: resp.NewResponder(
+				resp.WithLogger(testlog),
 				resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", brokenTmpl))),
 			),
 			fns: []resp.Fn{resp.Tmpls("test.tmpl")},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
+				require.Contains(t, b.String(), resp.ErrBadConfig.Error())
 				require.ErrorIs(t, err, resp.ErrBadConfig)
-
 			},
 		},
 		{
 			name: "With-Err-Tmpl-Bad-Syntax",
 			d: resp.NewResponder(
+				resp.WithLogger(testlog),
 				resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", brokenTmpl))),
 				resp.WithErrTemplate("test.tmpl"),
 			),
 			fns: make([]resp.Fn, 0),
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
+				require.Contains(t, b.String(), "no templates to render")
 				require.NotNil(t, err)
 				require.Equal(t, http.StatusInternalServerError, w.Code)
 			},
@@ -394,12 +401,14 @@ func TestResponderHtml(t *testing.T) {
 		{
 			name: "With-Err-Tmpl",
 			d: resp.NewResponder(
+				resp.WithLogger(testlog),
 				resp.WithParser(tt.NewParser(tt.NewMockFile("test.tmpl", nil))),
 				resp.WithErrTemplate("test.tmpl"),
 			),
 			fns: make([]resp.Fn, 0),
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
-				require.Nil(t, err)
+				require.Contains(t, b.String(), "no templates to render")
+				require.NotNil(t, err)
 				require.Equal(t, http.StatusInternalServerError, w.Code)
 			},
 		},
@@ -422,6 +431,8 @@ func TestResponderHtml(t *testing.T) {
 
 	for _, tc := range tcs {
 		// Arrange
+		b.Reset()
+
 		r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 
 		s, err := session.NewStub(false).GetSession(r)
@@ -462,7 +473,7 @@ func TestResponderHtml(t *testing.T) {
 		err := responder.Html(w, r, resp.Tmpls("auth.tmpl"))
 
 		// Assert
-		require.Nil(t, err)
+		require.NotNil(t, err)
 		require.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
