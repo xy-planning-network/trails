@@ -308,7 +308,7 @@ func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
 	r.Router = router.NewRouter(r.env.String())
 	r.Router.OnEveryRequest(mws...)
 
-	r.Router.CatchAll(maintModeHandler(
+	r.Router.CatchAll(MaintModeHandler(
 		defaultParser(r.env, r.url, cfg.FS, r.metadata),
 		r.Logger,
 		r.metadata.Contact),
@@ -321,9 +321,10 @@ func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
 	return r
 }
 
-func maintModeHandler(p *template.Parser, l logger.Logger, contact string) http.HandlerFunc {
+func MaintModeHandler(p *template.Parser, l logger.Logger, contact string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Add("Retry-After", "300")
+		w.Header().Add("Retry-After", "600")
+		w.WriteHeader(http.StatusServiceUnavailable)
 
 		tmpl, err := p.Parse("tmpl/maintenance.tmpl")
 		if err != nil {
