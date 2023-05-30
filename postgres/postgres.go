@@ -2,10 +2,15 @@ package postgres
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"strings"
+	"time"
 
+	"github.com/xy-planning-network/trails"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
@@ -25,8 +30,21 @@ type CxnConfig struct {
 }
 
 // Connect creates a database connection through GORM according to the connection config and runs all migrations.
-func Connect(config *CxnConfig, migrations []Migration) (*gorm.DB, error) {
+func Connect(config *CxnConfig, migrations []Migration, env trails.Environment) (*gorm.DB, error) {
+	// https://gorm.io/docs/logger.html
+	c := logger.Config{
+		SlowThreshold:             200 * time.Millisecond,
+		LogLevel:                  logger.Warn,
+		IgnoreRecordNotFoundError: true,
+		Colorful:                  false,
+	}
+
+	if env.IsDevelopment() {
+		c.Colorful = true
+	}
+
 	db, err := gorm.Open(postgres.Open(buildCxnStr(config)), &gorm.Config{
+		Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), c),
 		NamingStrategy: schema.NamingStrategy{
 			NameReplacer: strings.NewReplacer("Table", ""),
 		},
