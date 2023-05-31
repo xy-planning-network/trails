@@ -145,7 +145,7 @@ func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 // using default configuration environment variables
 // and runs the list of [postgres.Migration] passed in.
 func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.DatabaseService, error) {
-	db, err := postgres.Connect(NewPostgresConfig(env), list)
+	db, err := postgres.Connect(NewPostgresConfig(env), list, env)
 	if err != nil {
 		return nil, err
 	}
@@ -256,8 +256,8 @@ func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Lo
 //
 //   - "env"
 //   - "metadata"
-//   	- "description" returns the value set by the APP_DESCRIPTION env var
-//   	- "title" returns the value set by the APP_TITLE env var
+//   - "description" returns the value set by the APP_DESCRIPTION env var
+//   - "title" returns the value set by the APP_TITLE env var
 //   - "nonce"
 //   - "rootUrl"
 //   - "packTag"
