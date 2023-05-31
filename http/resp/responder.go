@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"runtime"
 	"sync"
 
 	"github.com/xy-planning-network/trails"
@@ -408,7 +409,8 @@ func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*
 // handleHtmlError specially renders the error template set on the Responder
 // and reports errors.
 func (doer *Responder) handleHtmlError(w http.ResponseWriter, r *http.Request, err error) error {
-	w.WriteHeader(http.StatusInternalServerError)
+	pc, _, _, _ := runtime.Caller(responderFrames + 2)
+	ctx := &logger.LogContext{Error: err, Request: r, Caller: pc}
 
 	if doer.templates.err == "" {
 		err = fmt.Errorf(
@@ -416,8 +418,12 @@ func (doer *Responder) handleHtmlError(w http.ResponseWriter, r *http.Request, e
 			ErrBadConfig,
 			err,
 		)
+		doer.logger.Error(err.Error(), ctx)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return err
 	}
+
 	b := doer.pool.Get().(*bytes.Buffer)
 	b.Reset()
 	defer doer.pool.Put(b)
@@ -425,27 +431,35 @@ func (doer *Responder) handleHtmlError(w http.ResponseWriter, r *http.Request, e
 	tmpl, nested := doer.parser.Parse(doer.templates.err)
 	if nested != nil {
 		err = fmt.Errorf("%w: %s", nested, err)
-		doer.logger.Error(err.Error(), nil)
+		ctx.Error = err
+		doer.logger.Error(err.Error(), ctx)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return err
 	}
 
 	nested = tmpl.Execute(b, map[string]any{"Contact": doer.contactErrMsg, "Error": err})
 	if nested != nil {
 		err = fmt.Errorf("%w: %s", nested, err)
-		doer.logger.Error(err.Error(), nil)
+		ctx.Error = err
+		doer.logger.Error(err.Error(), ctx)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return err
 	}
 
+	w.WriteHeader(http.StatusInternalServerError)
 	if _, nested = b.WriteTo(w); nested != nil {
 		err = fmt.Errorf("%w: %s", nested, err)
-		doer.logger.Error(err.Error(), nil)
+		ctx.Error = err
+		doer.logger.Error(err.Error(), ctx)
 		http.Error(w, fmt.Errorf("%w: %s", nested, err).Error(), http.StatusInternalServerError)
+
 		return err
 	}
 
-	return nil
+	doer.logger.Error(err.Error(), ctx)
+	return err
 }
 
 // redo applies as many may Options as it can, returning those Options that continue to throw an error.
