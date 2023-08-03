@@ -48,6 +48,9 @@ func Connect(config *CxnConfig, migrations []Migration, env trails.Environment) 
 		NamingStrategy: schema.NamingStrategy{
 			NameReplacer: strings.NewReplacer("Table", ""),
 		},
+		NowFunc: func() time.Time {
+			return time.Now().Truncate(time.Microsecond)
+		},
 	})
 	if err != nil {
 		return nil, err
