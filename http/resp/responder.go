@@ -409,6 +409,11 @@ func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*
 // handleHtmlError specially renders the error template set on the Responder
 // and reports errors.
 func (doer *Responder) handleHtmlError(w http.ResponseWriter, r *http.Request, err error) error {
+	// NOTE(dlk): add errors that can be filtered out here.
+	if err.Error() == "request ctx done" {
+		return nil
+	}
+
 	pc, _, _, _ := runtime.Caller(responderFrames + 2)
 	ctx := &logger.LogContext{Error: err, Request: r, Caller: pc}
 
