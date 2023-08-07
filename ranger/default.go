@@ -204,15 +204,16 @@ func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Lo
 	var handler slog.Handler
 	switch {
 	case useJSON && (isApp || isWorker):
-		opts := slog.HandlerOptions{
+		opts := &slog.HandlerOptions{
 			AddSource:   true,
 			Level:       lvl,
 			ReplaceAttr: logger.TruncSourceAttr,
 		}
-		handler = opts.NewJSONHandler(out)
+
+		handler = slog.NewJSONHandler(out, opts)
 
 	case !useJSON && (isApp || isWorker):
-		handler = tint.Options{
+		opts := &tint.Options{
 			AddSource:  true,
 			Level:      lvl,
 			TimeFormat: "2006-01-02 15:04:05.000",
@@ -220,25 +221,26 @@ func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Lo
 				a = logger.ColorizeLevel(groups, a)
 				return logger.TruncSourceAttr(groups, a)
 			},
-		}.NewHandler(out)
+		}
+		handler = tint.NewHandler(out, opts)
 
 	case isHTTP && useJSON:
-		opts := slog.HandlerOptions{
+		opts := &slog.HandlerOptions{
 			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 				a = logger.DeleteLevelAttr(groups, a)
 				return logger.DeleteMessageAttr(groups, a)
 			},
 		}
-		handler = opts.NewJSONHandler(out)
+		handler = slog.NewJSONHandler(out, opts)
 
 	case isHTTP && !useJSON:
-		opts := slog.HandlerOptions{
+		opts := &slog.HandlerOptions{
 			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 				a = logger.DeleteLevelAttr(groups, a)
 				return logger.DeleteMessageAttr(groups, a)
 			},
 		}
-		handler = opts.NewTextHandler(out)
+		handler = slog.NewTextHandler(out, opts)
 
 	}
 
