@@ -18,7 +18,7 @@ import (
 func TestMaintModeHandler(t *testing.T) {
 	// Arrange
 	b := new(bytes.Buffer)
-	l := logger.New(slog.New(slog.HandlerOptions{AddSource: true}.NewTextHandler(b)))
+	l := logger.New(slog.New(slog.NewTextHandler(b, &slog.HandlerOptions{AddSource: true})))
 	p := template.NewParser([]fs.FS{tt.NewMockFS(tt.NewMockFile("", nil))})
 	handler := ranger.MaintModeHandler(p, l, "test@example.com")
 	req, err := http.NewRequest("GET", "/", nil)

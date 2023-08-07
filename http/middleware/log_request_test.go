@@ -104,7 +104,7 @@ func TestLogRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
 			b := new(bytes.Buffer)
-			h := slog.New(slog.NewJSONHandler(b))
+			h := slog.New(slog.NewJSONHandler(b, nil))
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(tc.method, tc.url.String(), new(bytes.Reader))
 			r = r.Clone(context.WithValue(r.Context(), trails.RequestIDKey, "test-id"))

@@ -141,7 +141,7 @@ func processLogValues(m map[string]any) []slog.Attr {
 		case map[string]any:
 			// NOTE(dlk): break up nested values into slog.Groups
 			subg := processLogValues(t)
-			g = append(g, slog.Group(k, subg...))
+			g = append(g, slog.Group(k, subg))
 
 		default:
 			g = append(g, slog.Any(k, t))

@@ -33,7 +33,7 @@ func TestResponderWithErrTemplate(t *testing.T) {
 func TestResponderWithLogger(t *testing.T) {
 	// Arrange
 	b := new(bytes.Buffer)
-	l := logger.New(slog.New(slog.HandlerOptions{AddSource: true}.NewTextHandler(b)))
+	l := logger.New(slog.New(slog.NewTextHandler(b, &slog.HandlerOptions{AddSource: true})))
 	d := NewResponder(WithLogger(l))
 
 	msg := "unit testing is fun!"

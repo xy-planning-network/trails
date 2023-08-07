@@ -13,8 +13,8 @@ require (
 	github.com/gorilla/sessions v1.2.1
 	github.com/joho/godotenv v1.4.0
 	github.com/stretchr/testify v1.7.0
-	github.com/xy-planning-network/tint v0.0.0-20230425211519-12ff4bc615ea
-	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb
+	github.com/xy-planning-network/tint v0.0.0-20230807192211-11572c81efcc
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 	golang.org/x/text v0.3.6
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
 	gorm.io/driver/postgres v1.0.8
