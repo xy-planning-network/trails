@@ -51,6 +51,8 @@ type Router interface {
 	// Subrouter prefixes a Router's handling with the provided string
 	Subrouter(prefix string) Router
 
+	SubrouterHost(host string) Router
+
 	// UnauthedRoutes handles the set of Routes
 	UnauthedRoutes(routes []Route, middlewares ...middleware.Adapter)
 
@@ -158,6 +160,14 @@ func (r *DefaultRouter) OnEveryRequest(middlewares ...middleware.Adapter) {
 // ServeHTTP responds to an HTTP request.
 func (r *DefaultRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.Router.ServeHTTP(w, req)
+}
+
+func (r *DefaultRouter) SubrouterHost(host string) Router {
+	return &DefaultRouter{
+		Env:           r.Env,
+		Router:        r.Router.Host(host).Subrouter(),
+		everyReqStack: r.everyReqStack,
+	}
 }
 
 // Subrouter constructs a [Router] that handles requests to endpoints matching the prefix.
