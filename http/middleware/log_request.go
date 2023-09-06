@@ -1,13 +1,13 @@
 package middleware
 
 import (
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/xy-planning-network/trails"
-	"golang.org/x/exp/slog"
 )
 
 const (

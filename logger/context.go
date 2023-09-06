@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/xy-planning-network/trails"
-	"golang.org/x/exp/slog"
 )
 
 var (

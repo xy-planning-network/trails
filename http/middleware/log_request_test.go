@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/middleware"
-	"golang.org/x/exp/slog"
 )
 
 func TestLogRequest(t *testing.T) {

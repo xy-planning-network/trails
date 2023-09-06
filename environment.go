@@ -1,13 +1,12 @@
 package trails
 
 import (
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/slog"
 )
 
 // An Environment is a different context in which a trails app operates.
@@ -137,8 +136,8 @@ func EnvVarOrInt(key string, def int) int {
 }
 
 // EnvVarOrLogLevel gets the environment variable for the provided key,
-// creates a [golang.org/x/exp/slog.Level] from the retrieved value,
-// or returns the provided default [golang.org/x/exp/slog.Level].
+// creates a [log/slog.Level] from the retrieved value,
+// or returns the provided default [log/slog.Level].
 func EnvVarOrLogLevel(key string, def slog.Level) slog.Level {
 	val := os.Getenv(key)
 	if val == "" {

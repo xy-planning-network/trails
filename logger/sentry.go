@@ -3,11 +3,11 @@ package logger
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/xy-planning-network/trails"
-	"golang.org/x/exp/slog"
 )
 
 const (

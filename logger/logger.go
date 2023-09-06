@@ -2,14 +2,13 @@ package logger
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"path"
 	"regexp"
 	"runtime"
 	"strconv"
 	"time"
-
-	"golang.org/x/exp/slog"
 )
 
 const (
@@ -53,13 +52,13 @@ type Logger interface {
 	Warn(msg string, ctx *LogContext)
 }
 
-// TrailsLogger implements [Logger] using [golang.org/x/exp/slog.Logger].
+// TrailsLogger implements [Logger] using [log/slog.Logger].
 type TrailsLogger struct {
 	l    *slog.Logger
 	skip int
 }
 
-// New constructs a Logger using [golang.org/x/exp/slog.Logger].
+// New constructs a Logger using [log/slog.Logger].
 func New(log *slog.Logger) Logger { return &TrailsLogger{l: log} }
 
 func (l *TrailsLogger) AddSkip(i int) Logger {
