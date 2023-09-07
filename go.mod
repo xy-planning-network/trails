@@ -1,6 +1,6 @@
 module github.com/xy-planning-network/trails
 
-go 1.20
+go 1.21
 
 require (
 	github.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff
@@ -13,8 +13,7 @@ require (
 	github.com/gorilla/sessions v1.2.1
 	github.com/joho/godotenv v1.4.0
 	github.com/stretchr/testify v1.7.0
-	github.com/xy-planning-network/tint v0.0.0-20230807192211-11572c81efcc
-	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
+	github.com/xy-planning-network/tint v0.0.0-20230906200307-662ca545427c
 	golang.org/x/text v0.3.6
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
 	gorm.io/driver/postgres v1.0.8

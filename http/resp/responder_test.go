@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,7 +18,6 @@ import (
 	"github.com/xy-planning-network/trails/http/session"
 	tt "github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
-	"golang.org/x/exp/slog"
 )
 
 type testFn func(*testing.T, *httptest.ResponseRecorder, *http.Request, error)

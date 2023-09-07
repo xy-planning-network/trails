@@ -2,14 +2,13 @@ package logger
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"path"
 	"regexp"
 	"runtime"
 	"strconv"
 	"time"
-
-	"golang.org/x/exp/slog"
 )
 
 const (
@@ -53,13 +52,13 @@ type Logger interface {
 	Warn(msg string, ctx *LogContext)
 }
 
-// TrailsLogger implements [Logger] using [golang.org/x/exp/slog.Logger].
+// TrailsLogger implements [Logger] using [log/slog.Logger].
 type TrailsLogger struct {
 	l    *slog.Logger
 	skip int
 }
 
-// New constructs a Logger using [golang.org/x/exp/slog.Logger].
+// New constructs a Logger using [log/slog.Logger].
 func New(log *slog.Logger) Logger { return &TrailsLogger{l: log} }
 
 func (l *TrailsLogger) AddSkip(i int) Logger {
@@ -135,16 +134,12 @@ func DeleteMessageAttr(groups []string, a slog.Attr) slog.Attr {
 func TruncSourceAttr(groups []string, a slog.Attr) slog.Attr {
 	if a.Key == slog.SourceKey {
 		var val string
-		switch v := a.Value.Any().(type) {
-		case runtime.Frame: //NOTE(dlk): github.com/xy-planning-network/tint
+		if v, ok := a.Value.Any().(*slog.Source); ok {
 			val = immediateFilepath(v.File)
 			val += ":" + strconv.Itoa(v.Line)
 
-		case string: //NOTE(dlk): golang.org/x/exp/slog
-			val = immediateFilepath(v)
+			a = slog.Attr{Key: slog.SourceKey, Value: slog.StringValue(val)}
 		}
-
-		a = slog.Attr{Key: slog.SourceKey, Value: slog.StringValue(val)}
 	}
 
 	return a

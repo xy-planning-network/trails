@@ -3,6 +3,7 @@ package ranger_test
 import (
 	"bytes"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,7 +13,6 @@ import (
 	tt "github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/ranger"
-	"golang.org/x/exp/slog"
 )
 
 func TestMaintModeHandler(t *testing.T) {

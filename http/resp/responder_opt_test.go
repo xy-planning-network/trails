@@ -3,13 +3,13 @@ package resp
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/logger"
-	"golang.org/x/exp/slog"
 )
 
 func TestResponderWithAuthTemplate(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,7 +24,6 @@ import (
 	"github.com/xy-planning-network/trails/http/template"
 	"github.com/xy-planning-network/trails/logger"
 	"github.com/xy-planning-network/trails/postgres"
-	"golang.org/x/exp/slog"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -168,7 +168,7 @@ func defaultAppLogger(env trails.Environment, output io.Writer) logger.Logger {
 	return l
 }
 
-// defaultHTTPLogger constructs a [*golang.org/x/exp/slog.Logger] for use in HTTP router logging.
+// defaultHTTPLogger constructs a [*log/slog.Logger] for use in HTTP router logging.
 func defaultHTTPLogger(env trails.Environment, output io.Writer) *slog.Logger {
 	sl := newSlogger(trails.HTTPLogKind, env, output)
 	sl.Debug("setting up HTTP router logger")
@@ -176,7 +176,7 @@ func defaultHTTPLogger(env trails.Environment, output io.Writer) *slog.Logger {
 	return sl
 }
 
-// defaultWorkerLogger constructs a [*golang.org/x/exp/slog.Logger] for use in Faktory worker logging.
+// defaultWorkerLogger constructs a [*log/slog.Logger] for use in Faktory worker logging.
 func defaultWorkerLogger(env trails.Environment) logger.Logger {
 	slogger := newSlogger(trails.WorkerLogKind, env, os.Stdout)
 	l := logger.New(slogger)
@@ -189,7 +189,7 @@ func defaultWorkerLogger(env trails.Environment) logger.Logger {
 	return l
 }
 
-// newSlogger toggles contructing the specific [*golang.org/x/exp/slog.Logger]
+// newSlogger toggles contructing the specific [*log/slog.Logger]
 // from the given parameters.
 func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Logger {
 	lvl := new(slog.LevelVar)
