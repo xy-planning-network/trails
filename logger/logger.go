@@ -134,16 +134,12 @@ func DeleteMessageAttr(groups []string, a slog.Attr) slog.Attr {
 func TruncSourceAttr(groups []string, a slog.Attr) slog.Attr {
 	if a.Key == slog.SourceKey {
 		var val string
-		switch v := a.Value.Any().(type) {
-		case runtime.Frame: //NOTE(dlk): github.com/xy-planning-network/tint
+		if v, ok := a.Value.Any().(*slog.Source); ok {
 			val = immediateFilepath(v.File)
 			val += ":" + strconv.Itoa(v.Line)
 
-		case string: //NOTE(dlk): golang.org/x/exp/slog
-			val = immediateFilepath(v)
+			a = slog.Attr{Key: slog.SourceKey, Value: slog.StringValue(val)}
 		}
-
-		a = slog.Attr{Key: slog.SourceKey, Value: slog.StringValue(val)}
 	}
 
 	return a
