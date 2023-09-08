@@ -19,14 +19,15 @@ const cxnStr = "host=%s port=%s dbname=%s user=%s password=%s sslmode=%s"
 
 // CxnConfig holds connection information used to connect to a PostgreSQL database.
 type CxnConfig struct {
-	IsTestDB bool
-	URL      string
-	Host     string
-	Port     string
-	Name     string
-	User     string
-	Password string
-	SSLMode  string
+	IsTestDB    bool
+	URL         string
+	Host        string
+	Port        string
+	Name        string
+	User        string
+	Password    string
+	SSLMode     string
+	MaxIdleCxns int
 }
 
 // Connect creates a database connection through GORM according to the connection config and runs all migrations.
@@ -43,7 +44,7 @@ func Connect(config *CxnConfig, migrations []Migration, env trails.Environment) 
 		c.Colorful = true
 	}
 
-	db, err := gorm.Open(postgres.Open(buildCxnStr(config)), &gorm.Config{
+	gormDB, err := gorm.Open(postgres.Open(buildCxnStr(config)), &gorm.Config{
 		Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), c),
 		NamingStrategy: schema.NamingStrategy{
 			NameReplacer: strings.NewReplacer("Table", ""),
@@ -56,17 +57,24 @@ func Connect(config *CxnConfig, migrations []Migration, env trails.Environment) 
 		return nil, err
 	}
 
+	db, err := gormDB.DB()
+	if err != nil {
+		return nil, err
+	}
+
+	db.SetMaxIdleConns(config.MaxIdleCxns)
+
 	if config.IsTestDB {
-		if err := db.Exec("DROP SCHEMA IF EXISTS public CASCADE;").Error; err != nil {
+		if err := gormDB.Exec("DROP SCHEMA IF EXISTS public CASCADE;").Error; err != nil {
 			return nil, err
 		}
 	}
 
-	if err := migrateUp(db, migrations); err != nil {
+	if err := migrateUp(gormDB, migrations); err != nil {
 		return nil, err
 	}
 
-	return db, nil
+	return gormDB, nil
 }
 
 func buildCxnStr(config *CxnConfig) string {

@@ -49,16 +49,18 @@ const (
 	sentryDsnEnvVar = "SENTRY_DSN"
 
 	// Database defaults
-	dbHostEnvVar     = "DATABASE_HOST"
-	defaultDBHost    = "localhost"
-	dbNameEnvVar     = "DATABASE_NAME"
-	dbPassEnvVar     = "DATABASE_PASSWORD"
-	dbPortEnvVar     = "DATABASE_PORT"
-	defaultDBPort    = "5432"
-	dbSSLModeEnvVar  = "DATABASE_SSLMODE"
-	defaultDBSSLMode = "prefer"
-	dbURLEnvVar      = "DATABASE_URL"
-	dbUserEnvVar     = "DATABASE_USER"
+	dbHostEnvVar         = "DATABASE_HOST"
+	defaultDBHost        = "localhost"
+	dbNameEnvVar         = "DATABASE_NAME"
+	dbPassEnvVar         = "DATABASE_PASSWORD"
+	dbPortEnvVar         = "DATABASE_PORT"
+	defaultDBPort        = "5432"
+	dbSSLModeEnvVar      = "DATABASE_SSLMODE"
+	defaultDBSSLMode     = "prefer"
+	dbURLEnvVar          = "DATABASE_URL"
+	dbUserEnvVar         = "DATABASE_USER"
+	dbMaxIdleCxnsEnvVar  = "DATABASE_MAX_IDLE_CXNS"
+	defaultDBMaxIdleCxns = 1
 
 	// Default HTML template files
 	defaultTmplDir               = "tmpl"
@@ -137,6 +139,8 @@ func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 	default:
 		cfg = &postgres.CxnConfig{IsTestDB: false, URL: url}
 	}
+
+	cfg.MaxIdleCxns = trails.EnvVarOrInt(dbMaxIdleCxnsEnvVar, defaultDBMaxIdleCxns)
 
 	return cfg
 }
