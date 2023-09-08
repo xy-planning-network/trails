@@ -49,18 +49,20 @@ const (
 	sentryDsnEnvVar = "SENTRY_DSN"
 
 	// Database defaults
-	dbHostEnvVar         = "DATABASE_HOST"
-	defaultDBHost        = "localhost"
-	dbNameEnvVar         = "DATABASE_NAME"
-	dbPassEnvVar         = "DATABASE_PASSWORD"
-	dbPortEnvVar         = "DATABASE_PORT"
-	defaultDBPort        = "5432"
-	dbSSLModeEnvVar      = "DATABASE_SSLMODE"
-	defaultDBSSLMode     = "prefer"
-	dbURLEnvVar          = "DATABASE_URL"
-	dbUserEnvVar         = "DATABASE_USER"
-	dbMaxIdleCxnsEnvVar  = "DATABASE_MAX_IDLE_CXNS"
-	defaultDBMaxIdleCxns = 1
+	dbHostEnvVar        = "DATABASE_HOST"
+	defaultDBHost       = "localhost"
+	dbNameEnvVar        = "DATABASE_NAME"
+	dbPassEnvVar        = "DATABASE_PASSWORD"
+	dbPortEnvVar        = "DATABASE_PORT"
+	defaultDBPort       = "5432"
+	dbSSLModeEnvVar     = "DATABASE_SSLMODE"
+	defaultDBSSLMode    = "prefer"
+	dbURLEnvVar         = "DATABASE_URL"
+	dbUserEnvVar        = "DATABASE_USER"
+	dbMaxIdleCxnsEnvVar = "DATABASE_MAX_IDLE_CXNS"
+	// NOTE(dlk): same as database/sql
+	// cf., https://cs.opensource.google/go/go/+/refs/tags/go1.21.1:src/database/sql/sql.go;l=912
+	defaultDBMaxIdleCxns = 2
 
 	// Default HTML template files
 	defaultTmplDir               = "tmpl"
