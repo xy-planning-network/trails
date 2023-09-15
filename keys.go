@@ -17,6 +17,9 @@ const (
 
 	// SessionKey stashes the session associated with an HTTP request.
 	SessionKey Key = "SessionKey"
+
+	// SessionIDKey stashes a unique UUID for each session.
+	SessionIDKey Key = "SessionIDKey"
 )
 
 // String formats the stringified key with additional contextual information
