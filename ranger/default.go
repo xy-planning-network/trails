@@ -85,6 +85,8 @@ const (
 	// Session defaults
 	SessionAuthKeyEnvVar    = "SESSION_AUTH_KEY"
 	SessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
+	SessionMaxAgeEnvVar     = "SESSION_MAX_AGE"
+	defaultSessionMaxAge    = 24 * time.Hour
 
 	// Test defaults
 	dbTestHostEnvVar     = "DATABASE_TEST_HOST"
@@ -336,15 +338,11 @@ func defaultSessionStore(env trails.Environment, appName string) (session.Sessio
 		AuthKey:     os.Getenv(SessionAuthKeyEnvVar),
 		EncryptKey:  os.Getenv(SessionEncryptKeyEnvVar),
 		Env:         env,
+		MaxAge:      int(trails.EnvVarOrDuration(SessionMaxAgeEnvVar, defaultSessionMaxAge).Seconds()),
 		SessionName: "trails-" + appName,
 	}
 
-	args := []session.ServiceOpt{
-		session.WithCookie(),
-		session.WithMaxAge(3600 * 24 * 7),
-	}
-
-	return session.NewStoreService(cfg, args...)
+	return session.NewStoreService(cfg)
 }
 
 // defaultServer constructs a default [*http.Server].
