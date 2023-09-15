@@ -111,9 +111,9 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	mws = append(
 		mws,
+		middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput)),
 		middleware.RequestID(),
 		middleware.InjectIPAddress(),
-		middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput)),
 		middleware.InjectSession(r.sessions),
 		middleware.CurrentUser(r.Responder, userstore),
 	)
