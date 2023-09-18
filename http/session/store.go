@@ -6,13 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/boj/redistore"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/sessions"
 	"github.com/xy-planning-network/trails"
 )
-
-const defaultMaxAge = 86400 // 1 day
 
 // The SessionStorer defines methods for interacting with a Sessionable for the given *http.Request.
 type SessionStorer interface {
@@ -37,9 +34,6 @@ type Service struct {
 	// The environment the Service is operating within.
 	env trails.Environment
 
-	// The number of seconds a session is valid.
-	maxAge int
-
 	// how the Service actually implements storing sessions.
 	store gorilla.Store
 }
@@ -47,6 +41,9 @@ type Service struct {
 // A Config provides the required values
 type Config struct {
 	Env trails.Environment
+
+	// The number of seconds a session is valid.
+	MaxAge int
 
 	// The name sessions are stored under.
 	// Also used as the name of the cookie when WithCookie is used.
@@ -72,19 +69,15 @@ func validateConfig(c Config) error {
 	return nil
 }
 
-// NewStoreService initiates a data store for user web sessions
-// with the provided config.
-// If no backing storage is provided through a functional option -
-// like WithRedis - NewService stores sessions in cookies.
-func NewStoreService(cfg Config, opts ...ServiceOpt) (Service, error) {
+// NewStoreService initiates a data store for user web sessions with the provided config.
+func NewStoreService(cfg Config) (Service, error) {
 	var err error
 	gob.Register(Flash{})
 	gob.Register(trails.Key(""))
 
 	s := Service{
-		env:    cfg.Env,
-		maxAge: defaultMaxAge,
-		sn:     cfg.SessionName,
+		env: cfg.Env,
+		sn:  cfg.SessionName,
 	}
 
 	s.ak, err = hex.DecodeString(cfg.AuthKey)
@@ -97,17 +90,18 @@ func NewStoreService(cfg Config, opts ...ServiceOpt) (Service, error) {
 		return Service{}, fmt.Errorf("%w: encryption key is not valid: %s", trails.ErrBadConfig, err)
 	}
 
-	for _, opt := range opts {
-		if err := opt(&s); err != nil {
-			return Service{}, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
-		}
+	var c *gorilla.CookieStore
+	if !s.env.IsTesting() {
+		c = gorilla.NewCookieStore(s.ak, s.ek)
+	} else {
+		c = gorilla.NewCookieStore(s.ak)
 	}
 
-	if s.store == nil {
-		if err := WithCookie()(&s); err != nil {
-			return Service{}, fmt.Errorf("%w: %s", trails.ErrBadConfig, err)
-		}
-	}
+	c.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
+	c.Options.HttpOnly = true
+	c.MaxAge(cfg.MaxAge)
+
+	s.store = c
 
 	return s, nil
 }
@@ -126,59 +120,6 @@ func (s Service) GetSession(r *http.Request) (Session, error) {
 // A ServiceOpt configures the provided *Service,
 // returning an error if unable to.
 type ServiceOpt func(*Service) error
-
-// WithCookie configures the Service to back session storage with cookies.
-func WithCookie() ServiceOpt {
-	var c *gorilla.CookieStore
-	return func(s *Service) error {
-		if !s.env.IsTesting() {
-			c = gorilla.NewCookieStore(s.ak, s.ek)
-		} else {
-			c = gorilla.NewCookieStore(s.ak)
-		}
-
-		c.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
-		c.Options.HttpOnly = true
-		c.MaxAge(s.maxAge)
-		s.store = c
-		return nil
-	}
-}
-
-// WithMaxAge sets the time-to-live of a session.
-//
-// Call before other options so this value is available.
-//
-// Otherwise, the Service uses defaultMaxAge.
-func WithMaxAge(secs int) ServiceOpt {
-	return func(s *Service) error {
-		s.maxAge = secs
-		return nil
-	}
-}
-
-// WithRedis configures the Service to back session storage with Redis.
-//
-// To authenticate to the Redis server, provide pass, otherwise its zero-value is acceptable.
-func WithRedis(uri, pass string) ServiceOpt {
-	var r *redistore.RediStore
-	var err error
-	return func(s *Service) error {
-		if pass == "" {
-			r, err = redistore.NewRediStore(10, "tcp", uri, "", s.ak, s.ek)
-		} else {
-			r, err = redistore.NewRediStore(10, "tcp", uri, pass, s.ak, s.ek)
-		}
-		if err != nil {
-			return fmt.Errorf("%w: failed initializing Redis: %s", trails.ErrBadConfig, err)
-		}
-		r.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
-		r.Options.HttpOnly = true
-		r.SetMaxAge(s.maxAge)
-		s.store = r
-		return nil
-	}
-}
 
 type Stub struct {
 	s *gorilla.Session
