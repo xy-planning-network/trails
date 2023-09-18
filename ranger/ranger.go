@@ -36,7 +36,7 @@ type RangerUser interface {
 type Ranger struct {
 	logger.Logger
 	*resp.Responder
-	router.Router
+	*router.Router
 
 	cancel    context.CancelFunc
 	ctx       context.Context

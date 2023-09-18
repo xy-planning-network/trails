@@ -307,10 +307,10 @@ func defaultRouter(
 	responder *resp.Responder,
 	logReqMiddleware middleware.Adapter,
 	mws []middleware.Adapter,
-) router.Router {
-	route := router.New(env.String(), logReqMiddleware)
-	route.OnEveryRequest(mws...)
-	route.HandleNotFound(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
+) *router.Router {
+	r := router.New(env.String(), logReqMiddleware)
+	r.OnEveryRequest(mws...)
+	r.HandleNotFound(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
 		if strings.Contains(rx.Header.Get("Accept"), "text/html") && rx.URL.Path != baseURL.Path {
 			responder.Redirect(wx, rx, resp.ToRoot())
 			return
@@ -319,7 +319,7 @@ func defaultRouter(
 		wx.WriteHeader(http.StatusNotFound)
 	}))
 
-	return route
+	return r
 }
 
 // defaultSessionStore constructs a SessionStorer to be used for storing session data.

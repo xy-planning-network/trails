@@ -23,77 +23,18 @@ type Route struct {
 	Middlewares []middleware.Adapter
 }
 
-// A Router handles many [Route], directing HTTP requests to the appropriate endpoint.
-type Router interface {
-	// AuthedRoutes registers the set of Routes as those requiring authentication.
-	AuthedRoutes(loginUrl string, logoffUrl string, routes []Route, middlewares ...middleware.Adapter)
-
-	// CatchAll sets up a handler for all routes to funnel to for e.g. maintenace mode.
-	CatchAll(handler http.HandlerFunc)
-
-	// Handle applies the [Route] to the Router
-	Handle(route Route)
-
-	// HandleNotFound sets the provided [http.HandlerFunc] as the default function
-	// for when no other registered Route is matched.
-	HandleNotFound(handler http.HandlerFunc)
-
-	// HandleRoutes registers the set of Routes.
-	// HandleRoutes calls the provided middlewares before sending a request to the Route.
-	HandleRoutes(routes []Route, middlewares ...middleware.Adapter)
-
-	// OnEveryRequest sets the middleware stack to be applied before every request
-	//
-	// Other methods applying a set of [middleware.Adapter] will always apply theirs
-	// after the set defined by OnEveryRequest.
-	OnEveryRequest(middlewares ...middleware.Adapter)
-
-	// Subrouter prefixes a Router's handling with the provided string
-	Subrouter(prefix string) Router
-
-	SubrouterHost(host string) Router
-
-	// UnauthedRoutes handles the set of Routes
-	UnauthedRoutes(routes []Route, middlewares ...middleware.Adapter)
-
-	http.Handler
-}
-
-// The DefaultRouter handles HTTP requests to any Routes it is configured with.
-//
-// DefaultRouter applies the [middleware.ReportPanic] handler to all registered routes.
-//
-// DefaultRouter routes requests for assets to their location in a standard trails app layout.
-// DefaultRouter applies a "Cache-Control" header to responses for assets.
-type DefaultRouter struct {
+// Router routes requests for resources to their location in a standard trails app layout.
+type Router struct {
 	Env           string
 	everyReqStack []middleware.Adapter
 	logReq        middleware.Adapter
-	*mux.Router
+	r             *mux.Router
 }
 
-// AuthedRoutes registers the set of Routes as those requiring authentication.
-// AuthedRoutes applies the given middlewares before performing that check,
-// using middleware.RequireAuthed.
-//
-// middleware.RequireAuthed requires loginUrl and logoffUrl to appropriately
-// redirect applicable requests.
-// middlweare.RequireAuthed uses key to check whether a user is authenticated or not.
-//
-// key ought to be the one returned by your keyring.Keyringable.CurrentUserKey.
-func (r *DefaultRouter) AuthedRoutes(
-	loginUrl,
-	logoffUrl string,
-	routes []Route,
-	middlewares ...middleware.Adapter,
-) {
-	r.HandleRoutes(routes, append(middlewares, middleware.RequireAuthed(loginUrl, logoffUrl))...)
-}
-
-// NewRouter constructs an implementation of [Router] using [DefaultRouter] for the given environment.
+// New constructs a [*Router] for the given environment.
 //
 // TODO(dlk): use provided [fs.FS] and [http.FS] instead of [http.FileServer].
-func New(env string, logReq middleware.Adapter) Router {
+func New(env string, logReq middleware.Adapter) *Router {
 	r := mux.NewRouter()
 	cacheControl := cacheControlMiddleware()
 
@@ -114,12 +55,28 @@ func New(env string, logReq middleware.Adapter) Router {
 		logReq,
 	))
 
-	return &DefaultRouter{logReq: logReq, Env: env, Router: r}
+	return &Router{logReq: logReq, Env: env, r: r}
 }
 
-// CatchAll sets up a handler for all routes to funnel to for e.g. maintenace mode.
-func (r *DefaultRouter) CatchAll(handler http.HandlerFunc) {
-	r.Router.PathPrefix("/").Handler(
+// AuthedRoutes registers the set of Routes as those requiring authentication.
+// AuthedRoutes applies the given middlewares before performing that check,
+// using middleware.RequireAuthed.
+//
+// middleware.RequireAuthed requires loginUrl and logoffUrl to appropriately
+// redirect applicable requests.
+func (r *Router) AuthedRoutes(
+	loginUrl,
+	logoffUrl string,
+	routes []Route,
+	middlewares ...middleware.Adapter,
+) {
+	mws := append(middlewares, middleware.RequireAuthed(loginUrl, logoffUrl))
+	r.HandleRoutes(routes, mws...)
+}
+
+// CatchAll sets up a handler for all routes to funnel to for e.g. maintenance mode.
+func (r *Router) CatchAll(handler http.HandlerFunc) {
+	r.r.PathPrefix("/").Handler(
 		middleware.Chain(
 			middleware.ReportPanic(r.Env)(handler),
 			r.everyReqStack...,
@@ -127,15 +84,15 @@ func (r *DefaultRouter) CatchAll(handler http.HandlerFunc) {
 	)
 }
 
-// Handle applies the [Route] to the [Router].
-func (r *DefaultRouter) Handle(route Route) {
+// Handle applies the [Route] to the [*Router].
+func (r *Router) Handle(route Route) {
 	r.HandleRoutes([]Route{route})
 }
 
 // HandleNotFound sets the provided [http.HandlerFunc] as the default function
 // for when no other registered Route is matched.
-func (r *DefaultRouter) HandleNotFound(handler http.HandlerFunc) {
-	r.Router.NotFoundHandler = middleware.Chain(
+func (r *Router) HandleNotFound(handler http.HandlerFunc) {
+	r.r.NotFoundHandler = middleware.Chain(
 		middleware.ReportPanic(r.Env)(handler),
 		r.logReq,
 	)
@@ -145,37 +102,31 @@ func (r *DefaultRouter) HandleNotFound(handler http.HandlerFunc) {
 // and includes all the [middleware.Adapter] on each Route.
 // Any [middleware.Adapter] already assigned to a Route is appended to middlewares,
 // so are called after the default set.
-func (r *DefaultRouter) HandleRoutes(routes []Route, middlewares ...middleware.Adapter) {
+func (r *Router) HandleRoutes(routes []Route, middlewares ...middleware.Adapter) {
 	for _, route := range routes {
-		mws := append(middlewares, route.Middlewares...)
-		r.Router.
-			Handle(
-				route.Path,
-				middleware.Chain(
-					middleware.ReportPanic(r.Env)(route.Handler),
-					append(r.everyReqStack, mws...)...,
-				),
-			).
-			Methods(route.Method)
+		mws := append(r.everyReqStack, middlewares...)
+		mws = append(mws, route.Middlewares...)
+		handler := middleware.Chain(middleware.ReportPanic(r.Env)(route.Handler), mws...)
+		r.r.Handle(route.Path, handler).Methods(route.Method)
 	}
 
 }
 
 // OnEveryRequest appends the middlewares to the existing stack
-// that the [*DefaultRouter] will apply to every request.
-func (r *DefaultRouter) OnEveryRequest(middlewares ...middleware.Adapter) {
+// that the [*Router] will apply to every request.
+func (r *Router) OnEveryRequest(middlewares ...middleware.Adapter) {
 	r.everyReqStack = append(r.everyReqStack, middlewares...)
 }
 
 // ServeHTTP responds to an HTTP request.
-func (r *DefaultRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.Router.ServeHTTP(w, req)
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.r.ServeHTTP(w, req)
 }
 
-func (r *DefaultRouter) SubrouterHost(host string) Router {
-	return &DefaultRouter{
+func (r *Router) SubrouterHost(host string) *Router {
+	return &Router{
 		Env:           r.Env,
-		Router:        r.Router.Host(host).Subrouter(),
+		r:             r.r.Host(host).Subrouter(),
 		everyReqStack: r.everyReqStack,
 	}
 }
@@ -183,10 +134,10 @@ func (r *DefaultRouter) SubrouterHost(host string) Router {
 // Subrouter constructs a [Router] that handles requests to endpoints matching the prefix.
 //
 // e.g., r.Subrouter("/api/v1") handles requests to endpoints like /api/v1/users
-func (r *DefaultRouter) Subrouter(prefix string) Router {
-	return &DefaultRouter{
+func (r *Router) Subrouter(prefix string) *Router {
+	return &Router{
 		Env:           r.Env,
-		Router:        r.Router.PathPrefix(prefix).Subrouter(),
+		r:             r.r.PathPrefix(prefix).Subrouter(),
 		logReq:        r.logReq,
 		everyReqStack: r.everyReqStack,
 	}
@@ -194,7 +145,7 @@ func (r *DefaultRouter) Subrouter(prefix string) Router {
 
 // UnauthedRoutes registers the set of Routes as those requiring unauthenticated users.
 // It applies the given middlewares before performing that check.
-func (r *DefaultRouter) UnauthedRoutes(routes []Route, middlewares ...middleware.Adapter) {
+func (r *Router) UnauthedRoutes(routes []Route, middlewares ...middleware.Adapter) {
 	r.HandleRoutes(routes, append(middlewares, middleware.RequireUnauthed())...)
 }
 
