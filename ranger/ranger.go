@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -161,6 +162,15 @@ func (r *Ranger) Guide() error {
 	}()
 
 	go func() {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			for _, setting := range info.Settings {
+				if setting.Key == "vcs.revision" {
+					r.Info("running on commit: "+setting.Value, &logger.LogContext{Caller: pc})
+					break
+				}
+			}
+		}
+
 		r.Info(fmt.Sprintf("running web server at %s", r.srv.Addr), &logger.LogContext{Caller: pc})
 		r.srv.Handler = r.Router
 		if err := r.srv.ListenAndServe(); err != http.ErrServerClosed {
