@@ -110,15 +110,17 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		)
 	}
 
+	logReq := middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput))
+
 	mws = append(
 		mws,
-		middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput)),
+		logReq,
 		middleware.RequestID(),
 		middleware.InjectIPAddress(),
 		middleware.InjectSession(r.sessions),
 		middleware.CurrentUser(r.Responder, userstore),
 	)
-	r.Router = defaultRouter(r.env, r.url, r.Responder, mws)
+	r.Router = defaultRouter(r.env, r.url, r.Responder, logReq, mws)
 	r.srv = defaultServer(r.ctx)
 
 	return r, nil
@@ -309,13 +311,14 @@ type ShutdownFn func(context.Context) error
 // newMaintRanger configures the bare minimum to render an HTML maintenance page.
 // This includes logging.
 func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
+	logReq := middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput))
 	mws := []middleware.Adapter{
 		middleware.RequestID(),
 		middleware.InjectIPAddress(),
-		middleware.LogRequest(defaultHTTPLogger(r.env, cfg.logoutput)),
+		logReq,
 	}
 
-	r.Router = router.NewRouter(r.env.String())
+	r.Router = router.New(r.env.String(), logReq)
 	r.Router.OnEveryRequest(mws...)
 
 	r.Router.CatchAll(MaintModeHandler(

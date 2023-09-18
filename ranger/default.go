@@ -305,9 +305,10 @@ func defaultRouter(
 	env trails.Environment,
 	baseURL *url.URL,
 	responder *resp.Responder,
+	logReqMiddleware middleware.Adapter,
 	mws []middleware.Adapter,
 ) router.Router {
-	route := router.NewRouter(env.String())
+	route := router.New(env.String(), logReqMiddleware)
 	route.OnEveryRequest(mws...)
 	route.HandleNotFound(http.HandlerFunc(func(wx http.ResponseWriter, rx *http.Request) {
 		if strings.Contains(rx.Header.Get("Accept"), "text/html") && rx.URL.Path != baseURL.Path {

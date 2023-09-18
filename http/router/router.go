@@ -68,6 +68,7 @@ type Router interface {
 type DefaultRouter struct {
 	Env           string
 	everyReqStack []middleware.Adapter
+	logReq        middleware.Adapter
 	*mux.Router
 }
 
@@ -92,22 +93,28 @@ func (r *DefaultRouter) AuthedRoutes(
 // NewRouter constructs an implementation of [Router] using [DefaultRouter] for the given environment.
 //
 // TODO(dlk): use provided [fs.FS] and [http.FS] instead of [http.FileServer].
-func NewRouter(env string) Router {
+func New(env string, logReq middleware.Adapter) Router {
 	r := mux.NewRouter()
+	cacheControl := cacheControlMiddleware()
+
+	assetsServer := http.FileServer(http.Dir(assetsPublicPath))
+	clientServer := http.FileServer(http.Dir(clientDistPath))
 
 	// NOTE(dlk): direct reqs for the client to its distribution
-	r.PathPrefix("/" + clientDistPath).Handler(
-		http.StripPrefix("/"+clientDistPath,
-			cacheControlWrapper(http.FileServer(http.Dir(clientDistPath)))),
-	)
+	r.PathPrefix("/" + clientDistPath).Handler(middleware.Chain(
+		http.StripPrefix("/"+clientDistPath, clientServer),
+		cacheControl,
+		logReq,
+	))
 
 	// NOTE(dlk): direct reqs for assets to public path
-	r.PathPrefix(assetsPath).Handler(
-		http.StripPrefix(assetsPath,
-			cacheControlWrapper(http.FileServer(http.Dir(assetsPublicPath)))),
-	)
+	r.PathPrefix(assetsPath).Handler(middleware.Chain(
+		http.StripPrefix(assetsPath, assetsServer),
+		cacheControl,
+		logReq,
+	))
 
-	return &DefaultRouter{Env: env, Router: r}
+	return &DefaultRouter{logReq: logReq, Env: env, Router: r}
 }
 
 // CatchAll sets up a handler for all routes to funnel to for e.g. maintenace mode.
@@ -128,7 +135,10 @@ func (r *DefaultRouter) Handle(route Route) {
 // HandleNotFound sets the provided [http.HandlerFunc] as the default function
 // for when no other registered Route is matched.
 func (r *DefaultRouter) HandleNotFound(handler http.HandlerFunc) {
-	r.Router.NotFoundHandler = middleware.ReportPanic(r.Env)(handler)
+	r.Router.NotFoundHandler = middleware.Chain(
+		middleware.ReportPanic(r.Env)(handler),
+		r.logReq,
+	)
 }
 
 // HandleRoutes registers the set of Routes on the Router
@@ -177,6 +187,7 @@ func (r *DefaultRouter) Subrouter(prefix string) Router {
 	return &DefaultRouter{
 		Env:           r.Env,
 		Router:        r.Router.PathPrefix(prefix).Subrouter(),
+		logReq:        r.logReq,
 		everyReqStack: r.everyReqStack,
 	}
 }
@@ -187,10 +198,12 @@ func (r *DefaultRouter) UnauthedRoutes(routes []Route, middlewares ...middleware
 	r.HandleRoutes(routes, append(middlewares, middleware.RequireUnauthed())...)
 }
 
-// cacheControlWrapper helps by adding a "Cache-Control" header to the response.
-func cacheControlWrapper(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "max-age=2592000") // 30 days
-		h.ServeHTTP(w, r)
-	})
+// cacheControlMiddleware helps by adding a "Cache-Control" header to the response.
+func cacheControlMiddleware() middleware.Adapter {
+	return func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "max-age=2592000") // 30 days
+			handler.ServeHTTP(w, r)
+		})
+	}
 }
