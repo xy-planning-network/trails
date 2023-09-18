@@ -49,16 +49,20 @@ const (
 	sentryDsnEnvVar = "SENTRY_DSN"
 
 	// Database defaults
-	dbHostEnvVar     = "DATABASE_HOST"
-	defaultDBHost    = "localhost"
-	dbNameEnvVar     = "DATABASE_NAME"
-	dbPassEnvVar     = "DATABASE_PASSWORD"
-	dbPortEnvVar     = "DATABASE_PORT"
-	defaultDBPort    = "5432"
-	dbSSLModeEnvVar  = "DATABASE_SSLMODE"
-	defaultDBSSLMode = "prefer"
-	dbURLEnvVar      = "DATABASE_URL"
-	dbUserEnvVar     = "DATABASE_USER"
+	dbHostEnvVar        = "DATABASE_HOST"
+	defaultDBHost       = "localhost"
+	dbNameEnvVar        = "DATABASE_NAME"
+	dbPassEnvVar        = "DATABASE_PASSWORD"
+	dbPortEnvVar        = "DATABASE_PORT"
+	defaultDBPort       = "5432"
+	dbSSLModeEnvVar     = "DATABASE_SSLMODE"
+	defaultDBSSLMode    = "prefer"
+	dbURLEnvVar         = "DATABASE_URL"
+	dbUserEnvVar        = "DATABASE_USER"
+	dbMaxIdleCxnsEnvVar = "DATABASE_MAX_IDLE_CXNS"
+	// NOTE(dlk): same as database/sql
+	// cf., https://cs.opensource.google/go/go/+/refs/tags/go1.21.1:src/database/sql/sql.go;l=912
+	defaultDBMaxIdleCxns = 2
 
 	// Default HTML template files
 	defaultTmplDir               = "tmpl"
@@ -85,6 +89,8 @@ const (
 	// Session defaults
 	SessionAuthKeyEnvVar    = "SESSION_AUTH_KEY"
 	SessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
+	SessionMaxAgeEnvVar     = "SESSION_MAX_AGE"
+	defaultSessionMaxAge    = 24 * time.Hour
 
 	// Test defaults
 	dbTestHostEnvVar     = "DATABASE_TEST_HOST"
@@ -137,6 +143,8 @@ func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 	default:
 		cfg = &postgres.CxnConfig{IsTestDB: false, URL: url}
 	}
+
+	cfg.MaxIdleCxns = trails.EnvVarOrInt(dbMaxIdleCxnsEnvVar, defaultDBMaxIdleCxns)
 
 	return cfg
 }
@@ -336,15 +344,11 @@ func defaultSessionStore(env trails.Environment, appName string) (session.Sessio
 		AuthKey:     os.Getenv(SessionAuthKeyEnvVar),
 		EncryptKey:  os.Getenv(SessionEncryptKeyEnvVar),
 		Env:         env,
+		MaxAge:      int(trails.EnvVarOrDuration(SessionMaxAgeEnvVar, defaultSessionMaxAge).Seconds()),
 		SessionName: "trails-" + appName,
 	}
 
-	args := []session.ServiceOpt{
-		session.WithCookie(),
-		session.WithMaxAge(3600 * 24 * 7),
-	}
-
-	return session.NewStoreService(cfg, args...)
+	return session.NewStoreService(cfg)
 }
 
 // defaultServer constructs a default [*http.Server].

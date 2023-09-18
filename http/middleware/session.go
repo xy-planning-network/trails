@@ -10,7 +10,7 @@ import (
 
 // InjectSession stores the session associated with the *http.Request in *http.Request.Context.
 //
-// If store or key are their zero-values, NoopAdapter returns and this middleware does nothing.
+// If store is its zero-value, NoopAdapter returns and this middleware does nothing.
 func InjectSession(store session.SessionStorer) Adapter {
 	if store == nil {
 		return NoopAdapter
@@ -18,8 +18,12 @@ func InjectSession(store session.SessionStorer) Adapter {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			s, _ := store.GetSession(r)
+
 			ctx := context.WithValue(r.Context(), trails.SessionKey, s)
-			h.ServeHTTP(w, r.Clone(ctx))
+			*r = *r.Clone(ctx)
+
+			h.ServeHTTP(w, r)
+
 			return
 		})
 	}

@@ -60,7 +60,7 @@ func (s Session) Flashes(w http.ResponseWriter, r *http.Request) []Flash {
 }
 
 // Get retrieves a value from the session according to the key passed in.
-func (s Session) Get(key string) any {
+func (s Session) Get(key any) any {
 	return s.s.Values[key]
 }
 

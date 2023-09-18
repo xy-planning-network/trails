@@ -3,9 +3,7 @@ module github.com/xy-planning-network/trails
 go 1.21
 
 require (
-	github.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff
 	github.com/getsentry/sentry-go v0.11.0
-	github.com/go-redis/redis/v8 v8.11.4
 	github.com/golang/mock v1.5.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
@@ -21,11 +19,8 @@ require (
 )
 
 require (
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
-	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.8.0 // indirect

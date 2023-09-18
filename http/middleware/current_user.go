@@ -83,7 +83,8 @@ func CurrentUser(d *resp.Responder, storer UserStorer) Adapter {
 			w.Header().Add("Pragma", "no-cache")
 
 			ctx := context.WithValue(r.Context(), trails.CurrentUserKey, user)
-			handler.ServeHTTP(w, r.Clone(ctx))
+			*r = *r.Clone(ctx)
+			handler.ServeHTTP(w, r)
 		})
 	}
 }
