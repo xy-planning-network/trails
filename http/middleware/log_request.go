@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/xy-planning-network/trails"
+	"github.com/xy-planning-network/trails/http/session"
 )
 
 const (
@@ -73,6 +74,7 @@ type LogRequestRecord struct {
 	ReqContentLen  int    `json:"contentLength"`
 	ReqContentType string `json:"contentType"`
 	Scheme         string `json:"scheme"`
+	SessionID      string `json:"sessionId"`
 	Status         int    `json:"status"`
 	URI            string `json:"uri"`
 	UserAgent      string `json:"userAgent"`
@@ -89,8 +91,13 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 	uri.RawQuery = q.Encode()
 
 	contLen, _ := strconv.Atoi(r.Header.Get(contentLenHeader))
+
 	id, _ := r.Context().Value(trails.RequestIDKey).(string)
 	ip, _ := r.Context().Value(trails.IpAddrKey).(string)
+	var sessID string
+	if sess, ok := r.Context().Value(trails.SessionKey).(session.Session); ok {
+		sessID, _ = sess.Get(trails.SessionIDKey).(string)
+	}
 
 	return LogRequestRecord{
 		BodySize:       w.bodySize,
@@ -104,6 +111,7 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 		ReqContentLen:  contLen,
 		ReqContentType: r.Header.Get(contentTypeHeader),
 		Scheme:         r.URL.Scheme,
+		SessionID:      sessID,
 		Status:         w.status,
 		URI:            uri.RequestURI(),
 		UserAgent:      r.Header.Get(userAgentHeader),
@@ -124,6 +132,7 @@ func (r LogRequestRecord) attrs() []slog.Attr {
 		slog.String("contentType", r.ReqContentType),
 		slog.Int("bodySize", r.BodySize),
 		slog.String("scheme", r.Scheme),
+		slog.String("sessionId", r.SessionID),
 		slog.Int("status", r.Status),
 		slog.String("uri", r.URI),
 		slog.String("userAgent", r.UserAgent),

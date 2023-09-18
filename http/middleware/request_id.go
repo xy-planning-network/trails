@@ -15,7 +15,8 @@ func RequestID() Adapter {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := context.WithValue(r.Context(), trails.RequestIDKey, uuid.NewString())
-			h.ServeHTTP(w, r.Clone(ctx))
+			*r = *r.Clone(ctx)
+			h.ServeHTTP(w, r)
 		})
 	}
 }
