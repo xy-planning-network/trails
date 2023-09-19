@@ -22,6 +22,7 @@ func InjectSession(store session.SessionStorer) Adapter {
 			ctx := context.WithValue(r.Context(), trails.SessionKey, s)
 			*r = *r.Clone(ctx)
 
+			s.Save(w, r)
 			h.ServeHTTP(w, r)
 
 			return
