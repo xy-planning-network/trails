@@ -35,7 +35,7 @@ func (m Migration) execute(db *gorm.DB) error {
 	return nil
 }
 
-func migrateUp(db *gorm.DB, migrations []Migration) error {
+func MigrateUp(db *gorm.DB, migrations []Migration) error {
 	// Ensure public schema exists
 	ensurePublicSchema(db)
 

@@ -30,8 +30,10 @@ type CxnConfig struct {
 	MaxIdleCxns int
 }
 
-// Connect creates a database connection through GORM according to the connection config and runs all migrations.
-func Connect(config *CxnConfig, migrations []Migration, env trails.Environment) (*gorm.DB, error) {
+// Connect creates a database connection through GORM according to the connection config.
+//
+// Run migrations by passing DB into MigrateUp.
+func Connect(config *CxnConfig, env trails.Environment) (*gorm.DB, error) {
 	// https://gorm.io/docs/logger.html
 	c := logger.Config{
 		SlowThreshold:             200 * time.Millisecond,
@@ -68,10 +70,6 @@ func Connect(config *CxnConfig, migrations []Migration, env trails.Environment) 
 		if err := gormDB.Exec("DROP SCHEMA IF EXISTS public CASCADE;").Error; err != nil {
 			return nil, err
 		}
-	}
-
-	if err := migrateUp(gormDB, migrations); err != nil {
-		return nil, err
 	}
 
 	return gormDB, nil
