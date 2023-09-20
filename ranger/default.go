@@ -152,8 +152,8 @@ func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 // defaultDB connects to a Postgres database
 // using default configuration environment variables
 // and runs the list of [postgres.Migration] passed in.
-func defaultDB(env trails.Environment, list []postgres.Migration) (postgres.DatabaseService, error) {
-	db, err := postgres.Connect(NewPostgresConfig(env), list, env)
+func defaultDB(env trails.Environment) (postgres.DatabaseService, error) {
+	db, err := postgres.Connect(NewPostgresConfig(env), env)
 	if err != nil {
 		return nil, err
 	}

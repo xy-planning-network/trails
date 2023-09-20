@@ -38,15 +38,16 @@ type Ranger struct {
 	*resp.Responder
 	router.Router
 
-	cancel    context.CancelFunc
-	ctx       context.Context
-	db        postgres.DatabaseService
-	env       trails.Environment
-	metadata  Metadata
-	sessions  session.SessionStorer
-	shutdowns []ShutdownFn
-	srv       *http.Server
-	url       *url.URL
+	cancel     context.CancelFunc
+	ctx        context.Context
+	db         postgres.DatabaseService
+	env        trails.Environment
+	metadata   Metadata
+	migrations []postgres.Migration
+	sessions   session.SessionStorer
+	shutdowns  []ShutdownFn
+	srv        *http.Server
+	url        *url.URL
 }
 
 // New constructs a Ranger from the provided options.
@@ -84,8 +85,9 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		return newMaintRanger(r, cfg), nil
 	}
 
+	r.migrations = cfg.Migrations
 	if cfg.mockdb == nil {
-		r.db, err = defaultDB(r.env, cfg.Migrations)
+		r.db, err = defaultDB(r.env)
 		if err != nil {
 			return nil, err
 		}
@@ -142,6 +144,15 @@ func (r *Ranger) SessionStore() session.SessionStorer            { return r.sess
 //   - syscall.SIGQUIT
 //   - syscall.SIGTERM
 func (r *Ranger) Guide() error {
+	// NOTE(dlk): check the concrete type as it may be the desired type
+	// or *postgres.MockDatabaseService,
+	// which we don't need to run migrations against.
+	if db, ok := r.db.(*postgres.DatabaseServiceImpl); ok {
+		if err := postgres.MigrateUp(db.DB, r.migrations); err != nil {
+			return err
+		}
+	}
+
 	if r.ctx == nil {
 		r.ctx, r.cancel = context.WithCancel(context.Background())
 	}
@@ -238,7 +249,7 @@ func (r *Ranger) shutdown() error {
 }
 
 // BuildWorkerCore constructs a *Ranger but skips those components relating to the HTTP router.
-func BuildWorkerCore(cfg WorkerConfig) (*Ranger, error) {
+func BuildWorkerCore() (*Ranger, error) {
 	var err error
 	r := new(Ranger)
 	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
@@ -246,7 +257,7 @@ func BuildWorkerCore(cfg WorkerConfig) (*Ranger, error) {
 
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
-	r.db, err = defaultDB(r.env, cfg.Migrations)
+	r.db, err = defaultDB(r.env)
 	if err != nil {
 		return nil, err
 	}
