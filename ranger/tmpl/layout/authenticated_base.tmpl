@@ -14,7 +14,7 @@
     {{ template "additionalHeadScripts" }}
 
     {{ if not isDevelopment }}
-    {{ packTag "app" true }}
+    <link rel="stylesheet" href="{{asset "assets/style.css"}}">
     {{ end }}
   </head>
 

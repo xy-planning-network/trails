@@ -282,7 +282,7 @@ func defaultParser(env trails.Environment, url *url.URL, files fs.FS, m Metadata
 	p = p.AddFn("isProduction", env.IsProduction)
 	p = p.AddFn(m.templateFunc())
 	p = p.AddFn(template.Nonce())
-	p = p.AddFn("packTag", template.TagPacker(env, os.DirFS(".")))
+	p = p.AddFn("asset", template.AssetURI(env, os.DirFS(".")))
 	p = p.AddFn(template.RootUrl(url))
 
 	return p

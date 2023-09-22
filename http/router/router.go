@@ -8,9 +8,7 @@ import (
 )
 
 const (
-	assetsPath       = "/assets/"
-	assetsPublicPath = "client/public/"
-	clientDistPath   = "client/dist/"
+	assetsPath = "client/dist/"
 )
 
 // A Route maps a path and HTTP method to an [http.HandlerFunc].
@@ -97,19 +95,11 @@ func New(env string, logReq middleware.Adapter) Router {
 	r := mux.NewRouter()
 	cacheControl := cacheControlMiddleware()
 
-	assetsServer := http.FileServer(http.Dir(assetsPublicPath))
-	clientServer := http.FileServer(http.Dir(clientDistPath))
+	assetsServer := http.FileServer(http.Dir(assetsPath))
 
 	// NOTE(dlk): direct reqs for the client to its distribution
-	r.PathPrefix("/" + clientDistPath).Handler(middleware.Chain(
-		http.StripPrefix("/"+clientDistPath, clientServer),
-		cacheControl,
-		logReq,
-	))
-
-	// NOTE(dlk): direct reqs for assets to public path
-	r.PathPrefix(assetsPath).Handler(middleware.Chain(
-		http.StripPrefix(assetsPath, assetsServer),
+	r.PathPrefix("/" + assetsPath).Handler(middleware.Chain(
+		http.StripPrefix("/"+assetsPath, assetsServer),
 		cacheControl,
 		logReq,
 	))

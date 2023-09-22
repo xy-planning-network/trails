@@ -7,7 +7,11 @@
     var InitialVueProps = {{ .Data.props }}
   </script>
 
-  {{ packTag .Data.entry false }}
+  {{ if isDevelopment }}
+  <script src="{{ asset (print "src/pages/" .Data.entry ".ts") }}" type="module"></script>
+  {{ else }}
+  <script src="{{ asset (print "assets/" .Data.entry ".js") }}" type="module"></script>
+  {{ end }}
 
   {{ template "vueScripts" . }}
 {{ end }}
