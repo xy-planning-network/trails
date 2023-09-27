@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/xy-planning-network/trails"
+	"github.com/xy-planning-network/trails/logger"
 )
 
 const (
@@ -19,21 +21,24 @@ const (
 // AssetURI encloses the environment and filesystem so when called executing a template,
 // emits valid URI for client side static and bundled assets.
 //
-// TODO:
-//
-// - configurable OriginHost would allow for support of a CDN and custom Vite server origin
-func AssetURI(env trails.Environment, filesys fs.FS) func(string) string {
+// The asset origin defaults to "/" when it is not configured and is always set with a trailing slash.
+func AssetURI(origin *url.URL, env trails.Environment, filesys fs.FS, l logger.Logger) func(string) string {
 	if filesys == nil {
 		filesys = os.DirFS(".")
+	}
+
+	if origin == nil {
+		origin, _ = url.Parse("/")
+	}
+
+	if origin.Path != "/" {
+		origin.Path = "/"
 	}
 
 	return func(assetPath string) string {
 		switch {
 		case env.IsTesting():
 			return ""
-
-		case env.IsDevelopment():
-			return fmt.Sprintf("http://localhost:8080/%s/%s", assetsBase, assetPath)
 
 		default:
 			// match hashed files bundled by Vite
@@ -45,11 +50,20 @@ func AssetURI(env trails.Environment, filesys fs.FS) func(string) string {
 			glob := fmt.Sprintf("%s/%s-*%s", assetsBase, filename, fileExt)
 			matches, err := fs.Glob(filesys, glob)
 
+			// Note: when in local dev mode it is expected that patterns won't match
 			if errors.Is(err, path.ErrBadPattern) || len(matches) == 0 {
-				return fmt.Sprintf("/%s/%s", assetsBase, assetPath)
+				return fmt.Sprintf("%s%s/%s", origin, assetsBase, assetPath)
 			}
 
-			return fmt.Sprintf("/%s", matches[0])
+			if len(matches) > 1 {
+				l.Error("Asset path found multiple matches.", &logger.LogContext{
+					Data: map[string]any{
+						"assetPath": assetPath,
+					},
+				})
+			}
+
+			return fmt.Sprintf("%s%s", origin, matches[0])
 		}
 	}
 }

@@ -2,6 +2,7 @@ package template_test
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,11 +12,13 @@ import (
 )
 
 const (
-	devAsset  = "http://localhost:8080/client/dist/%s"
-	prodAsset = "/client/dist/%s"
+	assetURI = "%sclient/dist/%s"
+	origin   = "https://cdn.xypn.com"
 )
 
 func TestAssetURI(t *testing.T) {
+	originURL, _ := url.Parse(origin)
+
 	// Arrange
 	tcs := []struct {
 		name     string
@@ -23,30 +26,36 @@ func TestAssetURI(t *testing.T) {
 		fn       func(string) string
 		expected string
 	}{
-		{"env-testing", "", template.AssetURI(trails.Testing, nil), ""},
+		{"env-testing", "", template.AssetURI(nil, trails.Testing, nil, nil), ""},
 		{
-			"env-dev-zero-name-js",
+			"zero-name",
 			"",
-			template.AssetURI(trails.Development, nil),
-			fmt.Sprintf(devAsset, ""),
+			template.AssetURI(nil, trails.Development, nil, nil),
+			fmt.Sprintf(assetURI, "/", ""),
 		},
 		{
-			"env-dev",
-			"src/pages/test.ts",
-			template.AssetURI(trails.Development, nil),
-			fmt.Sprintf(devAsset, "src/pages/test.ts"),
-		},
-		{
-			"env-prod-no-match",
+			"no-hash-match-no-origin",
 			"assets/test.js",
-			template.AssetURI(trails.Production, nil),
-			fmt.Sprintf(prodAsset, "assets/test.js"),
+			template.AssetURI(nil, trails.Production, nil, nil),
+			fmt.Sprintf(assetURI, "/", "assets/test.js"),
 		},
 		{
-			"env-prod",
+			"hash-match-no-origin",
 			"assets/test.js",
-			template.AssetURI(trails.Production, tt.NewMockFS(tt.NewMockFile("client/dist/assets/test-af8s7f9.js", nil))),
-			fmt.Sprintf(prodAsset, "assets/test-af8s7f9.js"),
+			template.AssetURI(nil, trails.Production, tt.NewMockFS(tt.NewMockFile("client/dist/assets/test-af8s7f9.js", nil)), nil),
+			fmt.Sprintf(assetURI, "/", "assets/test-af8s7f9.js"),
+		},
+		{
+			"hash-match-no-origin",
+			"assets/test.js",
+			template.AssetURI(nil, trails.Production, tt.NewMockFS(tt.NewMockFile("client/dist/assets/test-af8s7f9.js", nil)), nil),
+			fmt.Sprintf(assetURI, "/", "assets/test-af8s7f9.js"),
+		},
+		{
+			"hash-match-origin",
+			"assets/test.js",
+			template.AssetURI(originURL, trails.Production, tt.NewMockFS(tt.NewMockFile("client/dist/assets/test-af8s7f9.js", nil)), nil),
+			fmt.Sprintf(assetURI, "https://cdn.xypn.com/", "assets/test-af8s7f9.js"),
 		},
 	}
 

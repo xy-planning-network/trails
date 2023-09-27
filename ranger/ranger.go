@@ -38,6 +38,7 @@ type Ranger struct {
 	*resp.Responder
 	router.Router
 
+	assetsURL  *url.URL
 	cancel     context.CancelFunc
 	ctx        context.Context
 	db         postgres.DatabaseService
@@ -74,6 +75,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
+	r.assetsURL = trails.EnvVarOrURL(AssetsURLEnvVar, defaultAssetsURL)
 	r.url = trails.EnvVarOrURL(BaseURLEnvVar, defaultBaseURL)
 	r.metadata, err = newMetadata()
 	if err != nil {
@@ -95,7 +97,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		r.db = cfg.mockdb
 	}
 
-	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, cfg.FS, r.metadata), r.metadata.Contact)
+	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.Logger, r.env, r.url, r.assetsURL, cfg.FS, r.metadata), r.metadata.Contact)
 
 	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
 	if err != nil {
@@ -128,6 +130,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	return r, nil
 }
 
+func (r *Ranger) AssetsURL() *url.URL                            { return r.assetsURL }
 func (r *Ranger) BaseURL() *url.URL                              { return r.url }
 func (r *Ranger) Context() (context.Context, context.CancelFunc) { return r.ctx, r.cancel }
 func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
@@ -333,7 +336,7 @@ func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
 	r.Router.OnEveryRequest(mws...)
 
 	r.Router.CatchAll(MaintModeHandler(
-		defaultParser(r.env, r.url, cfg.FS, r.metadata),
+		defaultParser(r.Logger, r.env, r.url, r.assetsURL, cfg.FS, r.metadata),
 		r.Logger,
 		r.metadata.Contact),
 	)
