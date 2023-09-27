@@ -97,7 +97,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 		r.db = cfg.mockdb
 	}
 
-	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.Logger, r.env, r.url, r.assetsURL, cfg.FS, r.metadata), r.metadata.Contact)
+	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, r.assetsURL, cfg.FS, r.metadata), r.metadata.Contact)
 
 	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
 	if err != nil {
@@ -336,7 +336,7 @@ func newMaintRanger[U RangerUser](r *Ranger, cfg Config[U]) *Ranger {
 	r.Router.OnEveryRequest(mws...)
 
 	r.Router.CatchAll(MaintModeHandler(
-		defaultParser(r.Logger, r.env, r.url, r.assetsURL, cfg.FS, r.metadata),
+		defaultParser(r.env, r.url, r.assetsURL, cfg.FS, r.metadata),
 		r.Logger,
 		r.metadata.Contact),
 	)

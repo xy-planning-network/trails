@@ -3,5 +3,6 @@ package template
 import "errors"
 
 var (
-	ErrNoFiles = errors.New("no files provided")
+	ErrMatchedAssets = errors.New("multiple assets matched")
+	ErrNoFiles       = errors.New("no files provided")
 )

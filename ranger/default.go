@@ -276,7 +276,7 @@ func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Lo
 //   - "isDevelopment"
 //   - "isStaging"
 //   - "isProduction"
-func defaultParser(l logger.Logger, env trails.Environment, url *url.URL, assetsURL *url.URL, files fs.FS, m Metadata) *template.Parser {
+func defaultParser(env trails.Environment, url *url.URL, assetsURL *url.URL, files fs.FS, m Metadata) *template.Parser {
 	p := template.NewParser([]fs.FS{files, tmpls})
 	p = p.AddFn(template.Env(env))
 	p = p.AddFn("isDevelopment", env.IsDevelopment)
@@ -284,7 +284,7 @@ func defaultParser(l logger.Logger, env trails.Environment, url *url.URL, assets
 	p = p.AddFn("isProduction", env.IsProduction)
 	p = p.AddFn(m.templateFunc())
 	p = p.AddFn(template.Nonce())
-	p = p.AddFn("asset", template.AssetURI(assetsURL, env, os.DirFS("."), l))
+	p = p.AddFn("asset", template.AssetURI(assetsURL, env, os.DirFS(".")))
 	p = p.AddFn(template.RootUrl(url))
 
 	return p

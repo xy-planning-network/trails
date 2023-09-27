@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/xy-planning-network/trails"
-	"github.com/xy-planning-network/trails/logger"
 )
 
 const (
@@ -22,7 +21,7 @@ const (
 // emits valid URI for client side static and bundled assets.
 //
 // The asset origin defaults to "/" when it is not configured and is always set with a trailing slash.
-func AssetURI(origin *url.URL, env trails.Environment, filesys fs.FS, l logger.Logger) func(string) string {
+func AssetURI(origin *url.URL, env trails.Environment, filesys fs.FS) func(string) (string, error) {
 	if filesys == nil {
 		filesys = os.DirFS(".")
 	}
@@ -35,10 +34,10 @@ func AssetURI(origin *url.URL, env trails.Environment, filesys fs.FS, l logger.L
 		origin.Path = "/"
 	}
 
-	return func(assetPath string) string {
+	return func(assetPath string) (string, error) {
 		switch {
 		case env.IsTesting():
-			return ""
+			return "", nil
 
 		default:
 			// match hashed files bundled by Vite
@@ -50,20 +49,21 @@ func AssetURI(origin *url.URL, env trails.Environment, filesys fs.FS, l logger.L
 			glob := fmt.Sprintf("%s/%s-*%s", assetsBase, filename, fileExt)
 			matches, err := fs.Glob(filesys, glob)
 
-			// Note: when in local dev mode it is expected that patterns won't match
-			if errors.Is(err, path.ErrBadPattern) || len(matches) == 0 {
-				return fmt.Sprintf("%s%s/%s", origin, assetsBase, assetPath)
+			if errors.Is(err, path.ErrBadPattern) {
+				return "", fmt.Errorf("%w: for asset path %s", path.ErrBadPattern, assetPath)
 			}
 
 			if len(matches) > 1 {
-				l.Error("Asset path found multiple matches.", &logger.LogContext{
-					Data: map[string]any{
-						"assetPath": assetPath,
-					},
-				})
+				return "", fmt.Errorf("%w: for asset path %s", ErrMatchedAssets, assetPath)
 			}
 
-			return fmt.Sprintf("%s%s", origin, matches[0])
+			// Note: only entry point assets like (assets/GetDashboard.js) mode will have a match
+			// local development mode is not expected to match as those assets are not hashed when served by vite
+			if len(matches) == 0 {
+				return fmt.Sprintf("%s%s/%s", origin, assetsBase, assetPath), nil
+			}
+
+			return fmt.Sprintf("%s%s", origin, matches[0]), nil
 		}
 	}
 }
