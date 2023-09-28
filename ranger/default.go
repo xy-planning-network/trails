@@ -29,8 +29,9 @@ import (
 )
 
 const (
-	// Base URL defaults
-	BaseURLEnvVar = "BASE_URL"
+	// URL defaults
+	AssetsURLEnvVar = "ASSETS_URL"
+	BaseURLEnvVar   = "BASE_URL"
 
 	// App metadata
 	AppDescEnvVar    = "APP_DESCRIPTION"
@@ -106,7 +107,8 @@ const (
 )
 
 var (
-	defaultBaseURL = "http://" + DefaultHost + DefaultPort
+	defaultAssetsURL = "/"
+	defaultBaseURL   = "http://" + DefaultHost + DefaultPort
 
 	//go:embed tmpl/*
 	tmpls embed.FS
@@ -270,11 +272,11 @@ func newSlogger(kind slog.Value, env trails.Environment, out io.Writer) *slog.Lo
 //   - "title" returns the value set by the APP_TITLE env var
 //   - "nonce"
 //   - "rootUrl"
-//   - "packTag"
+//   - "asset"
 //   - "isDevelopment"
 //   - "isStaging"
 //   - "isProduction"
-func defaultParser(env trails.Environment, url *url.URL, files fs.FS, m Metadata) *template.Parser {
+func defaultParser(env trails.Environment, url *url.URL, assetsURL *url.URL, files fs.FS, m Metadata) *template.Parser {
 	p := template.NewParser([]fs.FS{files, tmpls})
 	p = p.AddFn(template.Env(env))
 	p = p.AddFn("isDevelopment", env.IsDevelopment)
@@ -282,7 +284,7 @@ func defaultParser(env trails.Environment, url *url.URL, files fs.FS, m Metadata
 	p = p.AddFn("isProduction", env.IsProduction)
 	p = p.AddFn(m.templateFunc())
 	p = p.AddFn(template.Nonce())
-	p = p.AddFn("packTag", template.TagPacker(env, os.DirFS(".")))
+	p = p.AddFn("asset", template.AssetURI(assetsURL, env, os.DirFS(".")))
 	p = p.AddFn(template.RootUrl(url))
 
 	return p
