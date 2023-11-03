@@ -4,7 +4,6 @@ go 1.21
 
 require (
 	github.com/getsentry/sentry-go v0.11.0
-	github.com/golang/mock v1.5.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
@@ -12,6 +11,7 @@ require (
 	github.com/joho/godotenv v1.4.0
 	github.com/stretchr/testify v1.8.1
 	github.com/xy-planning-network/tint v0.0.0-20230906200307-662ca545427c
+	go.uber.org/mock v0.3.0
 	golang.org/x/text v0.9.0
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
 	gorm.io/driver/postgres v1.5.2
