@@ -47,12 +47,12 @@ func (sl *SentryLogger) AddSkip(i int) Logger { return &SentryLogger{sl.l.AddSki
 
 func (sl *SentryLogger) Skip() int { return sl.l.Skip() }
 
-// Debug writes a debug log.
+// Debug writes a debug log message.
 func (sl *SentryLogger) Debug(msg string, ctx *LogContext) {
 	sl.l.Debug(msg, ctx)
 }
 
-// Error writes an error log and sends it to Sentry.
+// Error writes an error log message and sends it to Sentry.
 func (sl *SentryLogger) Error(msg string, ctx *LogContext) {
 	if tl, ok := sl.l.(*TrailsLogger); ok && !tl.l.Enabled(nil, slog.LevelError) {
 		return
@@ -62,19 +62,14 @@ func (sl *SentryLogger) Error(msg string, ctx *LogContext) {
 	sl.send(sentry.LevelError, ctx)
 }
 
-// Info writes an info log.
+// Info writes an info log message.
 func (sl *SentryLogger) Info(msg string, ctx *LogContext) {
 	sl.l.Info(msg, ctx)
 }
 
-// Warn writes a warning log and sends it to Sentry.
+// Warn writes a warning log message.
 func (sl *SentryLogger) Warn(msg string, ctx *LogContext) {
-	if tl, ok := sl.l.(*TrailsLogger); ok && !tl.l.Enabled(nil, slog.LevelWarn) {
-		return
-	}
-
 	sl.l.Warn(msg, ctx)
-	sl.send(sentry.LevelWarning, ctx)
 }
 
 // send ships the *LogContext.Error to Sentry,
