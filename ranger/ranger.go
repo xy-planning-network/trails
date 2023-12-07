@@ -181,7 +181,7 @@ func (r *Ranger) Guide() error {
 		if info, ok := debug.ReadBuildInfo(); ok {
 			for _, setting := range info.Settings {
 				if setting.Key == "vcs.revision" {
-					r.Info("running on commit: "+setting.Value, &logger.LogContext{Caller: pc})
+					r.Info(fmt.Sprintf("running %s on commit: %s", info.GoVersion, setting.Value), &logger.LogContext{Caller: pc})
 					break
 				}
 			}
