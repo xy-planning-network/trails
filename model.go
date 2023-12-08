@@ -48,7 +48,9 @@ const (
 func (as AccessState) String() string { return string(as) }
 
 // CastAll translates source into []T.
-// CastAll behaves similar to CastOne; refer to its documentation first.
+// CastAll behaves similar to CastOne;
+// refer to its documentation first for expected behavior,
+// especially around error handling.
 //
 // CastAll differs from CastOne by expecting source to be a slice (or pointer to a slice).
 // For each item in source, CastAll translates it to a T.
@@ -102,14 +104,17 @@ func CastAll[T any](source any, orig error) (dest []T, err error) {
 // CastOne requires source to be a struct
 // and a "db" tag specifying the name of the database column be set on each field.
 //
-// CastOne begins by handling err, wrapping it in an ErrUnexpected when not nil.
-//
-// Instead, given err == nil,
 // CastOne attempts to translate source into one of the supported types.
 // The main use case is where T implements Modelable.
 // In that case, CastOne matches fields between T and source using the "db" tag.
 // If T is a map[string]any, the keys in the map are the "db" tag for each field.
 // If T is an unsupported type, CastOne returns ErrNotImplemented.
+//
+// With errors.Join, CastOne combines any errors it creates to orig.
+// CastOne may return a valid T and error,
+// enabling the caller to handle them as desired.
+//
+// Panics are recovered and returned as ErrUnexpected.
 func CastOne[T any](source any, orig error) (dest T, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -161,7 +166,7 @@ func dumpToMap(source reflect.Value) (map[string]any, error) {
 		isIDField := tag == "id"
 		noID := isIDField && sourceVal.IsZero()
 		if isIDField && noID {
-			return nil, fmt.Errorf("%w", ErrNotExist)
+			return nil, fmt.Errorf("%s %w", source.Type().Name, ErrNotExist)
 		}
 
 		m[tag] = sourceVal.Interface()
@@ -178,14 +183,20 @@ func mapBetween(dest, source reflect.Value) error {
 	for _, sourceField := range reflect.VisibleFields(source.Type()) {
 		sourceTag, ok := sourceField.Tag.Lookup("db")
 		if !ok {
-			return fmt.Errorf("%w: source field %q has no db tag", ErrNotValid, sourceField.Name)
+			err := fmt.Errorf(
+				"%w: source field %q has no db tag for %s",
+				ErrNotValid,
+				sourceField.Name,
+				source.Type().Name,
+			)
+			return err
 		}
 
 		sourceVal := source.FieldByIndex(sourceField.Index)
 		isIDField := sourceTag == "id"
 		noID := isIDField && sourceVal.IsZero()
 		if isIDField && noID {
-			return fmt.Errorf("%w", ErrNotExist)
+			return fmt.Errorf("%s %w", source.Type().Name, ErrNotExist)
 		}
 
 		var foundSource bool
@@ -198,7 +209,8 @@ func mapBetween(dest, source reflect.Value) error {
 		}
 
 		if !foundSource {
-			return fmt.Errorf("%w: source tag %q not found on dest", ErrNotValid, sourceTag)
+			err := fmt.Errorf("%w: source tag %q not found on dest for %s", ErrNotValid, sourceTag, dest.Type().Name)
+			return err
 		}
 	}
 
