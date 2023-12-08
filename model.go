@@ -2,6 +2,7 @@ package trails
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -59,8 +60,8 @@ func CastAll[T any](source any, orig error) (dest []T, err error) {
 		}
 	}()
 
-	if orig != nil {
-		return nil, fmt.Errorf("%w: %s", ErrUnexpected, orig)
+	if orig != nil && !errors.Is(orig, ErrNotExist) {
+		return nil, orig
 	}
 
 	sourceVal := reflect.ValueOf(source)
@@ -120,8 +121,8 @@ func CastOne[T any](source any, orig error) (dest T, err error) {
 		}
 	}()
 
-	if orig != nil {
-		return dest, fmt.Errorf("%w: %s", ErrUnexpected, orig)
+	if orig != nil && !errors.Is(orig, ErrNotExist) {
+		return dest, orig
 	}
 
 	sourceVal := reflect.ValueOf(source)

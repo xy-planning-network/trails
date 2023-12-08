@@ -42,19 +42,20 @@ func (TestModelableString) Exists() bool { return true }
 func TestCastAll(t *testing.T) {
 	// Arrange
 	var source []TestModelSource
+	customErr := errors.New("oops")
 
 	// Act
-	modelMatches, err := trails.CastAll[TestModelableMatch](source, errors.New("oops"))
+	modelMatches, err := trails.CastAll[TestModelableMatch](source, customErr)
 
 	// Assert
 	require.Zero(t, modelMatches)
-	require.ErrorIs(t, err, trails.ErrUnexpected)
+	require.ErrorIs(t, err, customErr)
 
 	// Arrange
 	var strSource string
 
 	// Act
-	modelMatches, err = trails.CastAll[TestModelableMatch](strSource, nil)
+	modelMatches, err = trails.CastAll[TestModelableMatch](strSource, trails.ErrNotExist)
 
 	// Assert
 	require.Zero(t, modelMatches)
@@ -95,19 +96,20 @@ func TestCastAll(t *testing.T) {
 func TestCastOne(t *testing.T) {
 	// Arrange
 	var source TestModelSource
+	customErr := errors.New("oops")
 
 	// Act
-	modelMatch, err := trails.CastOne[TestModelableMatch](source, errors.New("oops"))
+	modelMatch, err := trails.CastOne[TestModelableMatch](source, customErr)
 
 	// Assert
 	require.Zero(t, modelMatch)
-	require.ErrorIs(t, err, trails.ErrUnexpected)
+	require.ErrorIs(t, err, customErr)
 
 	// Arrange
 	var strSource string
 
 	// Act
-	modelMatch, err = trails.CastOne[TestModelableMatch](&strSource, nil)
+	modelMatch, err = trails.CastOne[TestModelableMatch](&strSource, trails.ErrNotExist)
 
 	// Assert
 	require.Zero(t, modelMatch)
