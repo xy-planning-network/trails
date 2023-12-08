@@ -56,13 +56,9 @@ func (as AccessState) String() string { return string(as) }
 func CastAll[T any](source any, orig error) (dest []T, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%w: panic: %s", ErrUnexpected, r)
+			err = errors.Join(orig, fmt.Errorf("%w: panic: %s", ErrUnexpected, r))
 		}
 	}()
-
-	if orig != nil && !errors.Is(orig, ErrNotExist) {
-		return nil, orig
-	}
 
 	sourceVal := reflect.ValueOf(source)
 	if sourceVal.Kind() == reflect.Pointer {
@@ -70,7 +66,7 @@ func CastAll[T any](source any, orig error) (dest []T, err error) {
 	}
 
 	if sourceVal.Kind() != reflect.Slice {
-		return nil, fmt.Errorf("%w: source is not a slice", ErrNotImplemented)
+		return nil, errors.Join(orig, fmt.Errorf("%w: source is not a slice", ErrNotImplemented))
 	}
 
 	var item T
@@ -80,7 +76,7 @@ func CastAll[T any](source any, orig error) (dest []T, err error) {
 		for i := 0; i < sourceVal.Len(); i++ {
 			m, err := dumpToMap(sourceVal.Index(i))
 			if err != nil {
-				return dest, err
+				return dest, errors.Join(orig, err)
 			}
 			dest[i] = any(m).(T)
 		}
@@ -90,14 +86,14 @@ func CastAll[T any](source any, orig error) (dest []T, err error) {
 			var item T
 			itemVal := reflect.ValueOf(&item).Elem()
 			if err := mapBetween(itemVal, sourceVal.Index(i)); err != nil {
-				return dest, err
+				return dest, errors.Join(orig, err)
 			}
 
 			dest[i] = item
 		}
 	}
 
-	return dest, nil
+	return dest, orig
 }
 
 // CastOne translates source into a T or handles err.
@@ -117,13 +113,9 @@ func CastAll[T any](source any, orig error) (dest []T, err error) {
 func CastOne[T any](source any, orig error) (dest T, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%w: panic: %s", ErrUnexpected, r)
+			err = errors.Join(orig, fmt.Errorf("%w: panic: %s", ErrUnexpected, r))
 		}
 	}()
-
-	if orig != nil && !errors.Is(orig, ErrNotExist) {
-		return dest, orig
-	}
 
 	sourceVal := reflect.ValueOf(source)
 	if sourceVal.Kind() == reflect.Pointer {
@@ -131,14 +123,14 @@ func CastOne[T any](source any, orig error) (dest T, err error) {
 	}
 
 	if sourceVal.Kind() != reflect.Struct {
-		return dest, fmt.Errorf("%w: source must be a struct or a pointer to one", ErrNotImplemented)
+		return dest, errors.Join(orig, fmt.Errorf("%w: source must be a struct or a pointer to one", ErrNotImplemented))
 	}
 
 	switch any(dest).(type) {
 	case map[string]any:
 		t, err := dumpToMap(sourceVal)
 		if err != nil {
-			return dest, err
+			return dest, errors.Join(orig, err)
 		}
 
 		dest, _ = any(t).(T)
@@ -148,17 +140,17 @@ func CastOne[T any](source any, orig error) (dest T, err error) {
 		if err := mapBetween(destVal, sourceVal); err != nil {
 			// TODO(dlk): mapBetween may set some fields on dest,
 			// but still throw an error. Reset dest?
-			return dest, err
+			return dest, errors.Join(orig, err)
 		}
 
 		dest, _ = destVal.Interface().(T)
 
 	default:
 		err = fmt.Errorf("%w: unhandled translate for %T", ErrNotImplemented, dest)
-		return dest, err
+		return dest, errors.Join(orig, err)
 	}
 
-	return dest, nil
+	return dest, orig
 }
 
 func dumpToMap(source reflect.Value) (map[string]any, error) {

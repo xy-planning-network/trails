@@ -48,17 +48,18 @@ func TestCastAll(t *testing.T) {
 	modelMatches, err := trails.CastAll[TestModelableMatch](source, customErr)
 
 	// Assert
-	require.Zero(t, modelMatches)
+	require.Len(t, modelMatches, 0)
 	require.ErrorIs(t, err, customErr)
 
 	// Arrange
 	var strSource string
 
 	// Act
-	modelMatches, err = trails.CastAll[TestModelableMatch](strSource, trails.ErrNotExist)
+	modelMatches, err = trails.CastAll[TestModelableMatch](strSource, customErr)
 
 	// Assert
 	require.Zero(t, modelMatches)
+	require.ErrorIs(t, err, customErr)
 	require.ErrorIs(t, err, trails.ErrNotImplemented)
 
 	// Arrange
@@ -73,10 +74,10 @@ func TestCastAll(t *testing.T) {
 	}
 
 	// Act
-	modelMatches, err = trails.CastAll[TestModelableMatch](source, nil)
+	modelMatches, err = trails.CastAll[TestModelableMatch](source, customErr)
 
 	// Assert
-	require.Nil(t, err)
+	require.ErrorIs(t, err, customErr)
 	require.Len(t, modelMatches, len(source))
 	for _, m := range modelMatches {
 		require.True(t, m.Exists())
@@ -109,17 +110,19 @@ func TestCastOne(t *testing.T) {
 	var strSource string
 
 	// Act
-	modelMatch, err = trails.CastOne[TestModelableMatch](&strSource, trails.ErrNotExist)
+	modelMatch, err = trails.CastOne[TestModelableMatch](&strSource, customErr)
 
 	// Assert
 	require.Zero(t, modelMatch)
+	require.ErrorIs(t, err, customErr)
 	require.ErrorIs(t, err, trails.ErrNotImplemented)
 
 	// Arrange + Act
-	mapp, err := trails.CastOne[map[string]any](source, nil)
+	mapp, err := trails.CastOne[map[string]any](source, customErr)
 
 	// Assert
 	require.Zero(t, mapp)
+	require.ErrorIs(t, err, customErr)
 	require.ErrorIs(t, err, trails.ErrNotExist)
 
 	// Arrange + Act
@@ -130,10 +133,11 @@ func TestCastOne(t *testing.T) {
 	require.ErrorIs(t, err, trails.ErrNotImplemented)
 
 	// Arrange + Act
-	modelMatch, err = trails.CastOne[TestModelableMatch](TestNoTagSource{}, nil)
+	modelMatch, err = trails.CastOne[TestModelableMatch](TestNoTagSource{}, customErr)
 
 	// Assert
 	require.Zero(t, modelMatch)
+	require.ErrorIs(t, err, customErr)
 	require.ErrorIs(t, err, trails.ErrNotValid)
 
 	// Arrange + Act
@@ -161,6 +165,7 @@ func TestCastOne(t *testing.T) {
 	mapp, err = trails.CastOne[map[string]any](source, nil)
 
 	// Assert
+	require.Nil(t, err)
 	require.Equal(t, source.ID, mapp["id"])
 	require.Equal(t, source.CreatedAt, mapp["created_at"])
 	require.Equal(t, source.UpdatedAt, mapp["updated_at"])
@@ -169,9 +174,10 @@ func TestCastOne(t *testing.T) {
 	require.Equal(t, source.FieldB, mapp["field_b"])
 
 	// Arrange + Act
-	modelMatch, err = trails.CastOne[TestModelableMatch](source, nil)
+	modelMatch, err = trails.CastOne[TestModelableMatch](source, customErr)
 
 	// Assert
+	require.ErrorIs(t, err, customErr)
 	require.Equal(t, source.ID, modelMatch.ID)
 	require.Equal(t, source.CreatedAt, modelMatch.CreatedAt)
 	require.Equal(t, source.UpdatedAt, modelMatch.UpdatedAt)
