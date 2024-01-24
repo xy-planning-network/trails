@@ -131,6 +131,16 @@ func CastOne[T any](source any, orig error) (dest T, err error) {
 		return dest, errors.Join(orig, fmt.Errorf("%w: source must be a struct or a pointer to one", ErrNotImplemented))
 	}
 
+	/* TODO(dlk): how can we leverage sql.ErrNoRows?
+	Is looks at all errors in the tree, whereas we want the most recent
+	which would be the one returned by sqlc's generated handler.
+	Review errors.Unwrap for errors concatenated with errors.Join
+
+	if errors.Is(orig, sql.ErrNoRows) {
+		return dest, errors.Join(fmt.Errorf("hi %s %w", sourceVal.Type().Name(), ErrNotExist), orig)
+	}
+	*/
+
 	switch any(dest).(type) {
 	case map[string]any:
 		t, err := dumpToMap(sourceVal)
@@ -141,14 +151,31 @@ func CastOne[T any](source any, orig error) (dest T, err error) {
 		dest, _ = any(t).(T)
 
 	case Modelable:
-		destVal := reflect.ValueOf(&dest).Elem()
+		isPointer := reflect.TypeOf(dest).Kind() == reflect.Pointer
+		originalVal := reflect.ValueOf(&dest)
+		destVal := originalVal
+		// NOTE(dlk): if T is a pointer already, we now have a pointer to a pointer.
+		// Furthermore, that root points is currently nil and unsettable
+		// because it is initialized via a return identifier.
+		// So, that root pointer must be set with an initialized pointer.
+		//
+		// Given A, destVal.Type() = *(*A)(nil)
+		if isPointer {
+			destVal = destVal.Elem()                  // destVal = (*A)(nil)
+			ptr := reflect.New(destVal.Type().Elem()) // ptr = *A
+			destVal.Set(ptr)                          // destVal = *A
+		}
+
+		destVal = destVal.Elem()
 		if err := mapBetween(destVal, sourceVal); err != nil {
 			// TODO(dlk): mapBetween may set some fields on dest,
 			// but still throw an error. Reset dest?
+			if isPointer {
+				destVal = reflect.Zero(originalVal.Elem().Type().Elem())
+			}
+
 			return dest, errors.Join(orig, err)
 		}
-
-		dest, _ = destVal.Interface().(T)
 
 	default:
 		err = fmt.Errorf("%w: unhandled translate for %T", ErrNotImplemented, dest)
@@ -166,7 +193,7 @@ func dumpToMap(source reflect.Value) (map[string]any, error) {
 		isIDField := tag == "id"
 		noID := isIDField && sourceVal.IsZero()
 		if isIDField && noID {
-			return nil, fmt.Errorf("%s %w", source.Type().Name, ErrNotExist)
+			return nil, fmt.Errorf("%s %w", source.Type().Name(), ErrNotExist)
 		}
 
 		m[tag] = sourceVal.Interface()
@@ -177,17 +204,21 @@ func dumpToMap(source reflect.Value) (map[string]any, error) {
 
 func mapBetween(dest, source reflect.Value) error {
 	if dest.Kind() != reflect.Struct {
-		return fmt.Errorf("%w: T must be a struct", ErrNotImplemented)
+		return fmt.Errorf("%w: %s T must be a struct", ErrNotImplemented, dest.Kind())
 	}
 
 	for _, sourceField := range reflect.VisibleFields(source.Type()) {
 		sourceTag, ok := sourceField.Tag.Lookup("db")
+		if sourceTag == "-" {
+			continue
+		}
+
 		if !ok {
 			err := fmt.Errorf(
 				"%w: source field %q has no db tag for %s",
 				ErrNotValid,
 				sourceField.Name,
-				source.Type().Name,
+				source.Type().Name(),
 			)
 			return err
 		}
@@ -196,7 +227,7 @@ func mapBetween(dest, source reflect.Value) error {
 		isIDField := sourceTag == "id"
 		noID := isIDField && sourceVal.IsZero()
 		if isIDField && noID {
-			return fmt.Errorf("%s %w", source.Type().Name, ErrNotExist)
+			return fmt.Errorf("%s %w", source.Type().Name(), ErrNotExist)
 		}
 
 		var foundSource bool
@@ -209,7 +240,7 @@ func mapBetween(dest, source reflect.Value) error {
 		}
 
 		if !foundSource {
-			err := fmt.Errorf("%w: source tag %q not found on dest for %s", ErrNotValid, sourceTag, dest.Type().Name)
+			err := fmt.Errorf("%w: source tag %q not found on dest for %s", ErrNotValid, sourceTag, dest.Type().Name())
 			return err
 		}
 	}

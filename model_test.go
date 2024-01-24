@@ -147,6 +147,14 @@ func TestCastOne(t *testing.T) {
 	require.Zero(t, modelMatch)
 	require.ErrorIs(t, err, trails.ErrNotExist)
 
+	// Arrange + Act
+	ptrModelMatch, err := trails.CastOne[*TestModelableMatch](source, nil)
+
+	// Assert
+	// TODO(dlk): :(
+	require.Nil(t, ptrModelMatch)
+	require.ErrorIs(t, err, trails.ErrNotExist)
+
 	// Arrange
 	source.ID = 1
 
@@ -184,6 +192,18 @@ func TestCastOne(t *testing.T) {
 	require.Equal(t, source.DeletedAt, modelMatch.DeletedAt)
 	require.Equal(t, source.FieldA, modelMatch.FieldA)
 	require.Equal(t, source.FieldB, modelMatch.FieldB)
+
+	// Arrange + Act
+	ptrModelMatch, err = trails.CastOne[*TestModelableMatch](source, nil)
+
+	// Assert
+	require.Nil(t, err)
+	require.Equal(t, source.ID, ptrModelMatch.ID)
+	require.Equal(t, source.CreatedAt, ptrModelMatch.CreatedAt)
+	require.Equal(t, source.UpdatedAt, ptrModelMatch.UpdatedAt)
+	require.Equal(t, source.DeletedAt, ptrModelMatch.DeletedAt)
+	require.Equal(t, source.FieldA, ptrModelMatch.FieldA)
+	require.Equal(t, source.FieldB, ptrModelMatch.FieldB)
 }
 
 type exampleDB struct{}
