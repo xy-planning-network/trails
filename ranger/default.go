@@ -356,7 +356,7 @@ func defaultSessionStore(env trails.Environment, appName string) (session.Sessio
 
 // defaultServer constructs a default [*http.Server].
 func defaultServer(ctx context.Context) *http.Server {
-	host := trails.EnvVarOrString(hostEnvVar, DefaultHost)
+	host := trails.EnvVarOrString(hostEnvVar, "")
 	port := trails.EnvVarOrString(portEnvVar, DefaultPort)
 	if port[0] != ':' {
 		port = ":" + port
