@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -213,6 +214,7 @@ func TestResponderRaw(t *testing.T) {
 }
 
 func TestResponderRedirect(t *testing.T) {
+	rootURL := "http://example.com"
 	otherURL := "http://otherexample.com"
 	tcs := []struct {
 		name   string
@@ -223,7 +225,9 @@ func TestResponderRedirect(t *testing.T) {
 			name: "No-Fns",
 			fns:  []resp.Fn{},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
-				require.ErrorIs(t, err, resp.ErrMissingData)
+				actual, err := url.ParseRequestURI(w.Header().Get("Location"))
+				require.Nil(t, err)
+				require.Equal(t, "/", actual.String())
 			},
 		},
 		{
@@ -232,7 +236,17 @@ func TestResponderRedirect(t *testing.T) {
 				resp.Params(map[string]string{"test": "true"}),
 			},
 			assert: func(t *testing.T, w *httptest.ResponseRecorder, r *http.Request, err error) {
-				require.ErrorIs(t, err, resp.ErrMissingData)
+				expected, err := url.ParseRequestURI(rootURL)
+				require.Nil(t, err)
+
+				q := expected.Query()
+				q.Add("test", "true")
+				expected.RawQuery = q.Encode()
+
+				actual, err := url.ParseRequestURI(w.Header().Get("Location"))
+				require.Nil(t, err)
+				require.Equal(t, "/", actual.Path)
+				require.Equal(t, expected.Query(), actual.Query())
 			},
 		},
 		{
@@ -319,9 +333,9 @@ func TestResponderRedirect(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+		r := httptest.NewRequest(http.MethodGet, rootURL, nil)
 		w := httptest.NewRecorder()
-		d := resp.NewResponder()
+		d := resp.NewResponder(resp.WithRootUrl(rootURL))
 		t.Run(tc.name, func(t *testing.T) {
 			tc.assert(t, w, r, d.Redirect(w, r, tc.fns...))
 		})
@@ -450,31 +464,38 @@ func TestResponderHtml(t *testing.T) {
 		})
 	}
 
-	// NOTE(dlk): some sleight-of-hand here -
-	// resp.Authed() is not used since it will error first before
-	// reaching the checks in *Responder.Html;
-	// this test verifies someone setting the Authed template
-	// via another path (i.e., Tmpls) is gracefully handled.
 	t.Run("With-Authed-No-User", func(t *testing.T) {
 		// Arrange
 		r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-		ctx := context.WithValue(r.Context(), trails.SessionKey, session.Session{})
-		ctx = context.WithValue(ctx, trails.CurrentUserKey, "I am definitely a user")
+
+		s, err := session.NewStub(false).GetSession(r)
+		require.Nil(t, err)
+
+		ctx := context.WithValue(r.Context(), trails.SessionKey, s)
+
 		w := httptest.NewRecorder()
 		r = r.WithContext(ctx)
 
 		responder := resp.NewResponder(
-			resp.WithParser(tt.NewParser(tt.NewMockFile("err.tmpl", nil))),
+			resp.WithParser(tt.NewParser(
+				tt.NewMockFile("err.tmpl", []byte("you errored!")),
+				tt.NewMockFile("auth.tmpl", nil),
+			)),
 			resp.WithAuthTemplate("auth.tmpl"),
 			resp.WithErrTemplate("err.tmpl"),
 		)
 
 		// Act
-		err := responder.Html(w, r, resp.Tmpls("auth.tmpl"))
+		err = responder.Html(w, r, resp.Authed())
 
 		// Assert
-		require.NotNil(t, err)
+		require.ErrorIs(t, err, resp.ErrNoUser)
 		require.Equal(t, http.StatusInternalServerError, w.Code)
+
+		b, err := io.ReadAll(w.Body)
+		require.Nil(t, err)
+
+		require.Equal(t, string([]byte("you errored!")), string(b))
 	})
 }
 

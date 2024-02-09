@@ -43,7 +43,6 @@ func Authed() Fn {
 		if err := populateUser(d, r); err != nil {
 			return err
 		}
-
 		var n int
 		for _, tmpl := range r.tmpls {
 			if tmpl != d.templates.unauthed {
@@ -53,6 +52,7 @@ func Authed() Fn {
 		}
 
 		r.tmpls = append([]string{d.templates.authed, d.templates.additionalScripts}, r.tmpls[:n]...)
+
 		return nil
 	}
 }
@@ -270,6 +270,17 @@ func Url(u string) Fn {
 		if err != nil {
 			return fmt.Errorf("%w: u is not a valid URL: %v", ErrInvalid, err)
 		}
+
+		if r.url != nil {
+			q := parsed.Query()
+			for k, vv := range r.url.Query() {
+				for _, v := range vv {
+					q.Add(k, v)
+				}
+			}
+			parsed.RawQuery = q.Encode()
+		}
+
 		r.url = parsed
 		return nil
 	}
