@@ -390,12 +390,8 @@ func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*
 
 	// NOTE(dlk): wrapup errors to send back
 	if len(redos) != 0 {
-		for i, opt := range redos {
-			nested := opt(*doer, resp)
-			if i == 0 {
-				continue
-			}
-			err = fmt.Errorf("%w: %s", nested, err)
+		for _, opt := range redos {
+			err = errors.Join(opt(*doer, resp), err)
 		}
 	}
 

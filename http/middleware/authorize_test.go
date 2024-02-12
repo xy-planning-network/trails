@@ -25,7 +25,7 @@ func TestAuthorizeApplicator(t *testing.T) {
 	require.Equal(t, fmt.Sprintf("%p", middleware.NoopAdapter), fmt.Sprintf("%p", adpt))
 
 	// Arrange
-	d := resp.NewResponder()
+	d := resp.NewResponder(resp.WithRootUrl("/"))
 
 	app = middleware.NewAuthorizeApplicator[testUser](d)
 	adpt = app.Apply(func(u testUser) (string, bool) {
