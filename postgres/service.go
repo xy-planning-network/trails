@@ -19,24 +19,35 @@ func NewSimple[T any](db *gorm.DB) *Simple[T] {
 	return &Simple[T]{db}
 }
 
-func (db *Simple[T]) Debug() *Simple[T] { return db }
+func (db *Simple[T]) Debug() *Simple[T] {
+	return &Simple[T]{db.db.Debug()}
+}
 
-func (db *Simple[T]) Distinct(args ...interface{}) *Simple[T] { return db }
+func (db *Simple[T]) Distinct(args ...interface{}) *Simple[T] {
+	return &Simple[T]{db.db.Distinct(args...)}
+}
 
-func (db *Simple[T]) Find() (T, error) { return nil }
+func (db *Simple[T]) Find() ([]T, error) {
+	dest := make([]T, 0)
+	if err := db.db.Model(new(T)).Find(&dest).Error; err != nil {
+		return dest, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
+	}
+
+	return dest, nil
+}
 
 func (db *Simple[T]) First() (T, error) {
 	var dest T
 	err := db.db.Model(&dest).First(&dest).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return fmt.Errorf("%w", trails.ErrNotFound)
+		return dest, fmt.Errorf("%w", trails.ErrNotFound)
 	}
 
 	if err != nil {
-		return fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
+		return dest, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
 	}
 
-	return nil
+	return dest, nil
 }
 
 func (db *Simple[T]) Group(name string) *Simple[T] { return db }
@@ -94,7 +105,7 @@ func (db *Simple[T]) Select(columns ...string) *Simple[T] { return db }
 // e.g.:
 //
 //	ids, err := NewSimple[[]uint].Table("users").Select("id").Find()
-func (db *Simple[T]) Table(name string) *Simple[T] {}
+func (db *Simple[T]) Table(name string) *Simple[T] { return db }
 
 func (db *Simple[T]) Unscoped() *Simple[T] { return db }
 
@@ -108,6 +119,8 @@ type Robust[T any] struct {
 
 func (db *Robust[T]) Begin(opts ...*sql.TxOptions) *Robust[T] { return db }
 
+func (db *Robust[T]) Count() (dest T, err error) { return dest, err }
+
 func (db *Robust[T]) Commit() error { return nil }
 
 func (db *Robust[T]) Create(value T) error { return nil }
@@ -115,29 +128,63 @@ func (db *Robust[T]) Create(value T) error { return nil }
 // escape hatch
 func (db *Robust[T]) DB() *gorm.DB { return db.db }
 
-func (db *Robust[T]) Delete(value T) error { return nil }
-
-func (db *Robust[T]) Exec(sql string, values ...interface{}) (int64, error) {
-	var err error
-	res := db.db.Exec(sql, values...)
-	if res.Error != nil {
-		err = fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
-	}
-	return res.RowsAffected, err
+func (db *Robust[T]) Debug() *Robust[T] {
+	return &Robust[T]{db.Simple.Debug()}
 }
 
-func (db *Robust[T]) Raw(dest interface{}, sql string, values ...interface{}) error { return nil }
+func (db *Robust[T]) Delete(value T) error { return nil }
+
+func (db *Robust[T]) Distinct(args ...interface{}) *Robust[T] {
+	return &Robust[T]{db.Simple.Distinct(args...)}
+}
+
+func (db *Robust[T]) Group(name string) *Robust[T] { return db }
+
+func (db *Robust[T]) Joins(query string, args ...interface{}) *Robust[T] { return db }
+
+func (db *Robust[T]) Limit(limit int) *Robust[T] { return db }
+
+func (db *Robust[T]) Offset(offset int) *Robust[T] { return db }
+
+func (db *Robust[T]) Or(query interface{}, args ...interface{}) *Robust[T] { return db }
+
+func (db *Robust[T]) Order(value interface{}) *Robust[T] { return db }
+
+func (db *Robust[T]) Preload(query string, args ...interface{}) *Robust[T] { return db }
+
+func (db *Robust[T]) Scopes(funcs ...func(*Robust[T]) *Robust[T]) *Robust[T] { return db }
+
+func (db *Robust[T]) Select(columns ...string) *Robust[T] { return db }
+
+func (db *Robust[T]) Table(name string) *Robust[T] { return db }
+
+func (db *Robust[T]) Unscoped() *Robust[T] { return db }
+
+func (db *Robust[T]) Where(query interface{}, args ...interface{}) *Robust[T] {
+	return &Robust[T]{db.Simple.Where(query, args)}
+}
+
+func (db *Robust[T]) Exec(sql string, values ...interface{}) (int64, error) {
+	res := db.db.Exec(sql, values...)
+	if res.Error != nil {
+		return 0, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
+	}
+
+	return res.RowsAffected, nil
+}
+
+func (db *Robust[T]) Raw(sql string, values ...interface{}) (dest T, err error) { return dest, err }
 
 func (db *Robust[T]) Rollback() *Robust[T] { return db }
 
-func (db *Robust[T]) Update(column string, value interface{}) (T, error) { return db }
+func (db *Robust[T]) Update(column string, value interface{}) (dest []T, err error) { return dest, err }
 
-func (db *Robust[T]) Updates(values interface{}) (T, error) {
-	var dest T
-	err := db.db.Model(&dest).Clauses(clause.Returning{} /* GORM's RETURNING * syntax */).Updates(values).Error
+func (db *Robust[T]) Updates(values map[string]interface{}) ([]T, error) {
+	dest := make([]T, 0)
+	err := db.db.Model(new(T)).Clauses(clause.Returning{} /* GORM's RETURNING * syntax */).Updates(values).Error
 	if err != nil {
 		err = fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
-		return dest, err
+		return nil, err
 	}
 
 	return dest, nil
@@ -150,112 +197,4 @@ type PagedData[T any] struct {
 	PerPage    int   `json:"perPage"`
 	TotalItems int64 `json:"totalItems"`
 	TotalPages int   `json:"totalPages"`
-}
-
-// DatabaseServiceImpl satisfies the above DatabaseService interface.
-type DatabaseServiceImpl struct {
-	DB *gorm.DB
-}
-
-// NewService hydrates the gorm database for the implementation struct methods.
-func NewService(DB *gorm.DB) *DatabaseServiceImpl {
-	return &DatabaseServiceImpl{DB: DB}
-}
-
-// CountByQuery recives a database model and query and fetches a count for the given params.
-func (service *DatabaseServiceImpl) CountByQuery(model any, query map[string]any) (int64, error) {
-	count := int64(0)
-	return count, service.DB.Model(model).Where(query).Count(&count).Error
-}
-
-// FetchByQuery receives a slice of database models as a pointer and fetches all records matching the query.
-func (service *DatabaseServiceImpl) FetchByQuery(models any, query string, params []any) error {
-	return service.DB.Where(query, params...).Find(models).Error
-}
-
-// FindByID receives a database model as a pointer and fetches it using the primary ID.
-func (service *DatabaseServiceImpl) FindByID(model any, ID any) error {
-	return service.DB.First(model, ID).Error
-}
-
-// FindByQuery receives a database model as a pointer and fetches it using the given query.
-func (service *DatabaseServiceImpl) FindByQuery(model any, query map[string]any) error {
-	return service.DB.Where(query).First(model).Error
-}
-
-// Insert receives a database model and inserts it into the database.
-func (service *DatabaseServiceImpl) Insert(model any) error {
-	return service.DB.Create(model).Error
-}
-
-// PagedByQuery receives a slice of database models and paging information to build a paged database query.
-func (service *DatabaseServiceImpl) PagedByQuery(models any, query string, params []any, order string, page int, perPage int, preloads ...string) (PagedData, error) {
-	pd := PagedData{}
-
-	// Make sure page/perPage are sane
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 10
-	}
-
-	// Conduct unlimited count query to calculate totals
-	var totalRecords int64
-	if err := service.DB.Where(query, params...).Model(models).Count(&totalRecords).Error; err != nil {
-		return pd, err
-	}
-
-	// Calculate offset and conduct limited query
-	offset := (page - 1) * perPage
-	session := service.DB
-	for _, preload := range preloads {
-		session = session.Preload(preload)
-	}
-	if err := session.Where(query, params...).Order(order).Limit(perPage).Offset(offset).Find(models).Error; err != nil {
-		return pd, err
-	}
-
-	pd.Items = models
-	pd.Page = page
-	pd.PerPage = perPage
-	pd.TotalItems = totalRecords
-	totalPagesFloat := float64(totalRecords) / float64(perPage)
-	pd.TotalPages = int(math.Ceil(totalPagesFloat))
-
-	return pd, nil
-}
-
-// PagedByQueryFromSession receives a slice of database models and paging information to build a paged database query.
-func (service *DatabaseServiceImpl) PagedByQueryFromSession(models any, session *gorm.DB, page int, perPage int) (PagedData, error) {
-	pd := PagedData{}
-
-	// Make sure page/perPage are sane
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 10
-	}
-
-	// Conduct unlimited count query to calculate totals
-	var totalRecords int64
-	if err := session.Model(models).Count(&totalRecords).Error; err != nil {
-		return pd, err
-	}
-
-	// Calculate offset and conduct limited query
-	offset := (page - 1) * perPage
-	if err := session.Session(&gorm.Session{QueryFields: true}).Limit(perPage).Offset(offset).Find(models).Error; err != nil {
-		return pd, err
-	}
-
-	pd.Items = models
-	pd.Page = page
-	pd.PerPage = perPage
-	pd.TotalItems = totalRecords
-	totalPagesFloat := float64(totalRecords) / float64(perPage)
-	pd.TotalPages = int(math.Ceil(totalPagesFloat))
-
-	return pd, nil
 }
