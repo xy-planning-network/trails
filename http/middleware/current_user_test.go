@@ -106,6 +106,25 @@ func TestCurrentUser(t *testing.T) {
 	require.Nil(t, err)
 
 	r = r.Clone(context.WithValue(r.Context(), trails.SessionKey, s))
+	r.Header.Set("Accept", "application/json, text/plain, */*")
+
+	// Act
+	middleware.CurrentUser(
+		resp.NewResponder(resp.WithRootUrl("https://example.com")),
+		newFailedUserStore(true),
+	)(teapotHandler()).ServeHTTP(w, r)
+
+	// Assert
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+
+	// Arrange
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+
+	s, err = session.NewStub(true).GetSession(r)
+	require.Nil(t, err)
+
+	r = r.Clone(context.WithValue(r.Context(), trails.SessionKey, s))
 	r.Header.Set("Accept", "application/json")
 
 	// Act

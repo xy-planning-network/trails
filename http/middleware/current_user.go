@@ -164,7 +164,7 @@ func RequireAuthed(loginUrl, logoffUrl string) Adapter {
 func handleErr(w http.ResponseWriter, r *http.Request, code int, d *resp.Responder, err error) {
 	vs := r.Header.Values("Accept")
 	for _, v := range vs {
-		if strings.Compare(v, "application/json") == 0 {
+		if strings.Contains(v, "application/json") {
 			d.Json(w, r, resp.Err(err), resp.Code(code))
 			return
 		}
