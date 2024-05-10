@@ -4,13 +4,14 @@
 
 {{ define "vue" }}
   <script type="text/javascript">
+    var InitialVuePage = "{{ .Data.entry }}"
     var InitialVueProps = {{ .Data.props }}
   </script>
 
   {{ if isDevelopment }}
-  <script src="{{ asset (print "src/pages/" .Data.entry ".ts") }}" type="module"></script>
+  <script src="{{ asset (print "src/app.ts" ) }}" type="module"></script>
   {{ else }}
-  <script src="{{ asset (print "assets/" .Data.entry ".js") }}" type="module"></script>
+  <script src="{{ asset (print "assets/app.js" ) }}" type="module"></script>
   {{ end }}
 
   {{ template "vueScripts" . }}
