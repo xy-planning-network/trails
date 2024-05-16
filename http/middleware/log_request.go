@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -17,6 +20,7 @@ const (
 	contentTypeHeader = "Content-Type"
 	referrerHeader    = "Referrer"
 	userAgentHeader   = "User-Agent"
+	maxBodySizePrint  = 1 // TODO(dlk): safe limit?
 )
 
 // LogRequest logs the a LogRequestRecord using the provided handler.
@@ -34,12 +38,18 @@ func LogRequest(ls *slog.Logger) Adapter {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
+			b := new(bytes.Buffer)
+			r.Body = io.NopCloser(io.TeeReader(r.Body, b))
+
 			writer := &requestLogger{ResponseWriter: w, status: http.StatusOK}
 			h.ServeHTTP(writer, r)
 
 			end := time.Since(start).Milliseconds()
 
-			rec := newRecord(writer, r)
+			rx := r.Clone(r.Context())
+			rx.Body = io.NopCloser(b)
+
+			rec := newRecord(writer, rx)
 			rec.Duration = end
 
 			var msg string // NOTE(dlk): no message for now.
@@ -62,22 +72,23 @@ func LogRequest(ls *slog.Logger) Adapter {
 
 // A LogRequestRecord represents the fields that a LogRequest
 type LogRequestRecord struct {
-	BodySize       int    `json:"bodySize"`
-	Duration       int64  `json:"duration"`
-	Host           string `json:"host"`
-	ID             string `json:"id"`
-	IPAddr         string `json:"remoteAddr"`
-	Method         string `json:"method"`
-	Path           string `json:"path"`
-	Protocol       string `json:"protocol"`
-	Referrer       string `json:"referrer"`
-	ReqContentLen  int    `json:"contentLength"`
-	ReqContentType string `json:"contentType"`
-	Scheme         string `json:"scheme"`
-	SessionID      string `json:"sessionId"`
-	Status         int    `json:"status"`
-	URI            string `json:"uri"`
-	UserAgent      string `json:"userAgent"`
+	BodySize       int            `json:"bodySize"`
+	Duration       int64          `json:"duration"`
+	Host           string         `json:"host"`
+	ID             string         `json:"id"`
+	IPAddr         string         `json:"remoteAddr"`
+	Method         string         `json:"method"`
+	Path           string         `json:"path"`
+	Protocol       string         `json:"protocol"`
+	Referrer       string         `json:"referrer"`
+	ReqBody        map[string]any `json:"reqBody"`
+	ReqContentLen  int            `json:"contentLength"`
+	ReqContentType string         `json:"contentType"`
+	Scheme         string         `json:"scheme"`
+	SessionID      string         `json:"sessionId"`
+	Status         int            `json:"status"`
+	URI            string         `json:"uri"`
+	UserAgent      string         `json:"userAgent"`
 }
 
 // newRecord constructs a record from the values availabe in w & r.
@@ -99,7 +110,7 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 		sessID, _ = sess.Get(trails.SessionIDKey).(string)
 	}
 
-	return LogRequestRecord{
+	rec := LogRequestRecord{
 		BodySize:       w.bodySize,
 		Host:           r.Host,
 		ID:             id,
@@ -116,9 +127,24 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 		URI:            uri.RequestURI(),
 		UserAgent:      r.Header.Get(userAgentHeader),
 	}
+
+	// TODO(dlk): don't write if too big using maxBodySizePrint
+	if ct := r.Header.Get("Content-Type"); ct == "application/json" {
+		m := make(map[string]any)
+		_ = json.NewDecoder(r.Body).Decode(&m)
+		// TODO(dlk): mask values
+		rec.ReqBody = m
+	}
+
+	return rec
 }
 
 func (r LogRequestRecord) attrs() []slog.Attr {
+	var body []any
+	for _, val := range processLogValues(r.ReqBody) {
+		body = append(body, val)
+	}
+
 	return []slog.Attr{
 		slog.Int64("duration", r.Duration),
 		slog.String("host", r.Host),
@@ -136,6 +162,7 @@ func (r LogRequestRecord) attrs() []slog.Attr {
 		slog.Int("status", r.Status),
 		slog.String("uri", r.URI),
 		slog.String("userAgent", r.UserAgent),
+		slog.Group("body", body...),
 	}
 }
 
@@ -169,4 +196,28 @@ func mask(q url.Values, key string) {
 	if val := q.Get(key); val != "" {
 		q.Set(key, trails.LogMaskVal)
 	}
+}
+
+// TODO(dlk): copied from logger/context.go
+// consider abstracting out, making logger helpers more available,
+// or using logger instead of raw slog.Logger for this mw
+func processLogValues(m map[string]any) []slog.Attr {
+	g := make([]slog.Attr, 0)
+	for k, v := range m {
+		switch t := v.(type) {
+		case map[string]any:
+			// NOTE(dlk): break up nested values into slog.Groups
+			subg := make([]any, 0)
+			for _, val := range processLogValues(t) {
+				subg = append(subg, val)
+			}
+
+			g = append(g, slog.Group(k, subg...))
+
+		default:
+			g = append(g, slog.Any(k, t))
+		}
+	}
+
+	return g
 }
