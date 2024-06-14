@@ -211,7 +211,7 @@ func (ranger *Ranger) ParseBody(w http.ResponseWriter, r *http.Request, payload 
 //
 // If control over response codes is desired, use ranger.ReqParser.ParseQueryParams.
 func (ranger *Ranger) ParseQueryParams(w http.ResponseWriter, r *http.Request, payload any) bool {
-	err := ranger.req.ParseQueryParams(r.QueryParams, payload)
+	err := ranger.req.ParseQueryParams(r.URL.Query(), payload)
 	if err == nil {
 		return true
 	}
