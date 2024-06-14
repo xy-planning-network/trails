@@ -2,6 +2,7 @@ package ranger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/middleware"
+	"github.com/xy-planning-network/trails/http/req"
 	"github.com/xy-planning-network/trails/http/resp"
 	"github.com/xy-planning-network/trails/http/router"
 	"github.com/xy-planning-network/trails/http/session"
@@ -45,6 +47,7 @@ type Ranger struct {
 	env        trails.Environment
 	metadata   Metadata
 	migrations []postgres.Migration
+	req        *req.Parser
 	sessions   session.SessionStorer
 	shutdowns  []ShutdownFn
 	srv        *http.Server
@@ -98,6 +101,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	}
 
 	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, r.assetsURL, cfg.FS, r.metadata), r.metadata.Contact)
+	r.req = req.NewParser()
 
 	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
 	if err != nil {
@@ -136,7 +140,110 @@ func (r *Ranger) Context() (context.Context, context.CancelFunc) { return r.ctx,
 func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
 func (r *Ranger) Env() trails.Environment                        { return r.env }
 func (r *Ranger) Metadata() Metadata                             { return r.metadata }
+func (r *Ranger) ReqParser() *req.Parser                         { return r.req }
 func (r *Ranger) SessionStore() session.SessionStorer            { return r.sessions }
+
+// ParseBody reads r.Body into payload and writes to w when this fails.
+//
+// payload must be a pointer to a struct in order receive r.Body's data.
+// Upon success, ParseBody returns true and payload's fields are hydrated with data from r.Body.
+// Upon failure, ParseBody writes to w and returns false.
+// The caller should not write to w when ParseBody fails.
+//
+// ParseBody expects r.Body to be JSON-encoded data.
+// If r.Body is incorrectly formatted JSON, ParseBody writes 400.
+//
+// ParseBody expects the decoded data to pass "validate" struct tags defined on payload's type.
+// If values in the data do not meet validation requirements, ParseBody writes 422.
+//
+// In all cases, if an unhandled error occurs, ParseBody writes 500.
+//
+// If control over response codes is desired, use ranger.ReqParser.ParseBody.
+func (ranger *Ranger) ParseBody(w http.ResponseWriter, r *http.Request, payload any) bool {
+	err := ranger.req.ParseBody(r.Body, payload)
+	if err == nil {
+		return true
+	}
+
+	if errors.Is(err, trails.ErrBadFormat) {
+		if err := ranger.Json(w, r, resp.Code(http.StatusBadRequest)); err != nil {
+			ranger.Error(err.Error(), &logger.LogContext{Error: err, Request: r})
+		}
+
+		return false
+	}
+
+	var verrs *req.ValidationErrors
+	if errors.As(err, &verrs) {
+		args := []resp.Fn{resp.Code(http.StatusUnprocessableEntity)}
+		if !ranger.env.IsProduction() {
+			args = append(args, resp.Data(verrs))
+		}
+
+		if err := ranger.Json(w, r, args...); err != nil {
+			ranger.Error(err.Error(), &logger.LogContext{Error: err, Request: r})
+		}
+
+		return false
+	}
+
+	if err := ranger.Json(w, r, resp.Err(err), resp.Code(http.StatusInternalServerError)); err != nil {
+		ranger.Error(err.Error(), &logger.LogContext{Error: err, Request: r})
+	}
+
+	return false
+}
+
+// ParseQueryParams reads r.URL.Query() into payload and writes to w when this fails.
+//
+// payload must be a pointer to a struct in order receive r.URL.Query()'s data.
+// Upon success, ParseQueryParams returns true and payload's fields are hydrated with data from r.URL.Query().
+// Upon failure, ParseQueryParams writes to w and returns false.
+// The caller should not write to w when ParseQueryParams fails.
+//
+// ParseQueryParams expects r.URL.Query() to be properly formatted query params.
+// If r.QueryParams is incorrectly formatted, ParseQueryParams writes 400.
+//
+// ParseQueryParams expects the decoded data to pass "validate" struct tags defined on payload's type.
+// If values in the data do not meet validation requirements, ParseQueryParams writes 422.
+//
+// In all cases, if an unhandled error occurs, ParseQueryParams writes 500.
+//
+// If control over response codes is desired, use ranger.ReqParser.ParseQueryParams.
+func (ranger *Ranger) ParseQueryParams(w http.ResponseWriter, r *http.Request, payload any) bool {
+	err := ranger.req.ParseQueryParams(r.QueryParams, payload)
+	if err == nil {
+		return true
+	}
+
+	if errors.Is(err, trails.ErrBadFormat) {
+		if err := ranger.Json(w, r, resp.Code(http.StatusBadRequest)); err != nil {
+			ranger.Error(err.Error(), &logger.LogContext{Error: err, Request: r})
+		}
+
+		return false
+	}
+
+	var verrs *req.ValidationErrors
+	if errors.As(err, &verrs) {
+		args := []resp.Fn{resp.Code(http.StatusUnprocessableEntity)}
+		if !ranger.env.IsProduction() {
+			args = append(args, resp.Data(verrs))
+		}
+
+		if err := ranger.Json(w, r, args...); err != nil {
+			ranger.Error(err.Error(), &logger.LogContext{Error: err, Request: r})
+		}
+
+		return false
+	}
+
+	if err := ranger.Json(w, r, resp.Err(err), resp.Code(http.StatusInternalServerError)); err != nil {
+		ranger.Error(err.Error(), &logger.LogContext{Error: err, Request: r})
+	}
+
+	return false
+}
 
 // Guide begins the web server.
 //
