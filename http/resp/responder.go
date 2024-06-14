@@ -239,7 +239,6 @@ func (doer *Responder) Json(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	b.Reset()
 	defer doer.pool.Put(b)
 
-	// TODO(dlk): break out errors
 	if err := json.NewEncoder(b).Encode(payload); err != nil {
 		doer.Err(w, r, err)
 		return err
