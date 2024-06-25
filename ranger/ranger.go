@@ -173,7 +173,7 @@ func (ranger *Ranger) ParseBody(w http.ResponseWriter, r *http.Request, payload 
 		return false
 	}
 
-	var verrs *req.ValidationErrors
+	var verrs req.ValidationErrors
 	if errors.As(err, &verrs) {
 		args := []resp.Fn{resp.Code(http.StatusUnprocessableEntity)}
 		if !ranger.env.IsProduction() {
