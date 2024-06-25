@@ -1,7 +1,6 @@
 package req
 
 import (
-	"errors"
 	"reflect"
 	"strings"
 
@@ -9,12 +8,8 @@ import (
 	"github.com/xy-planning-network/trails"
 )
 
-type validator struct {
-	valid *v10.Validate
-}
-
 // newValidator constructs a validator, which applies default configuration.
-func newValidator() validator {
+func newValidator() *v10.Validate {
 	v := v10.New()
 	v.RegisterValidation("enum", validateEnumerable)
 	v.RegisterTagNameFunc(func(field reflect.StructField) string {
@@ -34,24 +29,12 @@ func newValidator() validator {
 		return name
 	})
 
-	return validator{v}
+	return v
 }
 
-// validate checks the fields on structPtr match the rules set by "validate" struct tags.
-// On success, validate returns no error.
-// On failure, validate translates each issue to a ValidationError,
+// translateValidationErrors converts each issue into a ValidationError,
 // returning them all as ValidationErrors.
-func (v validator) validate(structPtr any) error {
-	err := v.valid.Struct(structPtr)
-	if err == nil {
-		return nil
-	}
-
-	var errs v10.ValidationErrors
-	if !errors.As(err, &errs) {
-		return err
-	}
-
+func translateValidationErrors(errs v10.ValidationErrors) error {
 	var validateErrs ValidationErrors
 	for _, ve := range errs {
 		field := ve.Namespace()
