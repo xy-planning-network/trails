@@ -47,11 +47,14 @@ type Ranger struct {
 	env        trails.Environment
 	metadata   Metadata
 	migrations []postgres.Migration
-	req        *req.Parser
-	sessions   session.SessionStorer
-	shutdowns  []ShutdownFn
-	srv        *http.Server
-	url        *url.URL
+	req        struct {
+		*req.Parser
+		logValidationErrors bool
+	}
+	sessions  session.SessionStorer
+	shutdowns []ShutdownFn
+	srv       *http.Server
+	url       *url.URL
 }
 
 // New constructs a Ranger from the provided options.
@@ -101,7 +104,8 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	}
 
 	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, r.assetsURL, cfg.FS, r.metadata), r.metadata.Contact)
-	r.req = req.NewParser()
+	r.req.Parser = req.NewParser()
+	r.req.logValidationErrors = trails.EnvVarOrBool(logValidationErrorsEnvVar, defaultLogValidationErrors)
 
 	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
 	if err != nil {
@@ -140,7 +144,7 @@ func (r *Ranger) Context() (context.Context, context.CancelFunc) { return r.ctx,
 func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
 func (r *Ranger) Env() trails.Environment                        { return r.env }
 func (r *Ranger) Metadata() Metadata                             { return r.metadata }
-func (r *Ranger) ReqParser() *req.Parser                         { return r.req }
+func (r *Ranger) ReqParser() *req.Parser                         { return r.req.Parser }
 func (r *Ranger) SessionStore() session.SessionStorer            { return r.sessions }
 
 // ParseBody reads r.Body into payload and writes to w when this fails.
@@ -175,10 +179,16 @@ func (ranger *Ranger) ParseBody(w http.ResponseWriter, r *http.Request, payload 
 
 	var verrs req.ValidationErrors
 	if errors.As(err, &verrs) {
-		args := []resp.Fn{resp.Code(http.StatusUnprocessableEntity)}
+		var args []resp.Fn
 		if !ranger.env.IsProduction() {
 			args = append(args, resp.Data(verrs))
 		}
+
+		if ranger.req.logValidationErrors {
+			args = append(args, resp.Err(verrs))
+		}
+
+		args = append(args, resp.Code(http.StatusUnprocessableEntity))
 
 		if err := ranger.Json(w, r, args...); err != nil {
 			ranger.Error(err.Error(), &logger.LogContext{Error: err, Request: r})
@@ -229,6 +239,10 @@ func (ranger *Ranger) ParseQueryParams(w http.ResponseWriter, r *http.Request, p
 		args := []resp.Fn{resp.Code(http.StatusUnprocessableEntity)}
 		if !ranger.env.IsProduction() {
 			args = append(args, resp.Data(verrs))
+		}
+
+		if ranger.req.logValidationErrors {
+			args = append(args, resp.Err(verrs))
 		}
 
 		if err := ranger.Json(w, r, args...); err != nil {
