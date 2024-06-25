@@ -38,7 +38,7 @@ func (s Session) Flashes(w http.ResponseWriter, r *http.Request) []Flash {
 		return nil
 	}
 
-	fs := make([]Flash, 0)
+	var fs []Flash
 	for _, r := range raw {
 		f, ok := r.(Flash)
 		if !ok {
