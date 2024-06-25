@@ -43,11 +43,13 @@ const (
 	environmentEnvVar = "ENVIRONMENT"
 
 	// Log defaults
-	logLevelEnvVar  = "LOG_LEVEL"
-	defaultLogLvl   = slog.LevelInfo
-	logJSONEnvVar   = "LOG_JSON"
-	defaultLogJSON  = false
-	sentryDsnEnvVar = "SENTRY_DSN"
+	logLevelEnvVar             = "LOG_LEVEL"
+	defaultLogLvl              = slog.LevelInfo
+	logJSONEnvVar              = "LOG_JSON"
+	defaultLogJSON             = false
+	sentryDsnEnvVar            = "SENTRY_DSN"
+	logValidationErrorsEnvVar  = "LOG_VALIDATION"
+	defaultLogValidationErrors = false
 
 	// Database defaults
 	dbHostEnvVar        = "DATABASE_HOST"
