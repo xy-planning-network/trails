@@ -105,7 +105,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	}
 
 	userstore := cfg.defaultUserStore(r.db)
-	mws := make([]middleware.Adapter, 0)
+	var mws []middleware.Adapter
 	// NOTE(dlk): PRODUCTION only middlewares
 	if r.env.IsProduction() {
 		mws = append(

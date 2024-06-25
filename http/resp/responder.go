@@ -357,11 +357,10 @@ func (doer *Responder) do(w http.ResponseWriter, r *http.Request, opts ...Fn) (*
 		closeBody: true,
 		w:         w,
 		r:         r,
-		tmpls:     make([]string, 0),
 	}
 
 	var err error
-	redos := make([]Fn, 0)
+	var redos []Fn
 	for _, opt := range opts {
 		select {
 		case <-r.Context().Done():
@@ -465,7 +464,7 @@ func (doer *Responder) handleHtmlError(w http.ResponseWriter, r *http.Request, e
 
 // redo applies as many may Options as it can, returning those Options that continue to throw an error.
 func (doer *Responder) redo(r *Response, opts ...Fn) []Fn {
-	bad := make([]Fn, 0)
+	var bad []Fn
 	for _, opt := range opts {
 		if err := opt(*doer, r); err != nil {
 			bad = append(bad, opt)

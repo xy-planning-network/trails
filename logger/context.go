@@ -129,7 +129,7 @@ func (lc LogContext) toMap() map[string]any {
 }
 
 func processLogValues(m map[string]any) []slog.Attr {
-	g := make([]slog.Attr, 0)
+	var g []slog.Attr
 	for k, v := range m {
 		switch t := v.(type) {
 		case http.Header:
@@ -140,7 +140,7 @@ func processLogValues(m map[string]any) []slog.Attr {
 
 		case map[string]any:
 			// NOTE(dlk): break up nested values into slog.Groups
-			subg := make([]any, 0)
+			var subg []any
 			for _, val := range processLogValues(t) {
 				subg = append(subg, val)
 			}
