@@ -9,35 +9,18 @@ import (
 	"github.com/xy-planning-network/trails"
 )
 
-type queryParamDecoder struct {
-	decoder *schema.Decoder
-}
-
-func newQueryParamDecoder() queryParamDecoder {
+func newQueryParamDecoder() *schema.Decoder {
 	dec := schema.NewDecoder()
 	dec.IgnoreUnknownKeys(true)
 
-	return queryParamDecoder{dec}
+	return dec
 }
 
-// Decode translates src into dst.
-// Upon success, dst holds all values in src that match to fields in dst.
-//
-// On failure, Decode can return a host of errors.
-// Some errors are issues with calling code;
+// translateDecoderError converts an error returned by *schema.Decoder into standardized errors.
+// Some *schema.Decoder errors are issues with calling code;
 // some errors are unexpected issues;
-// still some are issues with src's keys or values not matching dst.
-// In the last case,
-func (q queryParamDecoder) decode(dst any, src map[string][]string) error {
-	err := q.decoder.Decode(dst, src)
-	if err == nil {
-		return nil
-	}
-
-	if err.Error() == "schema: interface must be a pointer to struct" {
-		return fmt.Errorf("%w: called with non-pointer: %s", trails.ErrBadAny, err)
-	}
-
+// still some are issues with mismatches between a request's query params and the expected shape.
+func translateDecoderError(err error) error {
 	var pkgErrs schema.MultiError
 	// NOTE(dlk): In testing the schema package, outside other errors handled above,
 	// the package appears to always use MultiError to wrap errors up.
