@@ -3,8 +3,12 @@ package trails
 import "errors"
 
 var (
-	ErrBadConfig   = errors.New("bad config")
-	ErrMissingData = errors.New("missing data")
-	ErrNotExist    = errors.New("not exist")
-	ErrNotValid    = errors.New("invalid")
+	ErrBadAny         = errors.New("bad value for any")
+	ErrBadConfig      = errors.New("bad config")
+	ErrBadFormat      = errors.New("bad format")
+	ErrMissingData    = errors.New("missing data")
+	ErrNotExist       = errors.New("not exist")
+	ErrNotImplemented = errors.New("not implemented")
+	ErrNotValid       = errors.New("invalid")
+	ErrUnexpected     = errors.New("unexpected")
 )
