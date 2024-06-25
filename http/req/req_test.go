@@ -158,6 +158,22 @@ func TestParserParseQueryParams(t *testing.T) {
 	// Assert
 	require.ErrorIs(t, err, trails.ErrNotImplemented)
 
+	// Arrange + Act
+	err = parser.ParseQueryParams(u, new(struct {
+		A string `schema:"a" validate:"eq:test"`
+	}))
+
+	// Assert
+	require.ErrorIs(t, err, trails.ErrBadConfig)
+
+	// Arrange + Act
+	err = parser.ParseQueryParams(u, new(struct {
+		A string `schema:"a" validate:"unexpected"`
+	}))
+
+	// Assert
+	require.ErrorIs(t, err, trails.ErrBadConfig)
+
 	// Arrange
 	type test struct {
 		A string   `schema:"a" validate:"required"`

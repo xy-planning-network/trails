@@ -2,6 +2,7 @@ package req
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -41,8 +42,20 @@ func newValidator() validator {
 // On success, validate returns no error.
 // On failure, validate translates each issue to a ValidationError,
 // returning them all as ValidationErrors.
-func (v validator) validate(structPtr any) error {
-	err := v.valid.Struct(structPtr)
+func (v validator) validate(structPtr any) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg, ok := r.(string)
+			if !ok {
+				err = fmt.Errorf("%w: %s", trails.ErrUnexpected, r)
+			}
+
+			err = fmt.Errorf("%w: %s", trails.ErrBadConfig, msg)
+			return
+		}
+	}()
+
+	err = v.valid.Struct(structPtr)
 	if err == nil {
 		return nil
 	}
