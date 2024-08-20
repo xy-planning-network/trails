@@ -27,6 +27,10 @@ type Response struct {
 	tmpls     []string
 	url       *url.URL
 	user      any
+
+	// frames counts the number of stack trace frames to skip back when logging
+	// so that the callsite of a Responder method is the frame to capture.
+	frames int
 }
 
 // Authed prepends all templates with the base authenticated template and adds resp.user from the session.
@@ -93,7 +97,7 @@ func Err(e error) Fn {
 			populateUser(d, r) // NOTE(dlk): ignore err since a user is not required
 
 			u, _ := r.user.(logger.LogUser)
-			l := d.logger.AddSkip(responseFnFrames)
+			l := d.logger.AddSkip(responseFnFrames + r.frames)
 			l.Error(e.Error(), newLogContext(r.r, e, r.data, u))
 		}
 
@@ -123,6 +127,7 @@ func Flash(flash session.Flash) Fn {
 // using either the string set by WithContactErrMsg or session.DefaultErrMsg.
 func GenericErr(e error) Fn {
 	return func(d Responder, r *Response) error {
+		r.frames += 1
 		if err := Err(e)(d, r); err != nil {
 			return err
 		}
@@ -437,7 +442,7 @@ func Warn(msg string) Fn {
 		populateUser(d, r) // NOTE(dlk): ignore since a user is not required
 
 		u, _ := r.user.(logger.LogUser)
-		l := d.logger.AddSkip(responseFnFrames)
+		l := d.logger.AddSkip(responseFnFrames + r.frames)
 		l.Warn(msg, newLogContext(r.r, errors.New(msg), r.data, u))
 
 		if err := Flash(session.Flash{Type: session.FlashWarning, Msg: msg})(d, r); err != nil {
