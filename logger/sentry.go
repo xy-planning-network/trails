@@ -25,9 +25,10 @@ type SentryLogger struct {
 // routing messages to the DSN provided.
 func NewSentryLogger(env trails.Environment, l Logger, dsn string) Logger {
 	err := sentry.Init(sentry.ClientOptions{
-		Dsn:          dsn,
-		Environment:  env.String(),
-		IgnoreErrors: []string{"write: broken pipe"},
+		Dsn:           dsn,
+		Environment:   env.String(),
+		IgnoreErrors:  []string{"write: broken pipe"},
+		MaxErrorDepth: 2,
 	})
 	if err != nil {
 		err = fmt.Errorf("unable to init Sentry: %s", err)
