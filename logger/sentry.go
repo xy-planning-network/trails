@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -96,6 +97,10 @@ func (sl *SentryLogger) send(level sentry.Level, ctx *LogContext) {
 			scope.SetContext("data", ctx.Data)
 		}
 
+		// attempt to populate tags from Data
+		tags := convertMapAnyToString(ctx.Data)
+		scope.SetTags(tags)
+
 		scope.AddEventProcessor(skipBackFrames(sl.Skip()))
 		scope.SetLevel(level)
 
@@ -127,4 +132,26 @@ func skipBackFrames(skip int) func(*sentry.Event, *sentry.EventHint) *sentry.Eve
 		}
 		return event
 	}
+}
+
+// convertMapAnyToString converts supported map[string]any values to a map[string]string
+func convertMapAnyToString(in map[string]any) map[string]string {
+	out := make(map[string]string)
+
+	for k, v := range in {
+		switch val := v.(type) {
+		case string:
+			out[k] = val
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+			out[k] = fmt.Sprintf("%d", val)
+		case float32, float64:
+			out[k] = fmt.Sprintf("%f", val)
+		case bool:
+			out[k] = strconv.FormatBool(val)
+		default:
+			// Silently skip unsupported types
+		}
+	}
+
+	return out
 }
