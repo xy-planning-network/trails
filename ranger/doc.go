@@ -1,5 +1,4 @@
 /*
-
 Package ranger initializes and manages a trails app with sane defaults.
 
 # Ranger
@@ -31,6 +30,7 @@ found at the same directory the application is executed from.
 Here are the available environment variables.
   - APP_DESCRIPTION: a short description of the application
   - APP_TITLE: a short title for the application
+  - ASSETS_URL: the base URL the application serves client-side assets over
   - BASE_URL: the base URL the application runs on; replaces HOST & PORT
   - CONTACT_US: the email address end users can contact XYPN at; default: hello@xyplanningnetwork.com
   - DATABASE_HOST: the host the database is running on; default: localhost
@@ -48,5 +48,6 @@ Here are the available environment variables.
   - SERVER_WRITE_TIMEOUT: the timeout - as understood by [time.ParseDuration] - for writing HTTP responses; default: 5s
   - SESSION_AUTH_KEY: a hex-encoded key for authenticating cookies; cf. [encoding/hex]
   - SESSION_ENCRYPTION_KEY: a hex-encoded key for encrypting cookies; cf. [encoding/hex]
+  - SESSION_DOMAIN: the host the application is served over for setting as the cookie's domain; default: the hostname of BASE_URL
 */
 package ranger

@@ -99,7 +99,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 
 	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, r.assetsURL, cfg.FS, r.metadata), r.metadata.Contact)
 
-	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title)
+	r.sessions, err = defaultSessionStore(r.env, r.metadata.Title, r.url)
 	if err != nil {
 		return nil, err
 	}
