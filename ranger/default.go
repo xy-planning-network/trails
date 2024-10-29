@@ -88,6 +88,7 @@ const (
 	DefaultServerWriteTimeout = 5 * time.Second
 
 	// Session defaults
+	SessionDomainEnvVar     = "SESSION_DOMAIN"
 	SessionAuthKeyEnvVar    = "SESSION_AUTH_KEY"
 	SessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
 	SessionMaxAgeEnvVar     = "SESSION_MAX_AGE"
@@ -332,19 +333,23 @@ func defaultRouter(
 
 // defaultSessionStore constructs a SessionStorer to be used for storing session data.
 //
-// defaultSessionStore relies on three env vars:
+// defaultSessionStore relies on these env vars:
 //   - APP_TITLE
+//   - SESSION_DOMAIN
 //   - SESSION_AUTH_KEY
 //   - SESSION_ENCRYPTION_KEY
 //
 // Both KEY env vars be valid hex encoded values; cf. [encoding/hex].
-func defaultSessionStore(env trails.Environment, appName string) (session.SessionStorer, error) {
+func defaultSessionStore(env trails.Environment, appName string, appURL *url.URL) (session.SessionStorer, error) {
 	appName = cases.Lower(language.English).String(appName)
 	appName = regexp.MustCompile(`[,':]`).ReplaceAllString(appName, "")
 	appName = regexp.MustCompile(`\s`).ReplaceAllString(appName, "-")
 
+	domain := appURL.Hostname()
+
 	cfg := session.Config{
 		AuthKey:     os.Getenv(SessionAuthKeyEnvVar),
+		Domain:      trails.EnvVarOrString(SessionDomainEnvVar, domain),
 		EncryptKey:  os.Getenv(SessionEncryptKeyEnvVar),
 		Env:         env,
 		MaxAge:      int(trails.EnvVarOrDuration(SessionMaxAgeEnvVar, defaultSessionMaxAge).Seconds()),
