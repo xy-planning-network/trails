@@ -38,8 +38,11 @@ type Service struct {
 	store gorilla.Store
 }
 
-// A Config provides the required values
+// A Config provides values required for constructing a session.Service.
 type Config struct {
+	// The domain to assign cookies to.
+	Domain string
+
 	Env trails.Environment
 
 	// The number of seconds a session is valid.
