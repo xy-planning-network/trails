@@ -101,8 +101,9 @@ func NewStoreService(cfg Config) (Service, error) {
 	}
 
 	c.Options.Domain = cfg.Domain
-	c.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
 	c.Options.HttpOnly = true
+	c.Options.SameSite = http.SameSiteStrictMode
+	c.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
 	c.MaxAge(cfg.MaxAge)
 
 	s.store = c
