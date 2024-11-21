@@ -344,7 +344,7 @@ func TestResponderRedirect(t *testing.T) {
 
 func TestResponderHtml(t *testing.T) {
 	b := new(bytes.Buffer)
-	testlog := logger.New(slog.New(slog.NewTextHandler(b, nil)))
+	testlog := logger.New(slog.New(slog.NewTextHandler(b, nil)), trails.Testing)
 
 	brokenTmpl := []byte("{{ define }}")
 	tcs := []struct {

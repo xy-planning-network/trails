@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/xy-planning-network/trails"
 )
 
 const (
@@ -54,12 +56,13 @@ type Logger interface {
 
 // TrailsLogger implements [Logger] using [log/slog.Logger].
 type TrailsLogger struct {
+	env  trails.Environment
 	l    *slog.Logger
 	skip int
 }
 
 // New constructs a Logger using [log/slog.Logger].
-func New(log *slog.Logger) Logger { return &TrailsLogger{l: log} }
+func New(log *slog.Logger, env trails.Environment) Logger { return &TrailsLogger{l: log, env: env} }
 
 func (l *TrailsLogger) AddSkip(i int) Logger {
 	newl := *l
@@ -79,6 +82,8 @@ func (l *TrailsLogger) log(level slog.Level, msg string, ctx *LogContext) {
 	if ctx == nil {
 		ctx = new(LogContext)
 	}
+
+	ctx.env = l.env
 
 	pc := ctx.Caller
 	if pc == 0 {

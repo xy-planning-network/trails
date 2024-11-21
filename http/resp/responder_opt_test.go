@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/logger"
 )
@@ -33,7 +34,7 @@ func TestResponderWithErrTemplate(t *testing.T) {
 func TestResponderWithLogger(t *testing.T) {
 	// Arrange
 	b := new(bytes.Buffer)
-	l := logger.New(slog.New(slog.NewTextHandler(b, &slog.HandlerOptions{AddSource: true})))
+	l := logger.New(slog.New(slog.NewTextHandler(b, &slog.HandlerOptions{AddSource: true})), trails.Testing)
 	d := NewResponder(WithLogger(l))
 
 	msg := "unit testing is fun!"

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/template"
 	tt "github.com/xy-planning-network/trails/http/template/templatetest"
 	"github.com/xy-planning-network/trails/logger"
@@ -18,7 +19,7 @@ import (
 func TestMaintModeHandler(t *testing.T) {
 	// Arrange
 	b := new(bytes.Buffer)
-	l := logger.New(slog.New(slog.NewTextHandler(b, &slog.HandlerOptions{AddSource: true})))
+	l := logger.New(slog.New(slog.NewTextHandler(b, &slog.HandlerOptions{AddSource: true})), trails.Testing)
 	p := template.NewParser([]fs.FS{tt.NewMockFS(tt.NewMockFile("", nil))})
 	handler := ranger.MaintModeHandler(p, l, "test@example.com")
 	req, err := http.NewRequest("GET", "/", nil)

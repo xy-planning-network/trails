@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/xy-planning-network/trails"
 )
@@ -47,6 +48,8 @@ type LogContext struct {
 
 	// LogUser is the user whose session was active during the logging event.
 	User LogUser
+
+	env trails.Environment
 }
 
 func (lc LogContext) LogValue() slog.Value { return slog.GroupValue(lc.attrs()...) }
@@ -84,11 +87,13 @@ func (lc LogContext) toMap() map[string]any {
 	}
 
 	if lc.Request != nil {
+		printData := lc.env.IsDevelopment()
+
 		r := make(map[string]any)
 		r["method"] = lc.Request.Method
 		r["url"] = lc.Request.URL.String()
 		r["header"] = lc.Request.Header
-		if ct := lc.Request.Header.Get("Content-Type"); ct == "application/json" {
+		if ct := lc.Request.Header.Get("Content-Type"); printData && ct == "application/json" {
 			j := make(map[string]any)
 			b := new(bytes.Buffer)
 			tee := io.TeeReader(lc.Request.Body, b)
@@ -99,7 +104,7 @@ func (lc LogContext) toMap() map[string]any {
 			}
 		}
 
-		if lc.Request.Form != nil {
+		if printData && lc.Request.Form != nil {
 			r["form"] = lc.Request.Form
 		}
 
@@ -152,4 +157,11 @@ func processLogValues(m map[string]any) []slog.Attr {
 		}
 	}
 	return g
+}
+
+// mask replaces all instances of key in q with trails.LogMaskVal.
+func mask(q url.Values, key string) {
+	if val := q.Get(key); val != "" {
+		q.Set(key, trails.LogMaskVal)
+	}
 }
