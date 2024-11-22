@@ -167,7 +167,7 @@ func defaultDB(env trails.Environment) (postgres.DatabaseService, error) {
 // defaultAppLogger constructs a [tlog.Logger] configured for use in the application.
 func defaultAppLogger(env trails.Environment, output io.Writer) logger.Logger {
 	slogger := newSlogger(trails.AppLogKind, env, output)
-	l := logger.New(slogger)
+	l := logger.New(slogger, env)
 	l.Debug("setting up app logger", nil)
 	if dsn := os.Getenv(sentryDsnEnvVar); dsn != "" {
 		l = logger.NewSentryLogger(env, l, dsn)
@@ -190,7 +190,7 @@ func defaultHTTPLogger(env trails.Environment, output io.Writer) *slog.Logger {
 // defaultWorkerLogger constructs a [*log/slog.Logger] for use in Faktory worker logging.
 func defaultWorkerLogger(env trails.Environment) logger.Logger {
 	slogger := newSlogger(trails.WorkerLogKind, env, os.Stdout)
-	l := logger.New(slogger)
+	l := logger.New(slogger, env)
 	l.Debug("setting up worker logger", nil)
 	if dsn := os.Getenv(sentryDsnEnvVar); dsn != "" {
 		l = logger.NewSentryLogger(env, l, dsn)

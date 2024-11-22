@@ -89,11 +89,6 @@ func TestLogContextMarshalText(t *testing.T) {
 				"Host":         []any{"example.com"},
 				"Content-Type": []any{"application/x-www-form-urlencoded"},
 			},
-			"form": map[string]any{
-				"email": []any{"husserl@example.com"},
-				"name":  []any{"Edmund Husserl"},
-				"some":  []any{"param"},
-			},
 		},
 	}
 
@@ -131,10 +126,6 @@ func TestLogContextMarshalText(t *testing.T) {
 			"header": map[string]any{
 				"Host":         []any{"example.com"},
 				"Content-Type": []any{"application/json"},
-			},
-			"json": map[string]any{
-				"email": "husserl@example.com",
-				"name":  "Edmund Husserl",
 			},
 		},
 	}
