@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 
 	"github.com/xy-planning-network/trails"
 )
@@ -157,11 +156,4 @@ func processLogValues(m map[string]any) []slog.Attr {
 		}
 	}
 	return g
-}
-
-// mask replaces all instances of key in q with trails.LogMaskVal.
-func mask(q url.Values, key string) {
-	if val := q.Get(key); val != "" {
-		q.Set(key, trails.LogMaskVal)
-	}
 }
