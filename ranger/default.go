@@ -92,7 +92,7 @@ const (
 	SessionAuthKeyEnvVar    = "SESSION_AUTH_KEY"
 	SessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
 	SessionMaxAgeEnvVar     = "SESSION_MAX_AGE"
-	SessionSameSite         = "SESSION_SAME_SITE"
+	SessionSameSiteMode     = "SESSION_SAMESITE_MODE"
 	defaultSessionMaxAge    = 24 * time.Hour
 
 	// Test defaults
@@ -339,7 +339,7 @@ func defaultRouter(
 //   - SESSION_DOMAIN
 //   - SESSION_AUTH_KEY
 //   - SESSION_ENCRYPTION_KEY
-//   - SESSION_SAME_SITE
+//   - SESSION_SAMESITE_MODE
 //
 // Both KEY env vars be valid hex encoded values; cf. [encoding/hex].
 func defaultSessionStore(env trails.Environment, appName string) (session.SessionStorer, error) {
@@ -348,7 +348,7 @@ func defaultSessionStore(env trails.Environment, appName string) (session.Sessio
 	appName = regexp.MustCompile(`\s`).ReplaceAllString(appName, "-")
 
 	var sameSiteMode http.SameSite
-	switch strings.ToLower(trails.EnvVarOrString(SessionSameSite, "")) {
+	switch strings.ToLower(trails.EnvVarOrString(SessionSameSiteMode, "")) {
 	case "lax":
 		sameSiteMode = http.SameSiteLaxMode
 	case "none":
