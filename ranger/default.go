@@ -340,16 +340,14 @@ func defaultRouter(
 //   - SESSION_ENCRYPTION_KEY
 //
 // Both KEY env vars be valid hex encoded values; cf. [encoding/hex].
-func defaultSessionStore(env trails.Environment, appName string, appURL *url.URL) (session.SessionStorer, error) {
+func defaultSessionStore(env trails.Environment, appName string) (session.SessionStorer, error) {
 	appName = cases.Lower(language.English).String(appName)
 	appName = regexp.MustCompile(`[,':]`).ReplaceAllString(appName, "")
 	appName = regexp.MustCompile(`\s`).ReplaceAllString(appName, "-")
 
-	domain := appURL.Hostname()
-
 	cfg := session.Config{
 		AuthKey:     os.Getenv(SessionAuthKeyEnvVar),
-		Domain:      trails.EnvVarOrString(SessionDomainEnvVar, domain),
+		Domain:      trails.EnvVarOrString(SessionDomainEnvVar, ""),
 		EncryptKey:  os.Getenv(SessionEncryptKeyEnvVar),
 		Env:         env,
 		MaxAge:      int(trails.EnvVarOrDuration(SessionMaxAgeEnvVar, defaultSessionMaxAge).Seconds()),
