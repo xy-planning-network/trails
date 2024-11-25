@@ -92,6 +92,7 @@ const (
 	SessionAuthKeyEnvVar    = "SESSION_AUTH_KEY"
 	SessionEncryptKeyEnvVar = "SESSION_ENCRYPTION_KEY"
 	SessionMaxAgeEnvVar     = "SESSION_MAX_AGE"
+	SessionSameSite         = "SESSION_SAME_SITE"
 	defaultSessionMaxAge    = 24 * time.Hour
 
 	// Test defaults
@@ -338,6 +339,7 @@ func defaultRouter(
 //   - SESSION_DOMAIN
 //   - SESSION_AUTH_KEY
 //   - SESSION_ENCRYPTION_KEY
+//   - SESSION_SAME_SITE
 //
 // Both KEY env vars be valid hex encoded values; cf. [encoding/hex].
 func defaultSessionStore(env trails.Environment, appName string) (session.SessionStorer, error) {
@@ -345,13 +347,26 @@ func defaultSessionStore(env trails.Environment, appName string) (session.Sessio
 	appName = regexp.MustCompile(`[,':]`).ReplaceAllString(appName, "")
 	appName = regexp.MustCompile(`\s`).ReplaceAllString(appName, "-")
 
+	var sameSiteMode http.SameSite
+	switch strings.ToLower(trails.EnvVarOrString(SessionSameSite, "")) {
+	case "lax":
+		sameSiteMode = http.SameSiteLaxMode
+	case "none":
+		sameSiteMode = http.SameSiteNoneMode
+	case "strict":
+		sameSiteMode = http.SameSiteStrictMode
+	default:
+		sameSiteMode = http.SameSiteLaxMode
+	}
+
 	cfg := session.Config{
-		AuthKey:     os.Getenv(SessionAuthKeyEnvVar),
-		Domain:      trails.EnvVarOrString(SessionDomainEnvVar, ""),
-		EncryptKey:  os.Getenv(SessionEncryptKeyEnvVar),
-		Env:         env,
-		MaxAge:      int(trails.EnvVarOrDuration(SessionMaxAgeEnvVar, defaultSessionMaxAge).Seconds()),
-		SessionName: "trails-" + appName,
+		AuthKey:      os.Getenv(SessionAuthKeyEnvVar),
+		Domain:       trails.EnvVarOrString(SessionDomainEnvVar, ""),
+		EncryptKey:   os.Getenv(SessionEncryptKeyEnvVar),
+		Env:          env,
+		MaxAge:       int(trails.EnvVarOrDuration(SessionMaxAgeEnvVar, defaultSessionMaxAge).Seconds()),
+		SameSiteMode: sameSiteMode,
+		SessionName:  "trails-" + appName,
 	}
 
 	return session.NewStoreService(cfg)
