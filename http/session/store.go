@@ -52,6 +52,9 @@ type Config struct {
 	// Also used as the name of the cookie when WithCookie is used.
 	SessionName string
 
+	// The SameSite mode for the session cookie.
+	SameSiteMode http.SameSite
+
 	// Hex-encoded key
 	AuthKey string
 
@@ -102,7 +105,7 @@ func NewStoreService(cfg Config) (Service, error) {
 
 	c.Options.Domain = cfg.Domain
 	c.Options.HttpOnly = true
-	c.Options.SameSite = http.SameSiteStrictMode
+	c.Options.SameSite = cfg.SameSiteMode
 	c.Options.Secure = !(s.env.IsDevelopment() || s.env.IsTesting())
 	c.MaxAge(cfg.MaxAge)
 
