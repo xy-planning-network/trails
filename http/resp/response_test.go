@@ -873,7 +873,7 @@ func TestVue(t *testing.T) {
 			// Arrange
 			req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
 			require.Nil(t, err)
-			tc.r.r = req.Clone(context.WithValue(req.Context(), trails.AppPropsKey, 1))
+			tc.r.r = req.Clone(trails.NewAppPropsContext(req.Context(), map[string]any{"1": 1}))
 
 			// Act
 			err = Vue(tc.entry)(tc.d, tc.r)
