@@ -393,7 +393,7 @@ func Vue(entry string) Fn {
 		}
 
 		props := map[string]any{"initialProps": init}
-		if val := r.r.Context().Value(trails.AppPropsKey); val != nil {
+		if val := trails.AppPropsFromContext(r.r.Context()); len(val) > 0 {
 			props["appProps"] = val
 		}
 
