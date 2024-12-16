@@ -15,7 +15,7 @@ const (
 	passwordParam     = "password"
 	contentLenHeader  = "Content-Length"
 	contentTypeHeader = "Content-Type"
-	referrerHeader    = "Referrer"
+	referrerHeader    = "Referer"
 	userAgentHeader   = "User-Agent"
 )
 
