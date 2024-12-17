@@ -111,7 +111,7 @@ func TestLogRequest(t *testing.T) {
 
 			r.Header.Set("User-Agent", useragent)
 			r.Header.Set("Content-Type", content)
-			r.Header.Set("Referrer", referrer)
+			r.Header.Set("Referer", referrer)
 
 			if tc.ip != "" {
 				r = r.Clone(context.WithValue(r.Context(), trails.IpAddrKey, tc.ip))
