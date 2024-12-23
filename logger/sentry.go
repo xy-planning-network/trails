@@ -134,14 +134,14 @@ func FlushSentry(_ context.Context) error {
 func skipBackFrames(skip int) func(*sentry.Event, *sentry.EventHint) *sentry.Event {
 	return func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
 		for i, exc := range event.Exception {
-			if exc.Stacktrace == nil {
+			if exc.Stacktrace == nil || exc.Stacktrace.Frames == nil {
 				continue
 			}
 
 			// NOTE(dlk): strip out frames from sentry pkg (knownSentryCaptureFrames)
 			// and any additional frames the Logger was setup with,
 			// as identified by skip.
-			last := len(exc.Stacktrace.Frames) - knownSentryCaptureFrames - skip
+			last := max(len(exc.Stacktrace.Frames)-knownSentryCaptureFrames-skip, 0)
 			event.Exception[i].Stacktrace.Frames = exc.Stacktrace.Frames[:last]
 		}
 		return event
