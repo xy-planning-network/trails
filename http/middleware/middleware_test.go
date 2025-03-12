@@ -24,16 +24,16 @@ type testUser bool
 func (b testUser) HasAccess() bool { return bool(b) }
 func (testUser) HomePath() string  { return "/" }
 func (testUser) GetEmail() string  { return "user@example.com" }
-func (testUser) GetID() uint       { return 1 }
+func (testUser) GetID() int64      { return 1 }
 
 func newTestUserStore(b bool) middleware.UserStorer {
-	return func(_ uint) (middleware.User, error) {
+	return func(_ int64) (middleware.User, error) {
 		return testUser(b), nil
 	}
 }
 
 func newFailedUserStore(b bool) middleware.UserStorer {
-	return func(_ uint) (middleware.User, error) {
+	return func(_ int64) (middleware.User, error) {
 		return testUser(b), errors.New("")
 	}
 }

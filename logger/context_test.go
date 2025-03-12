@@ -150,5 +150,5 @@ func TestLogContextMarshalText(t *testing.T) {
 
 type testUser struct{}
 
-func (u testUser) GetID() uint      { return 1 }
+func (u testUser) GetID() int64     { return 1 }
 func (u testUser) GetEmail() string { return "test@example.com" }

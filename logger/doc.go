@@ -18,11 +18,11 @@ The [TrailsLogger] provides all the logging functionality needed for a trails ap
 It is the implementation of [Logger] returned by the [New] function.
 
 Log messages emitted by [TrailsLogger] are composed of a few parts:
-	- timestamp
-	- log level
-	- call site
-	- message
-	- log context
+  - timestamp
+  - log level
+  - call site
+  - message
+  - log context
 
 Here's an example:
 

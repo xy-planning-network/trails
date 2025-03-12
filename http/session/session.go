@@ -65,7 +65,7 @@ func (s Session) Get(key any) any {
 }
 
 // RegisterUserSession stores the user's ID in the session.
-func (s Session) RegisterUser(w http.ResponseWriter, r *http.Request, ID uint) error {
+func (s Session) RegisterUser(w http.ResponseWriter, r *http.Request, ID int64) error {
 	s.s.Values[trails.CurrentUserKey] = ID
 	return s.Save(w, r)
 }
@@ -95,14 +95,14 @@ func (s Session) SetFlash(w http.ResponseWriter, r *http.Request, flash Flash) e
 // If no user ID can be found, this ErrNoUser is returned.
 // This ought to only happen when a user is going through an authentication workflow or hitting unauthenticated pages.
 //
-// If the value returned from the session is not a uint, ErrNotValid is returned and represents a programming error.
-func (s Session) UserID() (uint, error) {
+// If the value returned from the session is not an int64, ErrNotValid is returned and represents a programming error.
+func (s Session) UserID() (int64, error) {
 	intfVal, ok := s.s.Values[trails.CurrentUserKey]
 	if !ok {
 		return 0, ErrNoUser
 	}
 
-	val, ok := intfVal.(uint)
+	val, ok := intfVal.(int64)
 	if !ok {
 		return 0, ErrNotValid
 	}

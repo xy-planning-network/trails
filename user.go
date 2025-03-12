@@ -13,7 +13,7 @@ import "github.com/google/uuid"
 type User struct {
 	Model
 	AccessState AccessState `json:"accessState"`
-	AccountID   uint        `json:"accountId"`
+	AccountID   int64       `json:"accountId"`
 	Email       string      `json:"email"`
 	ExternalID  uuid.UUID   `json:"externalId"`
 	Password    []byte      `json:"-"`
@@ -43,4 +43,4 @@ func (u User) HomePath() string {
 	return "/"
 }
 
-func (u User) GetID() uint { return u.ID }
+func (u User) GetID() int64 { return u.ID }
