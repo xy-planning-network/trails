@@ -18,7 +18,7 @@ type User interface {
 }
 
 // UserStorer defines how to retrieve a User by an ID in the context of middleware.
-type UserStorer func(id uint) (User, error)
+type UserStorer func(id int64) (User, error)
 
 // CurrentUser uses storer and the session.Session stored in a *http.Request.Context
 // to check the current user has access

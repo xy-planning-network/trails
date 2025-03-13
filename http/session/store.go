@@ -137,7 +137,7 @@ func NewStub(loggedIn bool) *Stub {
 	s := new(Stub)
 	s.s = gorilla.NewSession(s, "stub")
 	if loggedIn {
-		s.s.Values[trails.CurrentUserKey] = uint(1)
+		s.s.Values[trails.CurrentUserKey] = int64(1)
 	}
 
 	return s

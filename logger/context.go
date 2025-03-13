@@ -19,7 +19,7 @@ var (
 // LogUser is the interface exposing attributes of a user to a LogContext.
 type LogUser interface {
 	// GetID retrieves the application's identifier for a user.
-	GetID() uint
+	GetID() int64
 
 	// GetEmail retrieves the email address of the user.
 	// If not available, an ID should be returned.

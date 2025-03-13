@@ -8,7 +8,7 @@ package trails
 type Account struct {
 	Model
 	AccessState    AccessState `json:"accessState"`
-	AccountOwnerID uint        `json:"accountOwnerId"`
+	AccountOwnerID int64       `json:"accountOwnerId"`
 
 	// Associations
 	AccountOwner *User  `json:"accountOwner,omitempty"`

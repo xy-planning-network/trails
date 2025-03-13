@@ -67,7 +67,7 @@ func (Config[U]) defaultUserStore(db postgres.DatabaseService) middleware.UserSt
 		}
 	}
 
-	return func(id uint) (middleware.User, error) {
+	return func(id int64) (middleware.User, error) {
 		var user U
 		err := findByID(&user, id)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
