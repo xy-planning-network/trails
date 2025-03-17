@@ -14,6 +14,36 @@ import (
 	"gorm.io/gorm/schema"
 )
 
+// A Scope returns a function that fulfills the interface expected by gorm.Scopes.
+//
+// A Scope can be converted to a subquery by passing in a *gorm.DB instance.
+// For example, given this scope:
+//
+//	func ActiveUsers() Scope {
+//	    return func(dbx *gorm.DB) *gorm.DB {
+//	       return dbx.Where("state = ?", "active")
+//	    }
+//	}
+//
+// The scope turns into a subquery like so:
+//
+// db.Preload("Members", ActiveUsers()(db)).Where("role = ?", "owner").Find(&owners)
+type Scope func(*gorm.DB) *gorm.DB
+
+// TODO
+func TableName(model any, DB *gorm.DB) string {
+	stmt := &gorm.Statement{DB: DB}
+	if err := stmt.Parse(model); err != nil {
+		_ = DB.AddError(err)
+	}
+
+	if stmt.Schema == nil {
+		return ""
+	}
+
+	return stmt.Schema.Table
+}
+
 // PG Docs: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
 const cxnStr = "host=%s port=%s dbname=%s user=%s password=%s sslmode=%s"
 
