@@ -162,6 +162,9 @@ func (doer *Responder) Html(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	}
 
 	p := doer.parser.AddFn(template.CurrentUser(rr.user))
+	for _, fn := range rr.tmplFuncs {
+		p = p.AddFn(fn())
+	}
 
 	tmpl, err := p.Parse(rr.tmpls...)
 	if err != nil {

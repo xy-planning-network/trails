@@ -25,6 +25,7 @@ type Response struct {
 	code      int
 	data      any
 	tmpls     []string
+	tmplFuncs []func() (string, any)
 	url       *url.URL
 	user      any
 
@@ -118,6 +119,24 @@ func Flash(flash session.Flash) Fn {
 		}
 
 		s.SetFlash(r.w, r.r, flash)
+		return nil
+	}
+}
+
+// Funcs makes each fn available to HTML template rendering.
+//
+// The string returned by a fn is a key.
+// If the key matches one returned by another func,
+// the last defined is the one avaialble in template rendering.
+// This enables overriding a template func defined, for example,
+// by [trails/http/template.Parser.AddFn].
+//
+// Review [text/template.FuncMap] for how these funcs ought to be defined.
+//
+// Used with Responder.Html.
+func Funcs(fn ...func() (string, any)) Fn {
+	return func(_ Responder, r *Response) error {
+		r.tmplFuncs = append(r.tmplFuncs, fn...)
 		return nil
 	}
 }
