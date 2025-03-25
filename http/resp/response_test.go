@@ -254,6 +254,52 @@ func TestFlash(t *testing.T) {
 	}
 }
 
+func TestFuncs(t *testing.T) {
+	fn1 := func() (string, any) {
+		return "fn1", func() string {
+			return "test"
+		}
+	}
+	fn2 := func() (string, any) {
+		return "fn2", func() string {
+			return "test"
+		}
+	}
+	fn3 := func() (string, any) {
+		return "fn3", func() string {
+			return "test"
+		}
+	}
+
+	tcs := []struct {
+		name        string
+		fns         [][]func() (string, any)
+		expectedLen int
+	}{
+		{"Zero-Value", nil, 0},
+		{"One-Call", [][]func() (string, any){{fn1}}, 1},
+		{"Multiple-Calls", [][]func() (string, any){{fn1, fn2}, {fn3}}, 3},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var d Responder
+			r := &Response{r: httptest.NewRequest(http.MethodGet, "http://example.com", nil)}
+
+			// Act
+			for _, set := range tc.fns {
+				err := Funcs(set...)(d, r)
+
+				// Assert
+				require.Nil(t, err)
+			}
+
+			// Assert
+			require.Len(t, r.tmplFuncs, tc.expectedLen)
+		})
+	}
+}
+
 func TestGenericErr(t *testing.T) {
 	tcs := []struct {
 		name   string
