@@ -112,3 +112,19 @@ func WipeDB(db *gorm.DB) error {
 
 	return db.Exec(fmt.Sprintf("TRUNCATE %s CASCADE;", strings.Join(tables, ", "))).Error
 }
+
+// A Scope returns a function that fulfills the interface expected by gorm.Scopes.
+//
+// A Scope can be converted to a subquery by passing in a *gorm.DB instance.
+// For example, given this scope:
+//
+//	func ActiveUsers() Scope {
+//	    return func(dbx *gorm.DB) *gorm.DB {
+//	       return dbx.Where("state = ?", "active")
+//	    }
+//	}
+//
+// The scope turns into a subquery like so:
+//
+// db.Preload("Members", ActiveUsers()(db)).Where("role = ?", "owner").Find(&owners)
+type Scope func(*gorm.DB) *gorm.DB
