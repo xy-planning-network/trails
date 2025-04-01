@@ -126,5 +126,7 @@ func WipeDB(db *gorm.DB) error {
 //
 // The scope turns into a subquery like so:
 //
-// db.Preload("Members", ActiveUsers()(db)).Where("role = ?", "owner").Find(&owners)
+//	db.Preload("Members", ActiveUsers()(db)).Where("role = ?", "owner").Find(&owners)
+//
+// Cf. [*gorm.DB.Scopes], https://gorm.io/docs/scopes.html
 type Scope func(*gorm.DB) *gorm.DB
