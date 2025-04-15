@@ -151,7 +151,7 @@ func (r *Ranger) Guide() error {
 	// or *postgres.MockDatabaseService,
 	// which we don't need to run migrations against.
 	if db, ok := r.db.(*postgres.DatabaseServiceImpl); ok {
-		if err := postgres.MigrateUp(db.DB, r.migrations); err != nil {
+		if err := postgres.MigrateUp(db.DB, "public", r.migrations); err != nil {
 			return err
 		}
 	}
