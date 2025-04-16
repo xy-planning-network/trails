@@ -35,9 +35,9 @@ func (m Migration) execute(db *gorm.DB) error {
 	return nil
 }
 
-func MigrateUp(db *gorm.DB, migrations []Migration) error {
-	// Ensure public schema exists
-	ensurePublicSchema(db)
+func MigrateUp(db *gorm.DB, schema string, migrations []Migration) error {
+	// Ensure schema exists
+	ensureSchema(db, schema)
 
 	// Ensure migrations table exists
 	ensureMigrationsTable(db)
@@ -57,10 +57,10 @@ func MigrateUp(db *gorm.DB, migrations []Migration) error {
 	return nil
 }
 
-func ensurePublicSchema(db *gorm.DB) {
-	err := db.Exec("CREATE SCHEMA IF NOT EXISTS public;").Error
+func ensureSchema(db *gorm.DB, schema string) {
+	err := db.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema)).Error
 	if err != nil {
-		panic(fmt.Sprintf("Error creating public schema. Cannot continue: %s", err))
+		panic(fmt.Sprintf("Error creating %s schema. Cannot continue: %s", schema, err))
 	}
 }
 

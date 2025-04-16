@@ -19,21 +19,25 @@ const cxnStr = "host=%s port=%s dbname=%s user=%s password=%s sslmode=%s"
 
 // CxnConfig holds connection information used to connect to a PostgreSQL database.
 type CxnConfig struct {
-	IsTestDB    bool
-	URL         string
 	Host        string
-	Port        string
-	Name        string
-	User        string
-	Password    string
-	SSLMode     string
+	IsTestDB    bool
 	MaxIdleCxns int
+	Name        string
+	Password    string
+	Port        string
+	Schema      string
+	SSLMode     string
+	URL         string
+	User        string
 }
 
 // Connect creates a database connection through GORM according to the connection config.
 //
 // Run migrations by passing DB into MigrateUp.
 func Connect(config *CxnConfig, env trails.Environment) (*gorm.DB, error) {
+	if config.Schema == "" {
+		config.Schema = "public"
+	}
 	// https://gorm.io/docs/logger.html
 	c := logger.Config{
 		SlowThreshold:             200 * time.Millisecond,
@@ -67,10 +71,12 @@ func Connect(config *CxnConfig, env trails.Environment) (*gorm.DB, error) {
 	db.SetMaxIdleConns(config.MaxIdleCxns)
 
 	if config.IsTestDB {
-		if err := gormDB.Exec("DROP SCHEMA IF EXISTS public CASCADE;").Error; err != nil {
+		if err := gormDB.Exec(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", config.Schema)).Error; err != nil {
 			return nil, err
 		}
 	}
+
+	ensureSchema(gormDB, config.Schema)
 
 	return gormDB, nil
 }
@@ -97,17 +103,21 @@ func buildCxnStr(config *CxnConfig) string {
 }
 
 // WipeDB queries for all of the tables and then drops the data in this tables.
-func WipeDB(db *gorm.DB) error {
+func WipeDB(db *gorm.DB, schema string) error {
 	var tables []string
 	err := db.
 		Table("information_schema.tables").
 		Select("table_name").
-		Where("table_schema = ?", "public").
+		Where("table_schema = ?", schema).
 		Not("table_type = ?", "VIEW").
 		Pluck("table_name", &tables).
 		Error
 	if err != nil {
 		return err
+	}
+
+	if len(tables) == 0 {
+		return nil
 	}
 
 	return db.Exec(fmt.Sprintf("TRUNCATE %s CASCADE;", strings.Join(tables, ", "))).Error
