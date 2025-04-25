@@ -17,8 +17,6 @@ import (
 // PG Docs: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
 const cxnStr = "host=%s port=%s dbname=%s user=%s password=%s sslmode=%s"
 
-var DefaultConn *Conn
-
 // Config holds connection information used to connect to a PostgreSQL database.
 type Config struct {
 	Env         trails.Environment
@@ -34,19 +32,11 @@ type Config struct {
 	User        string
 }
 
-type Conn struct {
-	db *gorm.DB
-}
-
-// RawDB returns the underlying *gorm.DB the connection wraps.
-// It is an escape hatch for highly specialized work when postgres.DB is too limited.
-func (c Conn) RawDB() *gorm.DB { return c.db }
-
 // Connect creates a database connection through GORM according to the connection config.
 //
 // Run migrations by passing DB into MigrateUp.
 // func Connect(cfg Config) (*Conn, error) {
-func Connect(cfg Config) error {
+func Connect(cfg Config) (*DB, error) {
 	if cfg.Schema == "" {
 		cfg.Schema = "public"
 	}
@@ -72,26 +62,25 @@ func Connect(cfg Config) error {
 		},
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	db, err := gormDB.DB()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	db.SetMaxIdleConns(cfg.MaxIdleCxns)
 
 	if cfg.IsTestDB {
 		if err := gormDB.Exec(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", cfg.Schema)).Error; err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	ensureSchema(gormDB, cfg.Schema)
 
-	DefaultConn = &Conn{gormDB}
-	return nil
+	return &DB{db: gormDB}, nil
 }
 
 func (cfg Config) conn() string {
