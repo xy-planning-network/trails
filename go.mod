@@ -1,6 +1,6 @@
 module github.com/xy-planning-network/trails
 
-go 1.23.2
+go 1.24.4
 
 require (
 	github.com/getsentry/sentry-go v0.28.1
@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/sessions v1.2.1
 	github.com/joho/godotenv v1.4.0
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.10.0
 	github.com/xy-planning-network/tint v0.0.0-20230906200307-662ca545427c
 	go.uber.org/mock v0.3.0
 	golang.org/x/text v0.22.0
