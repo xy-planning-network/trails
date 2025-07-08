@@ -18,13 +18,15 @@ type Model struct {
 	DeletedAt DeletedTime `json:"deletedAt"`
 }
 
+// IsDeleted asserts whether the record is soft deleted.
+func (m Model) IsDeleted() bool { return m.DeletedAt.IsDeleted() }
+
 // DeletedTime is a nullable timestamp marking a record as soft deleted.
 type DeletedTime struct {
 	sql.NullTime
 }
 
-// IsDeleted asserts whether the record is soft deleted.
-func (dt DeletedTime) IsDeleted() bool { return !dt.Valid }
+func (d DeletedTime) IsDeleted() bool { return d.Valid }
 
 // Implements GORM-specific interfaces for modifying queries when DeletedTime is valid
 // cf.:
