@@ -56,6 +56,7 @@ const (
 	dbPassEnvVar        = "DATABASE_PASSWORD"
 	dbPortEnvVar        = "DATABASE_PORT"
 	defaultDBPort       = "5432"
+	dbSilentEnvVar      = "DATABASE_SLIENT"
 	dbSSLModeEnvVar     = "DATABASE_SSLMODE"
 	defaultDBSSLMode    = "prefer"
 	dbURLEnvVar         = "DATABASE_URL"
@@ -118,12 +119,12 @@ var (
 
 // NewPostgresConfig constructs a *postgres.CxnConfig appropriate to the given environment.
 // Confer the DATABASE env vars for usage.
-func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
-	var cfg *postgres.CxnConfig
+func NewPostgresConfig(env trails.Environment) postgres.Config {
+	var cfg postgres.Config
 	url := os.Getenv(dbURLEnvVar)
 	switch {
 	case env.IsTesting():
-		cfg = &postgres.CxnConfig{
+		cfg = postgres.Config{
 			Host:     trails.EnvVarOrString(dbTestHostEnvVar, defaultDBTestHost),
 			IsTestDB: true,
 			Name:     os.Getenv(dbTestNameEnvVar),
@@ -134,18 +135,23 @@ func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 		}
 
 	case url == "":
-		cfg = &postgres.CxnConfig{
-			Host:     trails.EnvVarOrString(dbHostEnvVar, defaultDBHost),
-			IsTestDB: false,
-			Name:     os.Getenv(dbNameEnvVar),
-			Password: os.Getenv(dbPassEnvVar),
-			Port:     trails.EnvVarOrString(dbPortEnvVar, defaultDBPort),
-			SSLMode:  trails.EnvVarOrString(dbSSLModeEnvVar, defaultDBSSLMode),
-			User:     os.Getenv(dbUserEnvVar),
+		cfg = postgres.Config{
+			Host:      trails.EnvVarOrString(dbHostEnvVar, defaultDBHost),
+			IsTestDB:  false,
+			LogSilent: trails.EnvVarOrBool(dbSilentEnvVar, false),
+			Name:      os.Getenv(dbNameEnvVar),
+			Password:  os.Getenv(dbPassEnvVar),
+			Port:      trails.EnvVarOrString(dbPortEnvVar, defaultDBPort),
+			SSLMode:   trails.EnvVarOrString(dbSSLModeEnvVar, defaultDBSSLMode),
+			User:      os.Getenv(dbUserEnvVar),
 		}
 
 	default:
-		cfg = &postgres.CxnConfig{IsTestDB: false, URL: url}
+		cfg = postgres.Config{
+			IsTestDB:  false,
+			LogSilent: trails.EnvVarOrBool(dbSilentEnvVar, false),
+			URL:       url,
+		}
 	}
 
 	cfg.MaxIdleCxns = trails.EnvVarOrInt(dbMaxIdleCxnsEnvVar, defaultDBMaxIdleCxns)
@@ -154,15 +160,9 @@ func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 }
 
 // defaultDB connects to a Postgres database
-// using default configuration environment variables
-// and runs the list of [postgres.Migration] passed in.
-func defaultDB(env trails.Environment) (postgres.DatabaseService, error) {
-	db, err := postgres.Connect(NewPostgresConfig(env), env)
-	if err != nil {
-		return nil, err
-	}
-
-	return postgres.NewService(db), nil
+// using default configuration environment variables.
+func defaultDB(env trails.Environment) (*postgres.DB, error) {
+	return postgres.Connect(NewPostgresConfig(env))
 }
 
 // defaultAppLogger constructs a [tlog.Logger] configured for use in the application.
