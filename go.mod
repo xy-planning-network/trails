@@ -1,6 +1,6 @@
 module github.com/xy-planning-network/trails
 
-go 1.23.2
+go 1.25.1
 
 require (
 	github.com/getsentry/sentry-go v0.28.1
