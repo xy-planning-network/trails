@@ -273,40 +273,61 @@ func (db *DB) First(dest any) error {
 }
 
 // Paged turns the results of the current query into a paginated version: PagedData.
-func (db *DB) Paged(page, perPage int64) (PagedData, error) {
+//
+// FIXME(dlk): Paged is incompatible with Table for the time being
+// and reurns ErrUnaddressable since the type queried data ought to be coerced into
+// cannot be ascertained with reflection.
+func (db *DB) Paged(page, perPage int64) (pd PagedData, err error) {
+	defer func() {
+		// NOTE(dlk): This method uses reflect and so can panic.
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%w: Paged panicked: %s", trails.ErrUnexpected, r)
+			pd = PagedData{}
+		}
+	}()
+
 	if db.db.Error != nil {
 		return PagedData{}, db.db.Error
 	}
 
 	model := db.DB().Statement.Model
+	if model == nil {
+		err = fmt.Errorf("%w: must use Model with Paged", trails.ErrUnaddressable)
+		return PagedData{}, err
+	}
+
 	reflectType := reflect.TypeOf(db.DB().Statement.Model).Elem()
 	if reflectType.Kind() != reflect.Slice {
 		model = reflect.New(reflect.SliceOf(reflectType)).Interface()
 	}
 
-	pd := PagedData{
-		Items:   model,
-		Page:    max(1, page),
-		PerPage: max(1, perPage),
-	}
+	pd.Items = model
+	pd.Page = max(1, page)
+	pd.PerPage = max(1, perPage)
 
 	var totalRecords int64
-	err := db.db.Session(safeGORMSession).Count(&totalRecords).Error
+	err = db.db.Session(safeGORMSession).Count(&totalRecords).Error
 	if err != nil {
-		return pd, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
+		return PagedData{}, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
 	}
 
 	offset := int((pd.Page - 1) * pd.PerPage)
 	err = db.db.Limit(int(pd.PerPage)).Offset(offset).Find(pd.Items).Error
 	if err != nil && !errors.Is(err, trails.ErrNotFound) {
-		return pd, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
+		return PagedData{}, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
 	}
 
+	zero := big.NewFloat(0)
 	totalRecFl := new(big.Float).SetInt(big.NewInt(totalRecords))
 	perPageFl := new(big.Float).SetInt(big.NewInt(perPage))
-	fl := new(big.Float).SetMode(big.AwayFromZero)
-	pd.TotalPages, _ = fl.Quo(totalRecFl, perPageFl).Int64()
+
+	fl := big.NewFloat(0).SetMode(big.AwayFromZero)
+	if totalRecFl.Cmp(zero) != 0 && perPageFl.Cmp(zero) != 0 {
+		fl = fl.Quo(totalRecFl, perPageFl)
+	}
+
 	pd.TotalItems = totalRecords
+	pd.TotalPages, _ = fl.Int64()
 
 	return pd, nil
 }

@@ -892,6 +892,21 @@ func (suite *DBTestSuite) TestPaged() {
 	suite.Require().ErrorIs(err, testErr)
 	suite.Require().Zero(actual)
 
+	// Arrange + Act
+	actual, err = suite.db.Paged(1, 1)
+
+	// Assert
+	suite.Require().ErrorIs(err, trails.ErrUnaddressable)
+
+	// Arrange
+	notModel := "hello"
+
+	// Act
+	actual, err = suite.db.Model(notModel).Paged(1, 1)
+
+	// Assert
+	suite.Require().ErrorIs(err, trails.ErrUnexpected)
+
 	// Arrange
 	accts := insertAccounts(suite.T(), suite.db)
 	users := insertUsers(suite.T(), suite.db, accts)
