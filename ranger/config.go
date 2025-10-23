@@ -10,7 +10,6 @@ import (
 	"github.com/xy-planning-network/trails/http/middleware"
 	"github.com/xy-planning-network/trails/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type Config[U RangerUser] struct {
@@ -33,13 +32,15 @@ type Config[U RangerUser] struct {
 	logoutput io.Writer
 }
 
-// UseDBMock overrides a real database connection with a mocked database
-// hooked up to ctrl.
-func (c *Config[U]) UseDBMock(mockdb *postgres.MockDatabaseService) { c.mockdb = mockdb }
-
 // UseLogOutput overrides the writing logs to os.Stdout;
 // use a bytes.Buffer in unit tests so log outputs can be inspected.
 func (c *Config[U]) UseLogOutput(w io.Writer) { c.logoutput = w }
+
+// UseDBMock overrides a real database connection with a mocked database
+// hooked up to ctrl.
+//
+// Deprecated
+func (c *Config[U]) UseDBMock(mockdb *postgres.MockDatabaseService) { c.mockdb = mockdb }
 
 // Valid asserts the Config has all required data,
 // returning trails.ErrBadConfig if not.
@@ -57,13 +58,11 @@ func (c Config[U]) Valid() error {
 func (Config[U]) defaultUserStore(db postgres.DatabaseService) middleware.UserStorer {
 	findByID := db.FindByID
 
-	// NOTE(dlk): if ranger.Ranger.db was a *postgres.DatabaseServiceImpl
-	// instead of *postgres.DatabaseService,
-	// the type assertion would not be necessary;
-	// we are not ready to commit to this inflexibilty, yet.
-	if db, ok := db.(*postgres.DatabaseServiceImpl); ok {
+	// FIXME(dlk): After fully deleting *postgres.DatabaseService,
+	// type assertion is not necessary.
+	if db, ok := db.(*postgres.DB); ok {
 		findByID = func(model, id any) error {
-			return db.DB.Preload(clause.Associations).First(model, id).Error
+			return db.Preload(postgres.Associations).Where("id = ?", id).First(model)
 		}
 	}
 

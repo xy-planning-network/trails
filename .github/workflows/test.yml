@@ -9,7 +9,17 @@ on:
 jobs:
   test-go:
     name: "Run go tests"
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == '' && 'ubuntu-latest' || inputs.runner }}
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
     steps:
       - uses: actions/checkout@v3
 
@@ -17,4 +27,16 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run go vet
+        run: go vet ./...
+
       - run: go test ./... --cover -v -race
+        env:
+          DATABASE_TEST_PASSWORD: postgres
+          DATABASE_TEST_NAME: postgres
+          DATABASE_TEST_USER: postgres
+          DATABASE_TEST_HOST: localhost
+          DATABASE_TEST_PORT: 5432

@@ -67,7 +67,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	r := new(Ranger)
 
 	// Setup initial configuration
-	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
+	r.env = trails.EnvVarOrEnv(EnvironmentEnvVar, trails.Development)
 	r.Logger = defaultAppLogger(r.env, cfg.logoutput)
 	if _, ok := r.Logger.(*logger.SentryLogger); ok {
 		r.shutdowns = append(r.shutdowns, logger.FlushSentry)
@@ -147,11 +147,9 @@ func (r *Ranger) SessionStore() session.SessionStorer            { return r.sess
 //   - syscall.SIGQUIT
 //   - syscall.SIGTERM
 func (r *Ranger) Guide() error {
-	// NOTE(dlk): check the concrete type as it may be the desired type
-	// or *postgres.MockDatabaseService,
-	// which we don't need to run migrations against.
-	if db, ok := r.db.(*postgres.DatabaseServiceImpl); ok {
-		if err := postgres.MigrateUp(db.DB, "public", r.migrations); err != nil {
+	// FIXME(dlk): remove type guard once mockdb and *postgres.DatabaseService are deleted.
+	if db, ok := r.db.(*postgres.DB); ok {
+		if err := postgres.MigrateUp(db.DB(), "public", r.migrations); err != nil {
 			return err
 		}
 	}
@@ -255,7 +253,7 @@ func (r *Ranger) shutdown() error {
 func BuildWorkerCore() (*Ranger, error) {
 	var err error
 	r := new(Ranger)
-	r.env = trails.EnvVarOrEnv(environmentEnvVar, trails.Development)
+	r.env = trails.EnvVarOrEnv(EnvironmentEnvVar, trails.Development)
 	r.Logger = defaultWorkerLogger(r.env)
 
 	r.ctx, r.cancel = context.WithCancel(context.Background())
