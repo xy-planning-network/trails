@@ -907,6 +907,20 @@ func (suite *DBTestSuite) TestPaged() {
 	// Assert
 	suite.Require().ErrorIs(err, trails.ErrUnexpected)
 
+	// Arrange + Act
+	actual, err = suite.db.Model(new(User)).Paged(1, 1)
+
+	// Assert
+	suite.Require().Nil(err)
+	suite.Require().NotNil(actual.Items)
+	v, ok := actual.Items.(*[]User)
+	suite.Require().True(ok)
+	suite.Require().Len(*v, 0)
+	suite.Require().Equal(int64(1), actual.Page)
+	suite.Require().Equal(int64(1), actual.PerPage)
+	suite.Require().Equal(int64(0), actual.TotalItems)
+	suite.Require().Equal(int64(0), actual.TotalPages)
+
 	// Arrange
 	accts := insertAccounts(suite.T(), suite.db)
 	users := insertUsers(suite.T(), suite.db, accts)
@@ -921,7 +935,7 @@ func (suite *DBTestSuite) TestPaged() {
 	suite.Require().Equal(int64(len(users)), actual.TotalItems)
 	suite.Require().Equal(int64(5), actual.TotalPages)
 
-	v, ok := actual.Items.(*[]User)
+	v, ok = actual.Items.(*[]User)
 	suite.Require().True(ok)
 
 	vv := *v
