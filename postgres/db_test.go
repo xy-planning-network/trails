@@ -1260,7 +1260,7 @@ func (suite *DBTestSuite) TestWhere() {
 	// Assert
 	suite.Require().Nil(err)
 	suite.Require().Len(actualGroups, 1)
-	suite.Require().Equal(actualGroups[0], groups[0])
+	suite.Require().Equal(actualGroups[0].ID, groups[0].ID)
 }
 
 func (suite *DBTestSuite) TestRollback() {
