@@ -164,7 +164,7 @@ func (db *DB) Exec(sql string, values ...any) error {
 
 	var err error
 	values, err = unwrap(values...)
-	if err != nil {
+	if err != nil && !errors.Is(err, errNilArg) {
 		return err
 	}
 
@@ -340,7 +340,7 @@ func (db *DB) Raw(dest any, sql string, values ...any) error {
 
 	var err error
 	values, err = unwrap(values...)
-	if err != nil {
+	if err != nil && !errors.Is(err, errNilArg) {
 		return err
 	}
 
@@ -437,7 +437,7 @@ func (db *DB) Group(name string) *DB { return &DB{db: db.db.Group(name)} }
 func (db *DB) Joins(query string, args ...any) *DB {
 	var err error
 	args, err = unwrap(args...)
-	if err != nil {
+	if err != nil && !errors.Is(err, errNilArg) {
 		gdb := db.DB().Session(safeGORMSession)
 		_ = gdb.AddError(err)
 		return &DB{db: gdb}
@@ -516,7 +516,7 @@ func (db *DB) Or(query any, args ...any) *DB {
 
 	var err error
 	args, err = unwrap(args...)
-	if err != nil {
+	if err != nil && !errors.Is(err, errNilArg) {
 		gdb := db.DB().Session(safeGORMSession)
 		_ = gdb.AddError(err)
 		return &DB{db: gdb}
@@ -609,7 +609,7 @@ func (db *DB) Where(query any, args ...any) *DB {
 
 	var err error
 	args, err = unwrap(args...)
-	if err != nil {
+	if err != nil && !errors.Is(err, errNilArg) {
 		gdb := db.DB().Session(safeGORMSession)
 		_ = gdb.AddError(err)
 		return &DB{db: gdb}
@@ -675,6 +675,7 @@ func (db *DB) Rollback() error {
 // and that *DB is in an error state, that fact is surfaced.
 // This enables a *DB method to return early and prevent partial queries from running.
 func unwrap(args ...any) ([]any, error) {
+	var err error
 	res := make([]any, len(args))
 	for i, arg := range args {
 		// NOTE(dlk): other custom types that obfuscate GORM types
@@ -683,16 +684,18 @@ func unwrap(args ...any) ([]any, error) {
 		case *DB:
 			gdb := v.DB()
 			if err := gdb.Error; err != nil {
-				return nil, err
+				err = gdb.Error
 			}
-
 			res[i] = gdb
+
 		case nil:
-			return nil, fmt.Errorf("%w: nil argument", trails.ErrNotValid)
+			res[i] = arg
+			err = errors.Join(err, trails.ErrNotValid, errNilArg)
+
 		default:
 			res[i] = arg
 		}
 	}
 
-	return res, nil
+	return res, err
 }

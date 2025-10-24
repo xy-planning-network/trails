@@ -30,7 +30,7 @@ func (db *DB) CountByQuery(model any, query map[string]any) (int64, error) {
 //
 // Deprecated: chain queries with db.Where(...).Find(models)
 func (db *DB) FetchByQuery(models any, query string, params []any) error {
-	return db.Where(query, params...).Find(models)
+	return db.DB().Where(query, params...).Find(models).Error
 }
 
 // FindByID receives a database model as a pointer and fetches it using the primary ID.

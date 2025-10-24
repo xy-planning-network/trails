@@ -1,8 +1,12 @@
 package postgres
 
-import "regexp"
+import (
+	"errors"
+	"regexp"
+)
 
 var (
+	errNilArg = errors.New("nil argument")
 	// These errors originate from the std lib database/sql package.
 	//
 	// Cf., https://cs.opensource.google/go/go/+/master:src/database/sql/sql.go;l=3395;drc=3dbef65bf37f1b7ccd1f884761341a5a15456ffa

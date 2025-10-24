@@ -1231,6 +1231,22 @@ func (suite *DBTestSuite) TestWhere() {
 	// Assert
 	suite.Require().Nil(err)
 	suite.Require().Len(actualUsers, 5)
+
+	// Arrange
+	groups := insertGroups(suite.T(), suite.db)
+
+	updates := postgres.Updates{"null_string": "Hello, World!"}
+	suite.Require().Nil(suite.db.Model(new(Group)).Where("id != ?", groups[0].ID).Update(updates))
+
+	var actualGroups []Group
+
+	// Act
+	err = suite.db.Where("null_string", nil).Find(&actualGroups)
+
+	// Assert
+	suite.Require().Nil(err)
+	suite.Require().Len(actualGroups, 1)
+	suite.Require().Equal(actualGroups[0], groups[0])
 }
 
 func (suite *DBTestSuite) TestRollback() {
