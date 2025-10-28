@@ -10,15 +10,40 @@ import (
 	"github.com/xy-planning-network/trails"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
-// PG Docs: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
-const cxnStr = "host=%s port=%s dbname=%s user=%s password=%s sslmode=%s"
+const (
+	// PG Docs: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+	cxnStr = "host=%s port=%s dbname=%s user=%s password=%s sslmode=%s"
+	// FIXME(dlk): change to PostgreSQL error codes
+	violatesFK = "violates foreign key constraint"
 
-// CxnConfig holds connection information used to connect to a PostgreSQL database.
-type CxnConfig struct {
+	// Associations can be passed to Preload
+	// and triggers it to load all top-level associations.
+	Associations = clause.Associations
+)
+
+var (
+	// safeGORMSession is the accepted set of parameters to pass to *gorm.DB.Session
+	// when needing a clean pointer but want to preserve the current query.
+	//
+	// For Initialized and NewDB, the risk is losing *gorm.Statement values set earlier in the query chain
+	// due to subtlties in GORM's cloning of *gorm.Statement.
+	//
+	// Frankly, the GORM code is a bit inscrutable and so this is a best guess to be improved upon.
+	// Relevant code:
+	// - https://github.com/go-gorm/gorm/blob/b88148363a954f69fa680b152dfd96a94ffea1e1/gorm.go#L324-L348
+	// - https://github.com/go-gorm/gorm/blob/b88148363a954f69fa680b152dfd96a94ffea1e1/gorm.go#L434-L461
+	// - https://github.com/go-gorm/gorm/blob/b88148363a954f69fa680b152dfd96a94ffea1e1/statement.go#L529-L581
+	safeGORMSession = &gorm.Session{Initialized: true, NewDB: false}
+)
+
+// Config holds connection information used to connect to a PostgreSQL database.
+type Config struct {
+	Env         trails.Environment
 	Host        string
 	IsTestDB    bool
 	MaxIdleCxns int
@@ -26,17 +51,32 @@ type CxnConfig struct {
 	Password    string
 	Port        string
 	Schema      string
+	LogSilent   bool
 	SSLMode     string
 	URL         string
 	User        string
 }
 
-// Connect creates a database connection through GORM according to the connection config.
+// Connect creates a database connection and *DB
+// through GORM according to the connection config.
 //
 // Run migrations by passing DB into MigrateUp.
-func Connect(config *CxnConfig, env trails.Environment) (*gorm.DB, error) {
-	if config.Schema == "" {
-		config.Schema = "public"
+func Connect(cfg Config) (*DB, error) {
+	gdb, err := ConnectRaw(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewDB(gdb), nil
+}
+
+// ConnectRaw creates a database connection and *gorm.DB
+// through GORM according to the connection config.
+//
+// Run migrations by passing DB into MigrateUp.
+func ConnectRaw(cfg Config) (*gorm.DB, error) {
+	if cfg.Schema == "" {
+		cfg.Schema = "public"
 	}
 	// https://gorm.io/docs/logger.html
 	c := logger.Config{
@@ -46,12 +86,19 @@ func Connect(config *CxnConfig, env trails.Environment) (*gorm.DB, error) {
 		Colorful:                  false,
 	}
 
-	if env.IsDevelopment() {
+	if cfg.Env.IsDevelopment() {
 		c.Colorful = true
 	}
 
-	gormDB, err := gorm.Open(postgres.Open(buildCxnStr(config)), &gorm.Config{
-		Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), c),
+	if cfg.LogSilent {
+		c.LogLevel = logger.Silent
+	}
+
+	// FIXME(dlk): use slog, trails/ranger's newSlogger?
+	l := logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), c)
+
+	gormDB, err := gorm.Open(postgres.Open(cfg.conn()), &gorm.Config{
+		Logger: l,
 		NamingStrategy: schema.NamingStrategy{
 			NameReplacer: strings.NewReplacer("Table", ""),
 		},
@@ -68,37 +115,37 @@ func Connect(config *CxnConfig, env trails.Environment) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	db.SetMaxIdleConns(config.MaxIdleCxns)
+	db.SetMaxIdleConns(cfg.MaxIdleCxns)
 
-	if config.IsTestDB {
-		if err := gormDB.Exec(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", config.Schema)).Error; err != nil {
+	if cfg.IsTestDB {
+		if err := gormDB.Exec(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", cfg.Schema)).Error; err != nil {
 			return nil, err
 		}
 	}
 
-	ensureSchema(gormDB, config.Schema)
+	ensureSchema(gormDB, cfg.Schema)
 
 	return gormDB, nil
 }
 
-func buildCxnStr(config *CxnConfig) string {
-	if config.URL != "" {
-		return config.URL
+func (cfg Config) conn() string {
+	if cfg.URL != "" {
+		return cfg.URL
 	}
 
-	if config.SSLMode == "" {
+	if cfg.SSLMode == "" {
 		// PG Docs: https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS
-		config.SSLMode = "prefer"
+		cfg.SSLMode = "prefer"
 	}
 
 	return fmt.Sprintf(
 		cxnStr,
-		config.Host,
-		config.Port,
-		config.Name,
-		config.User,
-		config.Password,
-		config.SSLMode,
+		cfg.Host,
+		cfg.Port,
+		cfg.Name,
+		cfg.User,
+		cfg.Password,
+		cfg.SSLMode,
 	)
 }
 
@@ -129,7 +176,7 @@ func WipeDB(db *gorm.DB, schema string) error {
 // For example, given this scope:
 //
 //	func ActiveUsers() Scope {
-//	    return func(dbx *gorm.DB) *gorm.DB {
+//	    return func(dbx *postgres.DB) *postgres.DB {
 //	       return dbx.Where("state = ?", "active")
 //	    }
 //	}
@@ -139,4 +186,4 @@ func WipeDB(db *gorm.DB, schema string) error {
 //	db.Preload("Members", ActiveUsers()(db)).Where("role = ?", "owner").Find(&owners)
 //
 // Cf. [*gorm.DB.Scopes], https://gorm.io/docs/scopes.html
-type Scope func(*gorm.DB) *gorm.DB
+type Scope func(*DB) *DB

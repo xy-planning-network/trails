@@ -40,7 +40,7 @@ const (
 	defaultContactUs = "hello@xyplanningnetwork.com"
 
 	// Environment defaults
-	environmentEnvVar = "ENVIRONMENT"
+	EnvironmentEnvVar = "ENVIRONMENT"
 
 	// Log defaults
 	logLevelEnvVar  = "LOG_LEVEL"
@@ -56,6 +56,7 @@ const (
 	dbPassEnvVar        = "DATABASE_PASSWORD"
 	dbPortEnvVar        = "DATABASE_PORT"
 	defaultDBPort       = "5432"
+	dbSilentEnvVar      = "DATABASE_SLIENT"
 	dbSSLModeEnvVar     = "DATABASE_SSLMODE"
 	defaultDBSSLMode    = "prefer"
 	dbURLEnvVar         = "DATABASE_URL"
@@ -98,12 +99,14 @@ const (
 	// Test defaults
 	dbTestHostEnvVar     = "DATABASE_TEST_HOST"
 	defaultDBTestHost    = "localhost"
-	dbTestNameEnvVar     = "DATABASE_TEST_NAME"
-	dbTestPassEnvVar     = "DATABASE_TEST_PASSWORD"
+	DBTestNameEnvVar     = "DATABASE_TEST_NAME"
+	DBTestPassEnvVar     = "DATABASE_TEST_PASSWORD"
 	dbTestPortEnvVar     = "DATABASE_TEST_PORT"
 	defaultDBTestPort    = "5432"
 	dbTestURLEnvVar      = "DATABASE_TEST_URL"
-	dbTestUserEnvVar     = "DATABASE_TEST_USER"
+	DBTestUserEnvVar     = "DATABASE_TEST_USER"
+	DBTestSchemaEnvVar   = "DATABASE_TEST_SCHEMA"
+	defaultDBTestSchema  = "public"
 	dbTestSSLModeEnvVar  = "DATABASE_TEST_SSLMODE"
 	defaultDBTestSSLMode = "prefer"
 )
@@ -116,36 +119,42 @@ var (
 	tmpls embed.FS
 )
 
-// NewPostgresConfig constructs a *postgres.CxnConfig appropriate to the given environment.
+// NewPostgresConfig constructs a postgres.Config appropriate to the given environment.
 // Confer the DATABASE env vars for usage.
-func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
-	var cfg *postgres.CxnConfig
+func NewPostgresConfig(env trails.Environment) postgres.Config {
+	var cfg postgres.Config
 	url := os.Getenv(dbURLEnvVar)
 	switch {
 	case env.IsTesting():
-		cfg = &postgres.CxnConfig{
+		cfg = postgres.Config{
 			Host:     trails.EnvVarOrString(dbTestHostEnvVar, defaultDBTestHost),
 			IsTestDB: true,
-			Name:     os.Getenv(dbTestNameEnvVar),
-			Password: os.Getenv(dbTestPassEnvVar),
+			Name:     os.Getenv(DBTestNameEnvVar),
+			Password: os.Getenv(DBTestPassEnvVar),
 			Port:     trails.EnvVarOrString(dbTestPortEnvVar, defaultDBTestPort),
+			Schema:   trails.EnvVarOrString(DBTestSchemaEnvVar, defaultDBTestSchema),
 			SSLMode:  trails.EnvVarOrString(dbTestSSLModeEnvVar, defaultDBTestSSLMode),
-			User:     os.Getenv(dbTestUserEnvVar),
+			User:     os.Getenv(DBTestUserEnvVar),
 		}
 
 	case url == "":
-		cfg = &postgres.CxnConfig{
-			Host:     trails.EnvVarOrString(dbHostEnvVar, defaultDBHost),
-			IsTestDB: false,
-			Name:     os.Getenv(dbNameEnvVar),
-			Password: os.Getenv(dbPassEnvVar),
-			Port:     trails.EnvVarOrString(dbPortEnvVar, defaultDBPort),
-			SSLMode:  trails.EnvVarOrString(dbSSLModeEnvVar, defaultDBSSLMode),
-			User:     os.Getenv(dbUserEnvVar),
+		cfg = postgres.Config{
+			Host:      trails.EnvVarOrString(dbHostEnvVar, defaultDBHost),
+			IsTestDB:  false,
+			LogSilent: trails.EnvVarOrBool(dbSilentEnvVar, false),
+			Name:      os.Getenv(dbNameEnvVar),
+			Password:  os.Getenv(dbPassEnvVar),
+			Port:      trails.EnvVarOrString(dbPortEnvVar, defaultDBPort),
+			SSLMode:   trails.EnvVarOrString(dbSSLModeEnvVar, defaultDBSSLMode),
+			User:      os.Getenv(dbUserEnvVar),
 		}
 
 	default:
-		cfg = &postgres.CxnConfig{IsTestDB: false, URL: url}
+		cfg = postgres.Config{
+			IsTestDB:  false,
+			LogSilent: trails.EnvVarOrBool(dbSilentEnvVar, false),
+			URL:       url,
+		}
 	}
 
 	cfg.MaxIdleCxns = trails.EnvVarOrInt(dbMaxIdleCxnsEnvVar, defaultDBMaxIdleCxns)
@@ -154,15 +163,9 @@ func NewPostgresConfig(env trails.Environment) *postgres.CxnConfig {
 }
 
 // defaultDB connects to a Postgres database
-// using default configuration environment variables
-// and runs the list of [postgres.Migration] passed in.
-func defaultDB(env trails.Environment) (postgres.DatabaseService, error) {
-	db, err := postgres.Connect(NewPostgresConfig(env), env)
-	if err != nil {
-		return nil, err
-	}
-
-	return postgres.NewService(db), nil
+// using default configuration environment variables.
+func defaultDB(env trails.Environment) (*postgres.DB, error) {
+	return postgres.Connect(NewPostgresConfig(env))
 }
 
 // defaultAppLogger constructs a [tlog.Logger] configured for use in the application.

@@ -5,6 +5,7 @@
 //
 //	mockgen -source postgres/service.go -destination postgres/mocks.go -package postgres
 //
+
 // Package postgres is a generated GoMock package.
 package postgres
 
@@ -12,7 +13,6 @@ import (
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
-	gorm "gorm.io/gorm"
 )
 
 // MockDatabaseService is a mock of DatabaseService interface.
@@ -96,7 +96,7 @@ func (mr *MockDatabaseServiceMockRecorder) FindByQuery(model, query any) *gomock
 }
 
 // PagedByQuery mocks base method.
-func (m *MockDatabaseService) PagedByQuery(models any, query string, params []any, order string, page, perPage int, preloads ...string) (PagedData, error) {
+func (m *MockDatabaseService) PagedByQuery(models any, query string, params []any, order string, page, perPage int64, preloads ...string) (PagedData, error) {
 	m.ctrl.T.Helper()
 	varargs := []any{models, query, params, order, page, perPage}
 	for _, a := range preloads {
@@ -113,19 +113,4 @@ func (mr *MockDatabaseServiceMockRecorder) PagedByQuery(models, query, params, o
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]any{models, query, params, order, page, perPage}, preloads...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PagedByQuery", reflect.TypeOf((*MockDatabaseService)(nil).PagedByQuery), varargs...)
-}
-
-// PagedByQueryFromSession mocks base method.
-func (m *MockDatabaseService) PagedByQueryFromSession(models any, session *gorm.DB, page, perPage int) (PagedData, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PagedByQueryFromSession", models, session, page, perPage)
-	ret0, _ := ret[0].(PagedData)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// PagedByQueryFromSession indicates an expected call of PagedByQueryFromSession.
-func (mr *MockDatabaseServiceMockRecorder) PagedByQueryFromSession(models, session, page, perPage any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PagedByQueryFromSession", reflect.TypeOf((*MockDatabaseService)(nil).PagedByQueryFromSession), models, session, page, perPage)
 }
