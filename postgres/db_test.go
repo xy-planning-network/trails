@@ -961,6 +961,35 @@ func (suite *DBTestSuite) TestPaged() {
 	suite.Require().Equal(users[2].ID, vv[0].ID)
 	suite.Require().Equal(users[3].ID, vv[1].ID)
 
+	// Arrange + Act
+	actual, err = suite.db.Model(new([]User)).Paged(1, 50)
+
+	// Assert
+	suite.Require().Nil(err)
+	suite.Require().Equal(int64(1), actual.Page)
+	suite.Require().Equal(int64(50), actual.PerPage)
+	suite.Require().Equal(int64(len(users)), actual.TotalItems)
+	suite.Require().Equal(int64(1), actual.TotalPages)
+
+	// Arrange
+	var groups []Group
+	for i := range 101 {
+		groups = append(
+			groups,
+			Group{Title: fmt.Sprint(i), Starts: time.Now().AddDate(0, 0, -i)},
+		)
+	}
+	suite.Require().Nil(suite.db.Create(&groups))
+
+	// Act
+	actual, err = suite.db.Model(new([]Group)).Paged(1, 10)
+
+	// Assert
+	suite.Require().Nil(err)
+	suite.Require().Equal(int64(len(groups)), actual.TotalItems)
+	suite.Require().Equal(int64(11), actual.TotalPages)
+
+	// Arrange
 }
 
 func (suite *DBTestSuite) TestPreload() {
