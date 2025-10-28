@@ -15,10 +15,6 @@ var (
 	// ErrMissingData means required data was not provided.
 	ErrMissingData = errors.New("missing data")
 
-	// ErrNotExist means the primary key used to find a record
-	// did not match any record.
-	ErrNotExist = errors.New("not exist")
-
 	// ErrNotFound means filters or other parameters
 	// used to find one or many records did not match any records.
 	ErrNotFound = errors.New("not found")

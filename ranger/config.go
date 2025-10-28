@@ -70,7 +70,7 @@ func (Config[U]) defaultUserStore(db postgres.DatabaseService) middleware.UserSt
 		var user U
 		err := findByID(&user, id)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = fmt.Errorf("%w: User %d", trails.ErrNotExist, id)
+			err = fmt.Errorf("%w: User %d", trails.ErrNotFound, id)
 		}
 
 		if err != nil {
