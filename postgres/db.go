@@ -317,17 +317,26 @@ func (db *DB) Paged(page, perPage int64) (pd PagedData, err error) {
 		return PagedData{}, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
 	}
 
-	zero := big.NewFloat(0)
-	totalRecFl := new(big.Float).SetInt(big.NewInt(totalRecords))
+	// NOTE(dlk): use math/big for accurate float64 division.
+	totalPages := new(big.Float).SetInt(big.NewInt(totalRecords))
 	perPageFl := new(big.Float).SetInt(big.NewInt(perPage))
 
-	fl := big.NewFloat(0).SetMode(big.AwayFromZero)
-	if totalRecFl.Cmp(zero) != 0 && perPageFl.Cmp(zero) != 0 {
-		fl = fl.Quo(totalRecFl, perPageFl)
+	// NOTE(dlk): guard divison by zero.
+	zero := big.NewFloat(0)
+	if totalPages.Cmp(zero) != 0 && perPageFl.Cmp(zero) != 0 {
+		totalPages.Quo(totalPages, perPageFl)
+	}
+
+	// NOTE(dlk): We want rounding up, but Int64 rounds towards zero
+	// and RoundingMode doesn't change this.
+	// So, add one when it truncates incorrectly to get rounding up to the ceiling.
+	var acc big.Accuracy
+	pd.TotalPages, acc = totalPages.Int64()
+	if acc == big.Below {
+		pd.TotalPages += 1
 	}
 
 	pd.TotalItems = totalRecords
-	pd.TotalPages, _ = fl.Int64()
 
 	return pd, nil
 }

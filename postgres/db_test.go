@@ -988,8 +988,6 @@ func (suite *DBTestSuite) TestPaged() {
 	suite.Require().Nil(err)
 	suite.Require().Equal(int64(len(groups)), actual.TotalItems)
 	suite.Require().Equal(int64(11), actual.TotalPages)
-
-	// Arrange
 }
 
 func (suite *DBTestSuite) TestPreload() {
