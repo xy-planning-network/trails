@@ -8,6 +8,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"os"
 
 	"github.com/xy-planning-network/trails"
 )
@@ -91,15 +93,32 @@ func (lc LogContext) toMap() map[string]any {
 		r := make(map[string]any)
 		r["method"] = lc.Request.Method
 
-		trails.Mask(lc.Request.URL.Query(), "password")
+		q := lc.Request.URL.Query()
+		trails.Mask(q, "password")
+		lc.Request.URL.RawQuery = q.Encode()
 		r["url"] = lc.Request.URL.String()
 
-		r["header"] = lc.Request.Header
+		header := lc.Request.Header
+		referer := header.Get("Referer")
+		header.Del("Referer")
+		if refURL, err := url.ParseRequestURI(referer); err == nil {
+			fmt.Fprintln(os.Stderr, refURL.String())
+			q := refURL.Query()
+			trails.Mask(q, "password")
+			refURL.RawQuery = q.Encode()
+			header.Set("Referer", refURL.String())
+		}
+
+		r["header"] = header
 		if ct := lc.Request.Header.Get("Content-Type"); printData && ct == "application/json" {
 			j := make(map[string]any)
 			b := new(bytes.Buffer)
 			tee := io.TeeReader(lc.Request.Body, b)
 			if err := json.NewDecoder(tee).Decode(&j); err == nil {
+				// FIXME(dlk): We may want to mask values in here.
+				// Or, not log them at all.
+				// There's a risk of reading the entire JSON blob as a blocking operation
+				// in a non-obvious place (i.e., logging).
 				r["json"] = j
 				lc.Request.Body.Close()
 				lc.Request.Body = io.NopCloser(b)

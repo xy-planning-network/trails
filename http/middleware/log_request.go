@@ -99,6 +99,13 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 		sessID, _ = sess.Get(trails.SessionIDKey).(string)
 	}
 
+	referrer := r.Header.Get(referrerHeader)
+	refURL, err := url.ParseRequestURI(referrer)
+	if err == nil {
+		trails.Mask(refURL.Query(), passwordParam)
+		referrer = refURL.RequestURI()
+	}
+
 	return LogRequestRecord{
 		BodySize:       w.bodySize,
 		Host:           r.Host,
@@ -107,7 +114,7 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 		Method:         r.Method,
 		Path:           r.URL.Path,
 		Protocol:       r.Proto,
-		Referrer:       r.Header.Get(referrerHeader),
+		Referrer:       referrer,
 		ReqContentLen:  contLen,
 		ReqContentType: r.Header.Get(contentTypeHeader),
 		Scheme:         r.URL.Scheme,
