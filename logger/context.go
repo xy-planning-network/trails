@@ -90,7 +90,10 @@ func (lc LogContext) toMap() map[string]any {
 
 		r := make(map[string]any)
 		r["method"] = lc.Request.Method
+
+		trails.Mask(lc.Request.URL.Query(), "password")
 		r["url"] = lc.Request.URL.String()
+
 		r["header"] = lc.Request.Header
 		if ct := lc.Request.Header.Get("Content-Type"); printData && ct == "application/json" {
 			j := make(map[string]any)
@@ -104,6 +107,7 @@ func (lc LogContext) toMap() map[string]any {
 		}
 
 		if printData && lc.Request.Form != nil {
+			trails.Mask(lc.Request.Form, "password")
 			r["form"] = lc.Request.Form
 		}
 

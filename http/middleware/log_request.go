@@ -87,7 +87,7 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 	uri := new(url.URL)
 	*uri = *r.URL
 	q := r.URL.Query()
-	mask(q, passwordParam)
+	trails.Mask(q, passwordParam)
 	uri.RawQuery = q.Encode()
 
 	contLen, _ := strconv.Atoi(r.Header.Get(contentLenHeader))
@@ -162,11 +162,4 @@ func (rl *requestLogger) Write(b []byte) (int, error) {
 func (rl *requestLogger) WriteHeader(code int) {
 	rl.status = code
 	rl.ResponseWriter.WriteHeader(code)
-}
-
-// mask replaces all instances of key in q with trails.LogMaskVal.
-func mask(q url.Values, key string) {
-	if val := q.Get(key); val != "" {
-		q.Set(key, trails.LogMaskVal)
-	}
 }
