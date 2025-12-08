@@ -87,7 +87,7 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 	uri := new(url.URL)
 	*uri = *r.URL
 	q := r.URL.Query()
-	mask(q, passwordParam)
+	trails.Mask(q, passwordParam)
 	uri.RawQuery = q.Encode()
 
 	contLen, _ := strconv.Atoi(r.Header.Get(contentLenHeader))
@@ -99,6 +99,13 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 		sessID, _ = sess.Get(trails.SessionIDKey).(string)
 	}
 
+	referrer := r.Header.Get(referrerHeader)
+	refURL, err := url.ParseRequestURI(referrer)
+	if err == nil {
+		trails.Mask(refURL.Query(), passwordParam)
+		referrer = refURL.RequestURI()
+	}
+
 	return LogRequestRecord{
 		BodySize:       w.bodySize,
 		Host:           r.Host,
@@ -107,7 +114,7 @@ func newRecord(w *requestLogger, r *http.Request) LogRequestRecord {
 		Method:         r.Method,
 		Path:           r.URL.Path,
 		Protocol:       r.Proto,
-		Referrer:       r.Header.Get(referrerHeader),
+		Referrer:       referrer,
 		ReqContentLen:  contLen,
 		ReqContentType: r.Header.Get(contentTypeHeader),
 		Scheme:         r.URL.Scheme,
@@ -162,11 +169,4 @@ func (rl *requestLogger) Write(b []byte) (int, error) {
 func (rl *requestLogger) WriteHeader(code int) {
 	rl.status = code
 	rl.ResponseWriter.WriteHeader(code)
-}
-
-// mask replaces all instances of key in q with trails.LogMaskVal.
-func mask(q url.Values, key string) {
-	if val := q.Get(key); val != "" {
-		q.Set(key, trails.LogMaskVal)
-	}
 }

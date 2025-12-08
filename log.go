@@ -1,6 +1,7 @@
 package trails
 
 import (
+	"net/url"
 	"strings"
 
 	"log/slog"
@@ -41,4 +42,11 @@ func NewLogLevel(val string) slog.Level {
 	}
 
 	return slog.LevelInfo
+}
+
+// Mask replaces all instances of key in q with LogMaskVal.
+func Mask(q url.Values, key string) {
+	if val := q.Get(key); val != "" {
+		q.Set(key, LogMaskVal)
+	}
 }

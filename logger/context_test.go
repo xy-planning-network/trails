@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/logger"
 )
 
@@ -122,17 +123,19 @@ func TestLogContextMarshalText(t *testing.T) {
 	expected = map[string]any{
 		"request": map[string]any{
 			"method": http.MethodPost,
-			"url":    "https://example.com/test?some=param",
+			"url":    "https://example.com/test?password=" + trails.LogMaskVal + "&some=param",
 			"header": map[string]any{
 				"Host":         []any{"example.com"},
 				"Content-Type": []any{"application/json"},
+				"Referer":      []any{"https://example.com/test?password=" + trails.LogMaskVal + "&some=param"},
 			},
 		},
 	}
 
-	r = httptest.NewRequest(http.MethodPost, "https://example.com/test?some=param", buf)
+	r = httptest.NewRequest(http.MethodPost, "https://example.com/test?some=param&password=hunter2", buf)
 	r.Header.Set("Host", "example.com")
 	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Referer", "https://example.com/test?some=param&password=hunter2")
 
 	lc = logger.LogContext{Request: r}
 
