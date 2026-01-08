@@ -105,6 +105,7 @@ func ConnectRaw(cfg Config) (*gorm.DB, error) {
 		NowFunc: func() time.Time {
 			return time.Now().Truncate(time.Microsecond)
 		},
+		QueryFields: true,
 	})
 	if err != nil {
 		return nil, err
