@@ -18,7 +18,7 @@ var (
 	// that are some sort of syntax issue in the statement or datatype mismatch.
 	//
 	// Cf., https://www.postgresql.org/docs/current/errcodes-appendix.html
-	errSQLSyntax = regexp.MustCompile(`SQLSTATE (42601|22P02)`)
+	errSQLSyntax = regexp.MustCompile(`SQLSTATE (42601|42703|22P02)`)
 
 	errConstraintViolation = regexp.MustCompile(`SQLSTATE (23502)`)
 	errUniqViolation       = regexp.MustCompile(`SQLSTATE (23505)`)

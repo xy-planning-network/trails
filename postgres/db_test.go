@@ -988,6 +988,24 @@ func (suite *DBTestSuite) TestPaged() {
 	suite.Require().Nil(err)
 	suite.Require().Equal(int64(len(groups)), actual.TotalItems)
 	suite.Require().Equal(int64(11), actual.TotalPages)
+
+	// Arrange + Act
+	actual, err = suite.db.Table("accounts_view").Model(new(Account)).Paged(1, 1)
+
+	// Assert
+	suite.Require().Nil(err)
+	suite.Require().Equal(int64(1), actual.TotalItems)
+	suite.Require().Equal(int64(1), actual.TotalPages)
+	items := *actual.Items.(*[]Account)
+	suite.Require().True(ok)
+	suite.Require().Len(items, 1)
+	suite.Require().Equal("view", items[0].Kind)
+
+	// Arrange + Act
+	actual, err = suite.db.Table("groups_view").Model(new(Account)).Paged(1, 1)
+
+	// Assert
+	suite.Require().ErrorIs(err, trails.ErrNotValid)
 }
 
 func (suite *DBTestSuite) TestPreload() {
