@@ -55,3 +55,21 @@ CREATE TABLE IF NOT EXISTS group_users (
 );
 
 TRUNCATE TABLE group_users;
+
+CREATE VIEW accounts_view AS (
+  SELECT
+    0 AS id,
+    '1970-01-01 00:00:00+00'::timestamp with time zone AS created_at,
+    '1970-01-01 00:00:00+00'::timestamp with time zone AS updated_at,
+    NULL::timestamp with time zone AS deleted_at,
+    'view'::text AS kind
+);
+
+CREATE VIEW groups_view AS (
+  SELECT
+    0 AS id,
+    '1970-01-01 00:00:00+00'::timestamp with time zone AS created_at,
+    '1970-01-01 00:00:00+00'::timestamp with time zone AS updated_at,
+    NULL::timestamp with time zone AS deleted_at,
+    'view'::text AS title
+);

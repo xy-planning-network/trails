@@ -273,10 +273,6 @@ func (db *DB) First(dest any) error {
 }
 
 // Paged turns the results of the current query into a paginated version: PagedData.
-//
-// FIXME(dlk): Paged is incompatible with Table for the time being
-// and reurns ErrUnaddressable since the type queried data ought to be coerced into
-// cannot be ascertained with reflection.
 func (db *DB) Paged(page, perPage int64) (pd PagedData, err error) {
 	defer func() {
 		// NOTE(dlk): This method uses reflect and so can panic.
@@ -305,16 +301,15 @@ func (db *DB) Paged(page, perPage int64) (pd PagedData, err error) {
 	pd.Page = max(1, page)
 	pd.PerPage = max(1, perPage)
 
-	var totalRecords int64
-	err = db.db.Session(safeGORMSession).Count(&totalRecords).Error
+	totalRecords, err := NewDB(db.db.Session(safeGORMSession)).Count()
 	if err != nil {
-		return PagedData{}, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
+		return PagedData{}, err
 	}
 
 	offset := int((pd.Page - 1) * pd.PerPage)
-	err = db.db.Limit(int(pd.PerPage)).Offset(offset).Find(pd.Items).Error
+	err = db.Limit(int(pd.PerPage)).Offset(offset).Find(pd.Items)
 	if err != nil && !errors.Is(err, trails.ErrNotFound) {
-		return PagedData{}, fmt.Errorf("%w: %s", trails.ErrUnexpected, err)
+		return PagedData{}, err
 	}
 
 	// NOTE(dlk): use math/big for accurate float64 division.
