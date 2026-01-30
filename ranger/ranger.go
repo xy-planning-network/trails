@@ -41,7 +41,7 @@ type Ranger struct {
 	assetsURL  *url.URL
 	cancel     context.CancelFunc
 	ctx        context.Context
-	db         postgres.DatabaseService
+	db         *postgres.DB
 	env        trails.Environment
 	metadata   Metadata
 	migrations []postgres.Migration
@@ -88,13 +88,9 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	}
 
 	r.migrations = cfg.Migrations
-	if cfg.mockdb == nil {
-		r.db, err = defaultDB(r.env)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		r.db = cfg.mockdb
+	r.db, err = defaultDB(r.env)
+	if err != nil {
+		return nil, err
 	}
 
 	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, r.assetsURL, cfg.FS, r.metadata), r.metadata.Contact)
@@ -133,7 +129,7 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 func (r *Ranger) AssetsURL() *url.URL                            { return r.assetsURL }
 func (r *Ranger) BaseURL() *url.URL                              { return r.url }
 func (r *Ranger) Context() (context.Context, context.CancelFunc) { return r.ctx, r.cancel }
-func (r *Ranger) DB() postgres.DatabaseService                   { return r.db }
+func (r *Ranger) DB() *postgres.DB                               { return r.db }
 func (r *Ranger) Env() trails.Environment                        { return r.env }
 func (r *Ranger) Metadata() Metadata                             { return r.metadata }
 func (r *Ranger) SessionStore() session.SessionStorer            { return r.sessions }
@@ -147,11 +143,8 @@ func (r *Ranger) SessionStore() session.SessionStorer            { return r.sess
 //   - syscall.SIGQUIT
 //   - syscall.SIGTERM
 func (r *Ranger) Guide() error {
-	// FIXME(dlk): remove type guard once mockdb and *postgres.DatabaseService are deleted.
-	if db, ok := r.db.(*postgres.DB); ok {
-		if err := postgres.MigrateUp(db.DB(), "public", r.migrations); err != nil {
-			return err
-		}
+	if err := postgres.MigrateUp(r.DB().DB(), "public", r.migrations); err != nil {
+		return err
 	}
 
 	if r.ctx == nil {
