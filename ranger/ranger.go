@@ -88,9 +88,13 @@ func New[U RangerUser](cfg Config[U]) (*Ranger, error) {
 	}
 
 	r.migrations = cfg.Migrations
-	r.db, err = defaultDB(r.env)
-	if err != nil {
-		return nil, err
+	if cfg.db != nil {
+		r.db = cfg.db
+	} else {
+		r.db, err = defaultDB(r.env)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	r.Responder = defaultResponder(r.Logger, r.url, defaultParser(r.env, r.url, r.assetsURL, cfg.FS, r.metadata), r.metadata.Contact)

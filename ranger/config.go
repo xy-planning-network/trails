@@ -27,8 +27,13 @@ type Config[U RangerUser] struct {
 	// Migrations are a list of DB migrations to run upon DB successful connection.
 	Migrations []postgres.Migration
 
+	db        *postgres.DB
 	logoutput io.Writer
 }
+
+// UseDB overrides the *postgres.Database;
+// use a database transaction in unit tests to speed up process.
+func (c *Config[U]) UseDB(db *postgres.DB) { c.db = db }
 
 // UseLogOutput overrides the writing logs to os.Stdout;
 // use a bytes.Buffer in unit tests so log outputs can be inspected.
