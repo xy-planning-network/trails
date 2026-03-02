@@ -574,8 +574,9 @@ func (db *DB) Preload(association string, scopes ...Scope) *DB {
 		// NOTE(dlk): naively passing db or db.db means
 		// scope applies itself to the current query
 		// instead of on the new query for the preload association.
-		clean := NewDB(db.db.Session(&gorm.Session{NewDB: true}))
-		resolved = append(resolved, scope(clean).DB())
+		resolved = append(resolved, func(dbx *gorm.DB) *gorm.DB {
+			return scope(NewDB(dbx)).DB()
+		})
 	}
 
 	return &DB{db: db.db.Preload(association, resolved...)}
