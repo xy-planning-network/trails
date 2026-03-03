@@ -149,6 +149,57 @@ func TestLogContextMarshalText(t *testing.T) {
 	require.Equal(t, expected, m)
 	_, err = io.ReadAll(r.Body)
 	require.Nil(t, err)
+
+	// Arrange
+	lc = logger.LogContext{
+		EMF: &logger.EMFMetadata{
+			Namespace: "SECCompliance",
+			Dimensions: []logger.EMFDimension{
+				{Name: "Service", Value: "gmail"},
+				{Name: "StatusBucket", Value: "Success"},
+			},
+			Metrics: []logger.EMFMetric{
+				{Name: "ItemsArchived", Unit: "Count", Value: 100},
+			},
+		},
+	}
+
+	// Act
+	b, err = lc.MarshalText()
+
+	// Assert
+	require.NoError(t, err)
+
+	require.NoError(t, json.Unmarshal(b, &m))
+
+	// 1. Verify Promotion to Root
+	require.Equal(t, "gmail", m["Service"])
+	require.Equal(t, "Success", m["StatusBucket"])
+	require.Equal(t, float64(100), m["ItemsArchived"])
+
+	// 2. Verify _aws Metadata Structure
+	aws, ok := m["_aws"].(map[string]any)
+	require.True(t, ok, "_aws block should exist")
+	require.NotZero(t, aws["Timestamp"])
+
+	metricsList, ok := aws["CloudWatchMetrics"].([]any)
+	require.True(t, ok)
+
+	metadata := metricsList[0].(map[string]any)
+	require.Equal(t, "SECCompliance", metadata["Namespace"])
+
+	// 3. Verify Automated Dimension Sets
+	expectedDimSets := []any{
+		[]any{"Service", "StatusBucket"},
+	}
+	require.Equal(t, expectedDimSets, metadata["Dimensions"])
+
+	// 4. Verify Metrics Metadata (Value should be hidden via JSON tags)
+	metricsMetadata := metadata["Metrics"].([]any)
+	metric0 := metricsMetadata[0].(map[string]any)
+	require.Equal(t, "ItemsArchived", metric0["Name"])
+	require.Equal(t, "Count", metric0["Unit"])
+	require.NotContains(t, metric0, "Value", "Metric value should not be in _aws metadata")
 }
 
 type testUser struct{}
