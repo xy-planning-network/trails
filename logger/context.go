@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/xy-planning-network/trails"
 )
@@ -41,6 +42,9 @@ type LogContext struct {
 	// Data is any information pertinent at the time of the logging event.
 	Data map[string]any
 
+	// EMF holds the metric definitions if this log entry should also be treated as a CloudWatch metric.
+	EMF *EMFMetadata
+
 	// Error is the error that may or may not have instigated a logging event.
 	Error error
 
@@ -51,6 +55,24 @@ type LogContext struct {
 	User LogUser
 
 	env trails.Environment
+}
+
+// https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html
+type EMFMetadata struct {
+	Namespace  string
+	Dimensions []EMFDimension
+	Metrics    []EMFMetric
+}
+
+type EMFDimension struct {
+	Name  string `json:"Name"`
+	Value any    `json:"-"`
+}
+
+type EMFMetric struct {
+	Name  string `json:"Name"`
+	Unit  string `json:"Unit"`
+	Value any    `json:"-"`
 }
 
 func (lc LogContext) LogValue() slog.Value { return slog.GroupValue(lc.attrs()...) }
@@ -152,12 +174,43 @@ func (lc LogContext) toMap() map[string]any {
 		}
 	}
 
+	if lc.EMF != nil {
+		var dimensions []string
+
+		// 1. Promote Dimensions and Metrics to the root map
+		for _, d := range lc.EMF.Dimensions {
+			m[d.Name] = d.Value
+			dimensions = append(dimensions, d.Name)
+		}
+
+		for _, met := range lc.EMF.Metrics {
+			m[met.Name] = met.Value
+		}
+
+		// 2. Add the AWS Metadata block
+		m["_aws"] = map[string]any{
+			"Timestamp": time.Now().UnixMilli(),
+			"CloudWatchMetrics": []map[string]any{{
+				"Namespace":  lc.EMF.Namespace,
+				"Dimensions": [][]string{dimensions},
+				"Metrics":    lc.EMF.Metrics,
+			}},
+		}
+	}
+
 	return m
 }
 
 func processLogValues(m map[string]any) []slog.Attr {
 	var g []slog.Attr
 	for k, v := range m {
+		// NOTE(jlt): Do not group the _aws block.
+		// Keep it as a single Attr so it marshals as a JSON object at the root.
+		if k == "_aws" {
+			g = append(g, slog.Any(k, v))
+			continue
+		}
+
 		switch t := v.(type) {
 		case http.Header:
 		// NOTE(dlk): throw away values we don't care to print in application logs.
