@@ -147,8 +147,10 @@ func (r *Ranger) SessionStore() session.SessionStorer            { return r.sess
 //   - syscall.SIGQUIT
 //   - syscall.SIGTERM
 func (r *Ranger) Guide() error {
-	if err := postgres.MigrateUp(r.DB().DB(), "public", r.migrations); err != nil {
-		return err
+	if r.DB() != nil { // nil db when in maintenance mode
+		if err := postgres.MigrateUp(r.DB().DB(), "public", r.migrations); err != nil {
+			return err
+		}
 	}
 
 	if r.ctx == nil {
