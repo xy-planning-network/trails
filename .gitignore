@@ -21,3 +21,4 @@
 
 # Mac OS auto-generated files
 .DS_store
+.env

@@ -1,5 +1,7 @@
 package trails
 
+import "maps"
+
 import "context"
 
 type Key string
@@ -41,9 +43,7 @@ type AppProps map[string]any
 // If any keys collide, those in props overwrite previous values.
 func NewAppPropsContext(ctx context.Context, props AppProps) context.Context {
 	existing := AppPropsFromContext(ctx)
-	for k, v := range props {
-		existing[k] = v
-	}
+	maps.Copy(existing, props)
 
 	return context.WithValue(ctx, appPropsKey, existing)
 }
