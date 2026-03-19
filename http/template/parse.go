@@ -4,6 +4,7 @@ import (
 	"fmt"
 	html "html/template"
 	"io/fs"
+	"maps"
 	"path"
 )
 
@@ -26,9 +27,7 @@ func NewParser(fses []fs.FS) *Parser {
 
 func (p *Parser) clone() *Parser {
 	newP := &Parser{cache: p.cache, fns: make(html.FuncMap)}
-	for k, v := range p.fns {
-		newP.fns[k] = v
-	}
+	maps.Copy(newP.fns, p.fns)
 
 	return newP
 }

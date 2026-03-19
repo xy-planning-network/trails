@@ -3,6 +3,7 @@ package resp
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 
@@ -425,9 +426,7 @@ func Vue(entry string) Fn {
 				for k, v := range t {
 					if k == "props" {
 						if ip, ok := v.(map[string]any); ok {
-							for k, v := range ip {
-								props[k] = v
-							}
+							maps.Copy(props, ip)
 						}
 					} else {
 						data[k] = v
@@ -435,9 +434,7 @@ func Vue(entry string) Fn {
 				}
 			} else {
 				// NOTE(dlk): no "props" key was set, apply all to props map.
-				for k, v := range t {
-					props[k] = v
-				}
+				maps.Copy(props, t)
 			}
 		default:
 			// NOTE(dlk): unhandled case, applying everything to props map under "props" key.

@@ -420,7 +420,7 @@ func (suite *DBTestSuite) TestExists() {
 		ugs = append(ugs, GroupUser{GroupID: groups[0].ID, UserID: user.ID})
 	}
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		ugs = append(ugs, GroupUser{GroupID: groups[1].ID, UserID: users[i].ID})
 	}
 
