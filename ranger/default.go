@@ -56,7 +56,7 @@ const (
 	dbPassEnvVar        = "DATABASE_PASSWORD"
 	dbPortEnvVar        = "DATABASE_PORT"
 	defaultDBPort       = "5432"
-	dbSilentEnvVar      = "DATABASE_SLIENT"
+	dbSilentEnvVar      = "DATABASE_SILENT"
 	dbSSLModeEnvVar     = "DATABASE_SSLMODE"
 	defaultDBSSLMode    = "prefer"
 	dbURLEnvVar         = "DATABASE_URL"
@@ -141,7 +141,7 @@ func NewPostgresConfig(env trails.Environment) postgres.Config {
 		cfg = postgres.Config{
 			Host:      trails.EnvVarOrString(dbHostEnvVar, defaultDBHost),
 			IsTestDB:  false,
-			LogSilent: trails.EnvVarOrBool(dbSilentEnvVar, false),
+			LogSilent: trails.EnvVarOrBool(dbSilentEnvVar, true),
 			Name:      os.Getenv(dbNameEnvVar),
 			Password:  os.Getenv(dbPassEnvVar),
 			Port:      trails.EnvVarOrString(dbPortEnvVar, defaultDBPort),
@@ -152,7 +152,7 @@ func NewPostgresConfig(env trails.Environment) postgres.Config {
 	default:
 		cfg = postgres.Config{
 			IsTestDB:  false,
-			LogSilent: trails.EnvVarOrBool(dbSilentEnvVar, false),
+			LogSilent: trails.EnvVarOrBool(dbSilentEnvVar, true),
 			URL:       url,
 		}
 	}
