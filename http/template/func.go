@@ -3,8 +3,8 @@ package template
 import (
 	html "html/template"
 	"net/url"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/xy-planning-network/trails"
 )
 
@@ -37,7 +37,7 @@ func Env(e trails.Environment) (string, func() string) {
 // Nonce returns "nonce" as the name of the function for convenient passing to a template.FuncMap
 // and returns a function generating a uuid.
 func Nonce() (string, func() string) {
-	return "nonce", func() string { return uuid.NewString() }
+	return "nonce", func() string { return uuid.New().String() }
 }
 
 // RootUrl encloses the *url.URL representing the base URL of the web app.

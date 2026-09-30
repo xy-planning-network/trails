@@ -3,7 +3,7 @@ package postgres
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/json"
+	"encoding/json/jsontext"
 	"fmt"
 
 	"github.com/xy-planning-network/trails"
@@ -29,7 +29,7 @@ func (u Updates) StripNils() {
 			delete(u, k)
 
 		case datatypes.JSON:
-			if t == nil || bytes.Equal([]byte(t), []byte(datatypes.JSON(json.RawMessage(`null`)))) {
+			if t == nil || bytes.Equal([]byte(t), []byte(datatypes.JSON(jsontext.Value(`null`)))) {
 				delete(u, k)
 			}
 

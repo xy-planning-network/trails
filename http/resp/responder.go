@@ -3,7 +3,6 @@ package resp
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/go-json-experiment/jsonsplit"
 	"github.com/xy-planning-network/trails"
 	"github.com/xy-planning-network/trails/http/session"
 	"github.com/xy-planning-network/trails/http/template"
@@ -242,10 +242,16 @@ func (doer *Responder) Json(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	b.Reset()
 	defer doer.pool.Put(b)
 
-	if err := json.NewEncoder(b).Encode(payload); err != nil {
+	jsonsplit.GlobalCodec.Helper()
+	bb, err := jsonsplit.GlobalCodec.Marshal(payload)
+	if err != nil {
 		doer.Err(w, r, err)
 		return err
 	}
+
+	// TODO(dlk): revert to marshaling directly into b,
+	// which isn't an option for jsonsplit
+	b.Write(bb)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(rr.code)

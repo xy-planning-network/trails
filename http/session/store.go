@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"uuid"
 
-	"github.com/google/uuid"
 	gorilla "github.com/gorilla/sessions"
 	"github.com/xy-planning-network/trails"
 )
@@ -119,7 +119,7 @@ func NewStoreService(cfg Config) (Service, error) {
 func (s Service) GetSession(r *http.Request) (Session, error) {
 	session, err := s.store.Get(r, s.sn)
 	if _, ok := session.Values[trails.SessionIDKey]; !ok {
-		session.Values[trails.SessionIDKey] = uuid.NewString()
+		session.Values[trails.SessionIDKey] = uuid.New().String()
 	}
 
 	return Session{s: session}, err

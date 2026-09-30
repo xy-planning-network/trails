@@ -3,13 +3,11 @@ package logger
 import (
 	"bytes"
 	"encoding"
-	"encoding/json"
-	"fmt"
+	"encoding/json/v2"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/xy-planning-network/trails"
@@ -91,7 +89,6 @@ func (lc LogContext) MarshalText() ([]byte, error) {
 func (lc LogContext) String() string {
 	b, err := json.Marshal(lc)
 	if err != nil {
-		fmt.Println(err)
 		return ""
 	}
 	return string(b)
@@ -124,7 +121,6 @@ func (lc LogContext) toMap() map[string]any {
 		referer := header.Get("Referer")
 		header.Del("Referer")
 		if refURL, err := url.ParseRequestURI(referer); err == nil {
-			fmt.Fprintln(os.Stderr, refURL.String())
 			q := refURL.Query()
 			trails.Mask(q, "password")
 			refURL.RawQuery = q.Encode()
@@ -136,7 +132,7 @@ func (lc LogContext) toMap() map[string]any {
 			j := make(map[string]any)
 			b := new(bytes.Buffer)
 			tee := io.TeeReader(lc.Request.Body, b)
-			if err := json.NewDecoder(tee).Decode(&j); err == nil {
+			if err := json.UnmarshalRead(tee, &j); err == nil {
 				// FIXME(dlk): We may want to mask values in here.
 				// Or, not log them at all.
 				// There's a risk of reading the entire JSON blob as a blocking operation
