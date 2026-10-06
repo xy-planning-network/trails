@@ -3,8 +3,8 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/xy-planning-network/trails"
 )
 
@@ -14,7 +14,7 @@ import (
 func RequestID() Adapter {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := context.WithValue(r.Context(), trails.RequestIDKey, uuid.NewString())
+			ctx := context.WithValue(r.Context(), trails.RequestIDKey, uuid.New().String())
 			*r = *r.Clone(ctx)
 			h.ServeHTTP(w, r)
 		})

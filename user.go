@@ -1,6 +1,6 @@
 package trails
 
-import "github.com/google/uuid"
+import "uuid"
 
 // A User is the core entity that interacts with a trails application.
 //

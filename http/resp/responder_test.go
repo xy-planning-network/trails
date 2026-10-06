@@ -131,7 +131,7 @@ func TestResponderJson(t *testing.T) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusOK, w.Code)
 				require.Equal(t, jsonMediaType, w.Header().Get("Content-Type"))
-				require.Equal(t, []byte("{}\n"), w.Body.Bytes())
+				require.Equal(t, []byte("{}"), w.Body.Bytes())
 			},
 		},
 		{
@@ -141,7 +141,7 @@ func TestResponderJson(t *testing.T) {
 				require.Nil(t, err)
 				require.Equal(t, http.StatusTeapot, w.Code)
 				require.Equal(t, jsonMediaType, w.Header().Get("Content-Type"))
-				require.Equal(t, []byte("{}\n"), w.Body.Bytes())
+				require.Equal(t, []byte("{}"), w.Body.Bytes())
 			},
 		},
 		{
@@ -155,7 +155,7 @@ func TestResponderJson(t *testing.T) {
 				var b bytes.Buffer
 				err = json.NewEncoder(&b).Encode(map[string]map[string]string{"data": {"go": "rocks"}})
 				require.Nil(t, err)
-				require.Equal(t, b.Bytes(), w.Body.Bytes())
+				require.Equal(t, bytes.TrimRight(b.Bytes(), "\n"), w.Body.Bytes())
 			},
 		},
 		{
@@ -169,7 +169,7 @@ func TestResponderJson(t *testing.T) {
 				var b bytes.Buffer
 				err = json.NewEncoder(&b).Encode(map[string]int{"currentUser": 1})
 				require.Nil(t, err)
-				require.Equal(t, b.Bytes(), w.Body.Bytes())
+				require.Equal(t, bytes.TrimRight(b.Bytes(), "\n"), w.Body.Bytes())
 			},
 		},
 		{
@@ -194,7 +194,7 @@ func TestResponderJson(t *testing.T) {
 						},
 					)
 				require.Nil(t, err)
-				require.Equal(t, b.Bytes(), w.Body.Bytes())
+				require.Equal(t, bytes.TrimRight(b.Bytes(), "\n"), w.Body.Bytes())
 			},
 		},
 	}

@@ -1,8 +1,9 @@
 package trails
 
-import "maps"
-
-import "context"
+import (
+	"context"
+	"maps"
+)
 
 type Key string
 
