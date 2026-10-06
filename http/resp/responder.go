@@ -70,6 +70,8 @@ type Responder struct {
 
 		vueScripts string
 	}
+
+	jsonsplit *jsonsplit.Codec
 }
 
 // NewResponder constructs a *Responder using the ResponderOptFns passed in.
@@ -93,6 +95,8 @@ func NewResponder(opts ...ResponderOptFn) *Responder {
 			d.parser = d.parser.AddFn(template.RootUrl(d.rootUrl))
 		}
 	}
+
+	d.jsonsplit = newJSONsplit(d.logger)
 
 	return d
 }
@@ -242,8 +246,8 @@ func (doer *Responder) Json(w http.ResponseWriter, r *http.Request, opts ...Fn) 
 	b.Reset()
 	defer doer.pool.Put(b)
 
-	jsonsplit.GlobalCodec.Helper()
-	bb, err := jsonsplit.GlobalCodec.Marshal(payload)
+	doer.jsonsplit.Helper()
+	bb, err := doer.jsonsplit.Marshal(payload)
 	if err != nil {
 		doer.Err(w, r, err)
 		return err

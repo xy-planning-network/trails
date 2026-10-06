@@ -82,7 +82,7 @@ func (lc LogContext) LogValue() slog.Value { return slog.GroupValue(lc.attrs()..
 //
 // MarshalText implements [encoding.TextMarshaler].
 func (lc LogContext) MarshalText() ([]byte, error) {
-	return json.Marshal(lc.toMap())
+	return json.Marshal(lc.toMap(), json.Deterministic(true))
 }
 
 // String stringifies LogContext as a JSON representation of it.
