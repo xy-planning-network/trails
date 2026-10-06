@@ -14,7 +14,7 @@ func newJSONsplit(l logger.Logger) *jsonsplit.Codec {
 		ReportDifference: func(d jsonsplit.Difference) {
 			t := d.GoType
 			if tt, ok := d.GoValue.(jsonSchema); ok {
-				if ttt, ok := tt.D.(postgres.PagedData); ok {
+				if ttt, ok := tt.D.(postgres.PagedData); ok && ttt.Items != nil {
 					t = reflect.TypeOf(ttt.Items)
 					if t.Kind() == reflect.Slice {
 						t = t.Elem()
@@ -29,6 +29,11 @@ func newJSONsplit(l logger.Logger) *jsonsplit.Codec {
 				opts = append(opts, name)
 			}
 
+			var tName string
+			if t != nil {
+				tName = t.Name()
+			}
+
 			l.Warn(
 				"json-diff",
 				&logger.LogContext{
@@ -36,7 +41,7 @@ func newJSONsplit(l logger.Logger) *jsonsplit.Codec {
 						"caller":  d.Caller,
 						"func":    d.Func,
 						"options": opts,
-						"type":    t,
+						"type":    tName,
 					},
 				},
 			)
